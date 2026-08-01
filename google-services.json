@@ -1,0 +1,42 @@
+{
+  "project_info": {
+    "project_number": "51141270472",
+    "project_id": "simple-notes-39893",
+    "storage_bucket": "simple-notes-39893.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:51141270472:android:ce32129c217c7be7d4fefd",
+        "android_client_info": {
+          "package_name": "com.seuusuario.simplesnotes"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "51141270472-nen3t2ufsmb4rsdomkffr7avb7ftbair.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.seuusuario.simplesnotes",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+          }
+        },
+        {
+          "client_id": "51141270472-nen3t2ufsmb4rsdomkffr7avb7ftbair.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBxYXIW4r1ic1XeD8FlNpkNkWWATf1E2iY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
