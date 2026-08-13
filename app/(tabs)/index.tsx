@@ -503,9 +503,7 @@ export default function HomeScreen() {
         </Modal>
 
         {/* FAB Menu */}
-        <Animated.View pointerEvents={menuAberto ? 'auto' : 'none'} style={[styles.fabBackdrop, { opacity: animaMenu }]}>
-          <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={toggleMenu} />
-        </Animated.View>
+        <Animated.View pointerEvents="none" style={[styles.fabBackdrop, { opacity: animaMenu }]} />
         <View style={styles.fabWrapper}>
           {/* AJUSTE: Botão de ajuda condicional à configuração */}
           {(config.exibirAjudaFAB !== false) && (

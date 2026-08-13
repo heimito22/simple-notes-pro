@@ -14,7 +14,7 @@ const DIAS: Recorrencia[] = ['Uma vez', 'Diária', 'Segunda', 'Terça', 'Quarta'
 const TaskCard = ({ t, cores, onToggle, onDelete, isDone }: any) => (
   <MotiView
     from={{ opacity: 0, scale: 0.9, translateY: 15 }}
-    animate={{ opacity: isDone ? 0.6 : 1, scale: 1, translateY: 0 }}
+    animate={{ opacity: 1, scale: 1, translateY: 0 }}
     exit={{ opacity: 0, scale: 0.9, translateY: -15 }}
     transition={{ type: 'timing', duration: 250 }}
     style={[styles.card, { backgroundColor: cores.card, borderLeftColor: cores.primaria }]}
@@ -24,25 +24,25 @@ const TaskCard = ({ t, cores, onToggle, onDelete, isDone }: any) => (
         animate={{ scale: isDone ? [0.86, 1.12, 1] : 1 }}
         transition={{ type: 'spring', damping: 10, stiffness: 220 }}
       >
-      <View style={[
-        styles.customCheck, 
-        { 
-          borderColor: isDone ? cores.primaria : cores.subtexto, 
-          backgroundColor: isDone ? cores.primaria : 'transparent' 
-        }
-      ]}>
-        {isDone && <Ionicons name="checkmark" size={16} color="#FFF" />}
-      </View>
+        <View style={[
+          styles.customCheck,
+          {
+            borderColor: isDone ? cores.primaria : cores.subtexto,
+            backgroundColor: isDone ? cores.primaria : 'transparent'
+          }
+        ]}>
+          {isDone && <Ionicons name="checkmark" size={16} color="#FFF" />}
+        </View>
+      </MotiView>
       <View style={{ marginLeft: 15 }}>
         <Text style={[
-          styles.taskTxt, 
-          { color: cores.texto, textDecorationLine: isDone ? 'line-through' : 'none' }
+          styles.taskTxt,
+          { color: cores.texto, textDecorationLine: isDone ? 'line-through' : 'none', opacity: isDone ? 0.58 : 1 }
         ]}>
           {t.titulo}
         </Text>
-        <Text style={{ color: cores.subtexto, fontSize: 12 }}>{t.recorrencia} • {t.horario}</Text>
+        <Text style={{ color: cores.subtexto, fontSize: 12, opacity: isDone ? 0.75 : 1 }}>{t.recorrencia} • {t.horario}</Text>
       </View>
-      </MotiView>
     </TouchableOpacity>
     <TouchableOpacity onPress={() => onDelete(t.id)} style={styles.btnDelete} activeOpacity={0.7}>
       <Ionicons name="trash-outline" size={20} color="#FF453A" />
@@ -244,7 +244,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, paddingTop: 60 },
   tituloArea: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, marginBottom: 4 },
   tituloPagina: { fontSize: 34, fontWeight: '900', letterSpacing: -1.2 },
-  subtituloPagina: { fontSize: 14, fontWeight: '600', marginTop: -14 },
+  subtituloPagina: { fontSize: 14, fontWeight: '600', marginTop: -4 },
   progressoBadge: { flexDirection: 'row', alignItems: 'baseline', borderRadius: 18, borderWidth: 1, paddingHorizontal: 13, paddingVertical: 9 },
   progressoNumero: { fontSize: 22, fontWeight: '900' },
   progressoLabel: { fontSize: 14, fontWeight: '700' },
