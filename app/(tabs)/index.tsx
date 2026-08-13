@@ -3,11 +3,11 @@ import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { Directory, Paths } from 'expo-file-system';
 import * as Network from 'expo-network';
 import { useRouter } from 'expo-router';
+import { MotiView } from 'moti';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Animated,
-  Dimensions,
   Image,
   LayoutAnimation,
   Modal,
@@ -26,8 +26,6 @@ import { useNotas } from '../../context/NotasContext';
 import { useTheme } from '../../context/ThemeContext';
 import RichText from '../../components/rich-text';
 import AudioChip from '../../components/audio-chip';
-
-const { width } = Dimensions.get('window');
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -83,6 +81,7 @@ export default function HomeScreen() {
   const { isDark, config } = useTheme(); // AJUSTE: config adicionado
   
   const [busca, setBusca] = useState('');
+  const [buscaAtiva, setBuscaAtiva] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [modalContaVisible, setModalContaVisible] = useState(false);
   const [modalAjudaVisible, setModalAjudaVisible] = useState(false);
@@ -91,10 +90,11 @@ export default function HomeScreen() {
   const [menuAberto, setMenuAberto] = useState(false);
   const [isOffline, setIsOffline] = useState(false);
   // Se a foto do Google falhar ao carregar, mostra a inicial do nome no avatar
-  const [fotoFalhou, setFotoFalhou] = useState(false);
+  const [fotoFalhou, setFotoFalhou] = useState<string | null>(null);
   
   const swipeableRefs = useRef<Map<string, Swipeable>>(new Map());
-  const animaMenu = useRef(new Animated.Value(0)).current;
+  const animaMenu = useMemo(() => new Animated.Value(0), []);
+  const animaBusca = useMemo(() => new Animated.Value(0), []);
 
   useEffect(() => {
     const checarUsuario = async () => {
@@ -109,7 +109,6 @@ export default function HomeScreen() {
   }, []);
 
   useEffect(() => {
-    setFotoFalhou(false);
     if (user) {
       console.log("[Google] usuário conectado:", JSON.stringify({ name: user.name, email: user.email, photo: user.photo }));
     }
@@ -145,7 +144,7 @@ export default function HomeScreen() {
     card: isDark ? '#1C1C1E' : '#FFF',
     searchBar: isDark ? '#1C1C1E' : '#E5E5EA',
     placeholder: isDark ? '#666' : '#999',
-    borda: isDark ? 'transparent' : '#DDD',
+    borda: isDark ? '#2C2C2E' : '#DDD',
     botaoAdd: isDark ? '#BB86FC' : '#6200EE', 
     corIconeAdd: isDark ? '#000' : '#FFF',
     corLista: '#34C759',
@@ -175,6 +174,15 @@ export default function HomeScreen() {
     Animated.spring(animaMenu, { toValue, useNativeDriver: true, friction: 5, tension: 40 }).start();
     setMenuAberto(!menuAberto);
   };
+
+  useEffect(() => {
+    Animated.spring(animaBusca, {
+      toValue: buscaAtiva ? 1 : 0,
+      useNativeDriver: true,
+      friction: 9,
+      tension: 80,
+    }).start();
+  }, [buscaAtiva, animaBusca]);
 
   const handleTrocarConta = async () => {
     if (isOffline) {
@@ -292,11 +300,16 @@ export default function HomeScreen() {
         
         <View style={styles.header}>
           <View style={styles.topRow}>
-            <Text style={[styles.title, { color: cores.textoPrincipal }]}>Notas</Text>
+            <View style={styles.headerTitleBlock}>
+              <Text style={[styles.title, { color: cores.textoPrincipal }]}>Notas</Text>
+              <Text style={[styles.headerSubtitle, { color: cores.textoSecundario }]}>
+                {notasFiltradas.length === 0 ? 'Comece a organizar suas ideias' : `${notasFiltradas.length} itens salvos`}
+              </Text>
+            </View>
             <TouchableOpacity onPress={() => setModalContaVisible(true)} style={[styles.avatarBtn, { backgroundColor: user ? cores.botaoAdd : cores.searchBar, overflow: 'hidden' }]}>
               {user ? (
-                user.photo && !fotoFalhou ? (
-                  <Image source={{ uri: user.photo }} style={styles.avatarImg} onError={() => setFotoFalhou(true)} />
+                user.photo && fotoFalhou !== user.photo ? (
+                    <Image key={user.photo} source={{ uri: user.photo }} style={styles.avatarImg} onError={() => setFotoFalhou(user.photo)} />
                 ) : (
                   <View style={styles.avatarInicial}>
                     <Text style={styles.avatarInicialText}>{(user.name || user.email || '?').charAt(0).toUpperCase()}</Text>
@@ -308,29 +321,57 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
 
-          <View style={[styles.searchBar, { backgroundColor: cores.searchBar }]}>
-            <Ionicons name="search" size={20} color={cores.placeholder} style={{ marginLeft: 15 }} />
+          <Animated.View
+            style={[
+              styles.searchBar,
+              { backgroundColor: cores.searchBar },
+              buscaAtiva && { borderColor: cores.botaoAdd, borderWidth: 1.5 },
+              { transform: [{ scale: animaBusca.interpolate({ inputRange: [0, 1], outputRange: [1, 1.008] }) }] },
+            ]}
+          >
+            <Ionicons name="search" size={20} color={buscaAtiva ? cores.botaoAdd : cores.placeholder} style={{ marginLeft: 15 }} />
             <TextInput 
               placeholder="Procurar em suas notas..." 
               placeholderTextColor={cores.placeholder}
               style={[styles.searchInput, { color: cores.textoPrincipal }]}
               value={busca}
+              onFocus={() => setBuscaAtiva(true)}
+              onBlur={() => setBuscaAtiva(false)}
               onChangeText={setBusca}
             />
-          </View>
+            {busca.length > 0 && (
+              <TouchableOpacity onPress={() => setBusca('')} style={styles.clearSearchButton} hitSlop={8}>
+                <Ionicons name="close-circle" size={19} color={cores.placeholder} />
+              </TouchableOpacity>
+            )}
+          </Animated.View>
         </View>
 
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} scrollEnabled={!estaAbrindo}>
           {notasFiltradas.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Ionicons name="pencil-outline" size={80} color={isDark ? "#1C1C1E" : "#D1D1D6"} />
-              <Text style={[styles.emptyText, { color: cores.textoSecundario }]}>Nenhuma nota encontrada</Text>
-            </View>
+            <MotiView
+              from={{ opacity: 0, scale: 0.9, translateY: 12 }}
+              animate={{ opacity: 1, scale: 1, translateY: 0 }}
+              transition={{ type: 'spring', damping: 16, stiffness: 120 }}
+              style={styles.emptyState}
+            >
+              <View style={[styles.emptyIconCircle, { backgroundColor: isDark ? '#17131F' : '#EDE7F6' }]}>
+                <Ionicons name="pencil-outline" size={42} color={cores.botaoAdd} />
+              </View>
+              <Text style={[styles.emptyText, { color: cores.textoPrincipal }]}>Nenhuma nota encontrada</Text>
+              <Text style={[styles.emptyHint, { color: cores.textoSecundario }]}>Toque no + para criar sua primeira nota</Text>
+            </MotiView>
           ) : (
             notasFiltradas.map((item: any) => {
               const anexos = extrairAnexos(item.conteudo);
               return (
-              <View key={item.id} style={[styles.cardContainer, { opacity: estaAbrindo ? 0.7 : 1, borderColor: cores.borda, borderWidth: isDark ? 0 : 1 }]}>
+              <MotiView
+                key={item.id}
+                from={{ opacity: 0, translateY: 16, scale: 0.97 }}
+                animate={{ opacity: estaAbrindo ? 0.7 : 1, translateY: 0, scale: 1 }}
+                transition={{ type: 'spring', damping: 18, stiffness: 150, delay: Math.min(notasFiltradas.indexOf(item) * 45, 240) }}
+                style={[styles.cardContainer, { borderColor: cores.borda, borderWidth: 1 }]}
+              >
                 <Swipeable
                   ref={(ref) => { if (ref) swipeableRefs.current.set(item.id, ref); }}
                   onSwipeableWillOpen={() => aoAbrirSwipe(item.id)}
@@ -377,7 +418,7 @@ export default function HomeScreen() {
                     <Ionicons name={item.tipoItem === 'lista' ? "list" : "chevron-forward"} size={20} color={cores.textoSecundario} />
                   </TouchableOpacity>
                 </Swipeable>
-              </View>
+              </MotiView>
               );
             })
           )}
@@ -462,6 +503,9 @@ export default function HomeScreen() {
         </Modal>
 
         {/* FAB Menu */}
+        <Animated.View pointerEvents={menuAberto ? 'auto' : 'none'} style={[styles.fabBackdrop, { opacity: animaMenu }]}>
+          <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={toggleMenu} />
+        </Animated.View>
         <View style={styles.fabWrapper}>
           {/* AJUSTE: Botão de ajuda condicional à configuração */}
           {(config.exibirAjudaFAB !== false) && (
@@ -501,16 +545,19 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   header: { paddingTop: 60, paddingHorizontal: 25, marginBottom: 10 },
   topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  title: { fontSize: 38, fontWeight: '900' },
+  headerTitleBlock: { flex: 1 },
+  title: { fontSize: 38, fontWeight: '900', letterSpacing: -1.2 },
+  headerSubtitle: { fontSize: 13, marginTop: 3, fontWeight: '600' },
   avatarBtn: { width: 46, height: 46, borderRadius: 23, justifyContent: 'center', alignItems: 'center' },
   avatarImg: { width: 46, height: 46, borderRadius: 23 },
   avatarInicial: { flex: 1, width: '100%', alignItems: 'center', justifyContent: 'center' },
   avatarInicialText: { color: '#FFF', fontSize: 20, fontWeight: '800' },
-  searchBar: { height: 55, borderRadius: 18, flexDirection: 'row', alignItems: 'center' },
+  searchBar: { height: 55, borderRadius: 18, flexDirection: 'row', alignItems: 'center', borderWidth: 1.5, borderColor: 'transparent' },
   searchInput: { flex: 1, fontSize: 17, paddingHorizontal: 15 },
+  clearSearchButton: { paddingRight: 14 },
   scrollContent: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 150 },
-  cardContainer: { marginBottom: 15, borderRadius: 25, overflow: 'hidden' },
-  cardNota: { padding: 22, flexDirection: 'row', alignItems: 'center', minHeight: 100 },
+  cardContainer: { marginBottom: 15, borderRadius: 22, overflow: 'hidden' },
+  cardNota: { padding: 20, flexDirection: 'row', alignItems: 'center', minHeight: 100 },
   corLateral: { width: 6, height: '100%', borderRadius: 10, marginRight: 15 },
   textosCard: { flex: 1 },
   cardTitulo: { fontSize: 20, fontWeight: 'bold', marginBottom: 5 },
@@ -518,16 +565,19 @@ const styles = StyleSheet.create({
   linhaAnexo: { flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 8 },
   thumbAnexo: { width: 52, height: 52, borderRadius: 14, backgroundColor: '#E5E5EA' },
   botaoSwipe: { width: 90, justifyContent: 'center', alignItems: 'center' },
-  emptyState: { alignItems: 'center', marginTop: 100 },
-  emptyText: { fontSize: 18, marginTop: 15, fontWeight: '600' },
-  fabWrapper: { position: 'absolute', bottom: 40, right: 30, alignItems: 'center' },
+  emptyState: { alignItems: 'center', marginTop: 92, paddingHorizontal: 24 },
+  emptyIconCircle: { width: 88, height: 88, borderRadius: 44, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+  emptyText: { fontSize: 19, marginTop: 2, fontWeight: '800' },
+  emptyHint: { fontSize: 14, marginTop: 8, textAlign: 'center' },
+  fabBackdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.42)', zIndex: 4 },
+  fabWrapper: { position: 'absolute', bottom: 40, right: 30, alignItems: 'center', zIndex: 5 },
   botaoPrincipal: { 
     width: 70, height: 70, borderRadius: 35, 
     justifyContent: 'center', alignItems: 'center', elevation: 10,
-    shadowOpacity: 0.3, shadowRadius: 10, shadowOffset: { width: 0, height: 5 }
+    shadowColor: '#BB86FC', shadowOpacity: 0.42, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }
   },
   miniBotaoWrap: { position: 'absolute' },
-  miniBotao: { width: 55, height: 55, borderRadius: 27.5, justifyContent: 'center', alignItems: 'center', elevation: 5 },
+  miniBotao: { width: 55, height: 55, borderRadius: 27.5, justifyContent: 'center', alignItems: 'center', elevation: 7, shadowColor: '#000', shadowOpacity: 0.22, shadowRadius: 8, shadowOffset: { width: 0, height: 3 } },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
   modalContent: { width: '85%', borderRadius: 30, padding: 25, elevation: 20 },
   userInfoSection: { alignItems: 'center', marginBottom: 10 },

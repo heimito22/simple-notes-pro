@@ -17,9 +17,13 @@ const TaskCard = ({ t, cores, onToggle, onDelete, isDone }: any) => (
     animate={{ opacity: isDone ? 0.6 : 1, scale: 1, translateY: 0 }}
     exit={{ opacity: 0, scale: 0.9, translateY: -15 }}
     transition={{ type: 'timing', duration: 250 }}
-    style={[styles.card, { backgroundColor: cores.card }]}
+    style={[styles.card, { backgroundColor: cores.card, borderLeftColor: cores.primaria }]}
   >
-    <TouchableOpacity style={styles.checkArea} onPress={() => onToggle(t.id)}>
+    <TouchableOpacity style={styles.checkArea} onPress={() => onToggle(t.id)} activeOpacity={0.75}>
+      <MotiView
+        animate={{ scale: isDone ? [0.86, 1.12, 1] : 1 }}
+        transition={{ type: 'spring', damping: 10, stiffness: 220 }}
+      >
       <View style={[
         styles.customCheck, 
         { 
@@ -38,8 +42,9 @@ const TaskCard = ({ t, cores, onToggle, onDelete, isDone }: any) => (
         </Text>
         <Text style={{ color: cores.subtexto, fontSize: 12 }}>{t.recorrencia} • {t.horario}</Text>
       </View>
+      </MotiView>
     </TouchableOpacity>
-    <TouchableOpacity onPress={() => onDelete(t.id)} style={styles.btnDelete}>
+    <TouchableOpacity onPress={() => onDelete(t.id)} style={styles.btnDelete} activeOpacity={0.7}>
       <Ionicons name="trash-outline" size={20} color="#FF453A" />
     </TouchableOpacity>
   </MotiView>
@@ -83,6 +88,9 @@ export default function TarefasScreen() {
     };
   }, [tarefas]);
 
+  const totalTarefas = tarefas?.length || 0;
+  const progresso = totalTarefas > 0 ? concluidas.length / totalTarefas : 0;
+
   const handleAdicionar = useCallback(() => {
     if (novoTitulo.trim()) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -101,7 +109,29 @@ export default function TarefasScreen() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <View style={[styles.container, { backgroundColor: cores.fundo }]}>
         
-        <Text style={[styles.tituloPagina, { color: cores.texto }]}>Tarefas</Text>
+        <View style={styles.tituloArea}>
+          <View>
+            <Text style={[styles.tituloPagina, { color: cores.texto }]}>Tarefas</Text>
+            <Text style={[styles.subtituloPagina, { color: cores.subtexto }]}>Um passo de cada vez</Text>
+          </View>
+          <MotiView
+            from={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ type: 'spring', damping: 14, stiffness: 150 }}
+            style={[styles.progressoBadge, { backgroundColor: cores.card, borderColor: cores.borda }]}
+          >
+            <Text style={[styles.progressoNumero, { color: cores.primaria }]}>{concluidas.length}</Text>
+            <Text style={[styles.progressoLabel, { color: cores.subtexto }]}>/{totalTarefas || 0}</Text>
+          </MotiView>
+        </View>
+
+        <View style={[styles.progressoTrack, { backgroundColor: cores.borda }]}>
+          <MotiView
+            animate={{ width: `${Math.max(progresso * 100, totalTarefas === 0 ? 0 : 4)}%` }}
+            transition={{ type: 'timing', duration: 450 }}
+            style={[styles.progressoFill, { backgroundColor: cores.primaria }]}
+          />
+        </View>
 
         <View style={styles.inputSection}>
           <View style={[styles.inputContainer, { backgroundColor: cores.card, borderColor: cores.borda }]}>
@@ -212,7 +242,14 @@ export default function TarefasScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, paddingTop: 60 },
-  tituloPagina: { fontSize: 34, fontWeight: '900', marginLeft: 20, marginBottom: 20, letterSpacing: -1 },
+  tituloArea: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, marginBottom: 4 },
+  tituloPagina: { fontSize: 34, fontWeight: '900', letterSpacing: -1.2 },
+  subtituloPagina: { fontSize: 14, fontWeight: '600', marginTop: -14 },
+  progressoBadge: { flexDirection: 'row', alignItems: 'baseline', borderRadius: 18, borderWidth: 1, paddingHorizontal: 13, paddingVertical: 9 },
+  progressoNumero: { fontSize: 22, fontWeight: '900' },
+  progressoLabel: { fontSize: 14, fontWeight: '700' },
+  progressoTrack: { height: 5, borderRadius: 3, marginHorizontal: 20, marginBottom: 18, overflow: 'hidden' },
+  progressoFill: { height: '100%', borderRadius: 3, minWidth: 0 },
   inputSection: { paddingHorizontal: 16, marginBottom: 15 },
   inputContainer: { flexDirection: 'row', alignItems: 'center', padding: 8, borderRadius: 22, borderWidth: 1.5 },
   input: { flex: 1, fontSize: 17, paddingLeft: 12 },
@@ -224,7 +261,7 @@ const styles = StyleSheet.create({
   headerConcluidas: { flexDirection: 'row', alignItems: 'center', marginTop: 25, marginBottom: 15 },
   linhaDivisora: { flex: 1, height: 1, marginLeft: 10, opacity: 0.3 },
   secaoTitulo: { fontSize: 12, fontWeight: '800', letterSpacing: 1 },
-  card: { flexDirection: 'row', alignItems: 'center', padding: 16, borderRadius: 20, marginBottom: 10, elevation: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 5 },
+  card: { flexDirection: 'row', alignItems: 'center', padding: 16, borderRadius: 20, marginBottom: 10, borderLeftWidth: 3, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.08, shadowRadius: 7 },
   checkArea: { flexDirection: 'row', alignItems: 'center', flex: 1 },
   customCheck: { width: 28, height: 28, borderRadius: 10, borderWidth: 2, justifyContent: 'center', alignItems: 'center' },
   taskTxt: { fontSize: 17, fontWeight: '600', marginBottom: 2 },

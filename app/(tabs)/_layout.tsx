@@ -139,15 +139,22 @@ export default function TabLayout() {
     <Tabs screenOptions={{
       headerShown: false,
       tabBarStyle: {
-        backgroundColor: isDark ? '#000' : '#FFF',
+        backgroundColor: isDark ? '#09090B' : '#FFF',
         borderTopWidth: 1,
-        borderTopColor: isDark ? '#1C1C1E' : '#EEE',
-        height: 75,
-        paddingBottom: 15,
-        paddingTop: 10,
+        borderTopColor: isDark ? '#242229' : '#E7E5EC',
+        height: 78,
+        paddingBottom: 14,
+        paddingTop: 9,
+        elevation: 14,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: -4 },
+        shadowOpacity: isDark ? 0.35 : 0.1,
+        shadowRadius: 12,
       },
-      tabBarActiveTintColor: isDark ? '#BB86FC' : '#6200EE',
-      tabBarInactiveTintColor: isDark ? '#666' : '#999',
+      tabBarItemStyle: { borderRadius: 18, marginHorizontal: 8 },
+      tabBarLabelStyle: { fontSize: 12, fontWeight: '700', marginTop: 1 },
+      tabBarActiveTintColor: isDark ? '#D2A6FF' : '#6200EE',
+      tabBarInactiveTintColor: isDark ? '#77747F' : '#8E8E93',
     }}>
       <Tabs.Screen name="index" options={{ title: 'Notas', tabBarIcon: ({ color, size }) => <Ionicons name="document-text" size={size} color={color} /> }} />
       <Tabs.Screen name="tarefas" options={{ title: 'Tarefas', tabBarIcon: ({ color, size }) => <Ionicons name="list" size={size} color={color} /> }} />
