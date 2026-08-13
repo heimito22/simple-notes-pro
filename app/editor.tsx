@@ -84,7 +84,7 @@ const BolhaChatAnimada = ({ m, isUsuario, tema }: any) => {
             <Text
                 style={[
                     styles.bolhaChatTexto,
-                    isUsuario ? { color: '#FFF' } : { color: m.erro ? '#FF6B6B' : tema.sheetTitulo },
+                    isUsuario ? { color: tema.onPrimary } : { color: m.erro ? tema.danger : tema.sheetTitulo },
                 ]}
             >
                 {m.texto}
@@ -252,6 +252,7 @@ export default function EditorScreen() {
         placeholder: paleta.placeholder,
         toolbar: paleta.surface,
         accent: paleta.primary,
+        primarySoft: paleta.primarySoft,
         // Modal do lembrete (tema claro/escuro)
         sheetFundo: paleta.background,
         sheetBorda: paleta.border,
@@ -267,6 +268,8 @@ export default function EditorScreen() {
         opcaoBorda: paleta.border,
         opcaoLabel: paleta.text,
         removerFundo: paleta.dangerSoft,
+        onPrimary: paleta.onPrimary,
+        danger: paleta.danger,
     };
 
     // O teclado é tratado do jeito certo: no Android o editor é uma tela modal
@@ -750,12 +753,12 @@ export default function EditorScreen() {
 
     const aplicarFormato = (cmd: string) => editorRef.current?.execCommand(cmd);
 
-    const corAtiva = isDark ? 'rgba(187,134,252,0.28)' : 'rgba(98,0,238,0.13)';
-    const estiloAtivo = (ativo: boolean) => (ativo ? { backgroundColor: corAtiva, borderRadius: 10 } : null);
+    const corAtiva = tema.primarySoft;
+    const estiloAtivo = (ativo: boolean) => (ativo ? { backgroundColor: corAtiva, borderColor: tema.accent } : null);
     const corBotao = (ativo: boolean) => (ativo ? tema.accent : tema.texto);
 
     const renderToolbar = () => (
-        <View style={[styles.toolbarWrapper, { backgroundColor: tema.toolbar }]}>
+        <View style={[styles.toolbarWrapper, { backgroundColor: tema.toolbar, borderColor: tema.sheetBorda }]}>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.toolbarScroll}>
                 <TouchableOpacity onPress={() => aplicarFormato('bold')} style={[styles.btnToolbarExtra, estiloAtivo(fmt.bold)]}>
                     <MaterialCommunityIcons name="format-bold" size={22} color={corBotao(fmt.bold)} />
@@ -806,54 +809,55 @@ export default function EditorScreen() {
             keyboardVerticalOffset={0}
         >
             {gravando && (
-                <View style={styles.statusGravando}>
-                    <ActivityIndicator size="small" color="#FFF" />
+                <View style={[styles.statusGravando, { backgroundColor: tema.danger }]}>
+                    <ActivityIndicator size="small" color={tema.onPrimary} />
                     <Text style={styles.txtGravando}>Gravando...</Text>
                 </View>
             )}
 
             <View style={styles.navBar}>
                 <TouchableOpacity
-                    style={styles.btnVoltar}
+                    style={[styles.btnVoltar, { backgroundColor: tema.toolbar }]}
                     onPress={() => editando ? finalizarESalvar() : router.back()}
                 >
                     <Ionicons name="chevron-back" size={32} color={tema.accent} />
                     <Text style={[styles.txtVoltar, { color: tema.accent }]}>Notas</Text>
                 </TouchableOpacity>
 
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <TouchableOpacity onPress={abrirIA} style={{ marginRight: 18 }} activeOpacity={0.7}>
-                        <Ionicons name="sparkles" size={24} color={tema.accent} />
+                <View style={styles.navActions}>
+                    <TouchableOpacity onPress={abrirIA} style={[styles.navIconButton, { backgroundColor: tema.toolbar }]} activeOpacity={0.7}>
+                        <Ionicons name="sparkles" size={21} color={tema.accent} />
                     </TouchableOpacity>
                     {editando && (
-                        <TouchableOpacity onPress={abrirModalLembrete} style={{ marginRight: 20 }}>
+                        <TouchableOpacity onPress={abrirModalLembrete} style={[styles.navIconButton, { backgroundColor: tema.toolbar }]} activeOpacity={0.7}>
                             <Ionicons
                                 name={notaExistente?.lembrete ? "notifications" : "notifications-outline"}
-                                size={26}
+                                size={22}
                                 color={notaExistente?.lembrete ? tema.accent : tema.placeholder}
                             />
                         </TouchableOpacity>
                     )}
                     {(config && config.protegerNotasIndividuais === true) && editando && (
-                        <TouchableOpacity onPress={handleToggleProtecao} style={{ marginRight: 20 }}>
+                        <TouchableOpacity onPress={handleToggleProtecao} style={[styles.navIconButton, { backgroundColor: tema.toolbar }]} activeOpacity={0.7}>
                             <Ionicons
                                 name={protegida ? "lock-closed" : "lock-open-outline"}
-                                size={26}
+                                size={22}
                                 color={protegida ? tema.accent : tema.placeholder}
                             />
                         </TouchableOpacity>
                     )}
                     {editando ? (
-                        <TouchableOpacity onPress={finalizarESalvar} style={styles.btnProntoSuperior}>
-                            <Text style={[styles.txtProntoSuperior, { color: tema.accent }]}>Pronto</Text>
+                        <TouchableOpacity onPress={finalizarESalvar} style={[styles.btnProntoSuperior, { backgroundColor: tema.accent }]} activeOpacity={0.8}>
+                            <Text style={[styles.txtProntoSuperior, { color: tema.onPrimary }]}>Pronto</Text>
                         </TouchableOpacity>
                     ) : (
                         <TouchableOpacity
                             onPress={() => setEditando(true)}
-                            style={[styles.btnProntoSuperior, { flexDirection: 'row', alignItems: 'center' }]}
+                            style={[styles.btnProntoSuperior, { backgroundColor: tema.accent, flexDirection: 'row', alignItems: 'center' }]}
+                            activeOpacity={0.8}
                         >
-                            <Ionicons name="pencil" size={18} color={tema.accent} />
-                            <Text style={[styles.txtProntoSuperior, { color: tema.accent, marginLeft: 5 }]}>Editar</Text>
+                            <Ionicons name="pencil" size={17} color={tema.onPrimary} />
+                            <Text style={[styles.txtProntoSuperior, { color: tema.onPrimary, marginLeft: 5 }]}>Editar</Text>
                         </TouchableOpacity>
                     )}
                 </View>
@@ -874,7 +878,7 @@ export default function EditorScreen() {
                         opacity: animaLembreteRow,
                         transform: [{ translateY: animaLembreteRow.interpolate({ inputRange: [0, 1], outputRange: [-8, 0] }) }],
                     }}>
-                        <TouchableOpacity style={styles.lembreteRow} onPress={params.id ? abrirModalLembrete : undefined} activeOpacity={0.7}>
+                        <TouchableOpacity style={[styles.lembreteRow, { backgroundColor: tema.chipFundo, borderColor: tema.chipBorda }]} onPress={params.id ? abrirModalLembrete : undefined} activeOpacity={0.7}>
                             <Ionicons name="notifications" size={14} color={tema.accent} />
                             <Text style={[styles.lembreteTexto, { color: tema.accent }]} numberOfLines={1}>
                                 {resumoLembrete(notaExistente.lembrete)}
@@ -946,7 +950,7 @@ export default function EditorScreen() {
                                 { translateY: animaSeta.interpolate({ inputRange: [0, 1], outputRange: [-10, 0] }) },
                                 { translateY: animaHop.interpolate({ inputRange: [0, 1], outputRange: [0, 4] }) },
                             ] }}>
-                                <Ionicons name="arrow-down" size={22} color="#FFF" />
+                                <Ionicons name="arrow-down" size={22} color={tema.onPrimary} />
                             </Animated.View>
                         </TouchableOpacity>
                     </Animated.View>
@@ -994,7 +998,7 @@ export default function EditorScreen() {
                                     onPress={() => mudarTipoLembrete(m)}
                                     activeOpacity={0.7}
                                 >
-                                    <Text style={[styles.modoChipTexto, { color: rTipo === m ? '#FFF' : tema.chipTextoInativo }]}>
+                                    <Text style={[styles.modoChipTexto, { color: rTipo === m ? tema.onPrimary : tema.chipTextoInativo }]}>
                                         {m === 'data' ? 'Data' : m === 'dias' ? 'A cada X dias' : 'Dias da semana'}
                                     </Text>
                                 </TouchableOpacity>
@@ -1078,7 +1082,7 @@ export default function EditorScreen() {
                                     onPress={() => mudarDiasLembrete(n)}
                                     activeOpacity={0.7}
                                 >
-                                        <Text style={[styles.chipTexto, { color: rDias === n ? '#FFF' : tema.chipTextoInativo }]}>{n}d</Text>
+                                        <Text style={[styles.chipTexto, { color: rDias === n ? tema.onPrimary : tema.chipTextoInativo }]}>{n}d</Text>
                                     </TouchableOpacity>
                                 ))}
                             </View>
@@ -1099,7 +1103,7 @@ export default function EditorScreen() {
                                             onPress={() => alternarDia(dia)}
                                             activeOpacity={0.7}
                                         >
-                                            <Text style={[styles.chipTexto, { color: ativo ? '#FFF' : tema.chipTextoInativo }]}>{dia}</Text>
+                                            <Text style={[styles.chipTexto, { color: ativo ? tema.onPrimary : tema.chipTextoInativo }]}>{dia}</Text>
                                         </TouchableOpacity>
                                     );
                                 })}
@@ -1122,7 +1126,7 @@ export default function EditorScreen() {
                                 onPress={salvarLembrete}
                                 activeOpacity={0.8}
                             >
-                                <Ionicons name="checkmark" size={18} color="#FFF" />
+                                <Ionicons name="checkmark" size={18} color={tema.onPrimary} />
                                 <Text style={styles.botaoSalvarTexto}>Salvar</Text>
                             </TouchableOpacity>
                         </View>
@@ -1185,7 +1189,7 @@ export default function EditorScreen() {
                                     onPress={() => { setModalIAAberto(false); router.navigate('/settings'); }}
                                     activeOpacity={0.8}
                                 >
-                                    <Ionicons name="settings-outline" size={18} color="#FFF" />
+                                    <Ionicons name="settings-outline" size={18} color={tema.onPrimary} />
                                     <Text style={styles.botaoSalvarTexto}>Ir para Ajustes</Text>
                                 </TouchableOpacity>
                             </View>
@@ -1227,7 +1231,7 @@ export default function EditorScreen() {
                                     />
                                     <Animated.View style={{ transform: [{ scale: animaEnviarIA }] }}>
                                         <TouchableOpacity style={[styles.botaoPerguntar, { backgroundColor: tema.accent, opacity: chatPensando ? 0.5 : 1 }]} onPress={fazerPerguntaIA} activeOpacity={0.8} disabled={chatPensando}>
-                                            <Ionicons name="arrow-forward" size={20} color="#FFF" />
+                                            <Ionicons name="arrow-forward" size={20} color={tema.onPrimary} />
                                         </TouchableOpacity>
                                     </Animated.View>
                                 </View>
@@ -1235,7 +1239,7 @@ export default function EditorScreen() {
                         ) : (
                             <View>
                                 <TouchableOpacity style={[styles.botaoSalvar, { backgroundColor: tema.accent, marginBottom: 16 }]} onPress={gerarResumoIA} activeOpacity={0.8} disabled={resumoPensando}>
-                                    <Ionicons name="document-text-outline" size={18} color="#FFF" />
+                                    <Ionicons name="document-text-outline" size={18} color={tema.onPrimary} />
                                     <Text style={styles.botaoSalvarTexto}>{resumoPensando ? 'Resumindo…' : 'Gerar resumo com IA'}</Text>
                                 </TouchableOpacity>
                                 {resumoIA && (
@@ -1255,27 +1259,30 @@ export default function EditorScreen() {
 
 const styles = StyleSheet.create({
     container: { flex: 1, paddingTop: 50 },
-    navBar: { flexDirection: 'row', paddingHorizontal: 8, marginBottom: 5, justifyContent: 'space-between', alignItems: 'center', height: 50 },
-    btnVoltar: { flexDirection: 'row', alignItems: 'center', marginLeft: -4 },
-    txtVoltar: { fontSize: 18, fontWeight: '400', marginLeft: -6 },
-    btnProntoSuperior: { paddingHorizontal: 12 },
-    txtProntoSuperior: { fontSize: 18, fontWeight: 'bold' },
-    inputTitulo: { fontSize: 32, fontWeight: '900', marginHorizontal: 25, paddingVertical: 10 },
+    navBar: { flexDirection: 'row', paddingHorizontal: 14, marginBottom: 8, justifyContent: 'space-between', alignItems: 'center', height: 58, borderBottomWidth: 1, borderBottomColor: 'rgba(128,128,128,0.16)' },
+    btnVoltar: { flexDirection: 'row', alignItems: 'center', paddingRight: 12, paddingLeft: 4, height: 40, borderRadius: 14 },
+    txtVoltar: { fontSize: 16, fontWeight: '700', marginLeft: -4 },
+    navActions: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+    navIconButton: { width: 40, height: 40, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
+    btnProntoSuperior: { minWidth: 72, height: 40, borderRadius: 14, paddingHorizontal: 13, justifyContent: 'center', alignItems: 'center' },
+    txtProntoSuperior: { fontSize: 15, fontWeight: '800' },
+    inputTitulo: { fontSize: 31, fontWeight: '900', marginHorizontal: 25, paddingTop: 12, paddingBottom: 8, letterSpacing: -0.7 },
     inputConteudo: { flex: 1, minHeight: 300 },
     toolbarWrapper: {
-        height: 55,
-        borderRadius: 28,
-        marginHorizontal: 15,
-        marginBottom: 10,
+        height: 58,
+        borderRadius: 20,
+        marginHorizontal: 16,
+        marginBottom: 12,
         justifyContent: 'center',
+        borderWidth: 1,
         elevation: 6,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 3 },
         shadowOpacity: 0.25,
         shadowRadius: 5
     },
-    toolbarScroll: { alignItems: 'center', paddingHorizontal: 12, gap: 4 },
-    btnToolbarExtra: { width: 40, height: 44, justifyContent: 'center', alignItems: 'center' },
+    toolbarScroll: { alignItems: 'center', paddingHorizontal: 10, gap: 5 },
+    btnToolbarExtra: { width: 42, height: 42, borderRadius: 13, borderWidth: 1, borderColor: 'transparent', justifyContent: 'center', alignItems: 'center' },
     divisorToolbar: { width: 1, height: 26, backgroundColor: 'rgba(128,128,128,0.4)', marginHorizontal: 6 },
     loadingOverlay: {
         position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
@@ -1295,7 +1302,7 @@ const styles = StyleSheet.create({
         elevation: 10,
     },
     txtGravando: { color: '#FFF', fontWeight: 'bold', marginLeft: 8 },
-    lembreteRow: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 25, marginBottom: 10, gap: 6 },
+    lembreteRow: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', marginHorizontal: 25, marginBottom: 12, paddingHorizontal: 10, paddingVertical: 7, borderRadius: 12, borderWidth: 1, gap: 6 },
     lembreteTexto: { fontSize: 13, fontWeight: '700' },
     modalFundo: { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'flex-end' },
     modalDismiss: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
@@ -1313,16 +1320,16 @@ const styles = StyleSheet.create({
     sheetTitulo: { fontSize: 21, fontWeight: '800' },
     sheetSub: { fontSize: 12.5, marginTop: 4 },
     botaoFechar: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', marginLeft: 12 },
-    modoRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
-    modoChip: { flex: 1, paddingVertical: 10, borderRadius: 12, borderWidth: 1, alignItems: 'center' },
+    modoRow: { flexDirection: 'row', gap: 8, marginBottom: 16 },
+    modoChip: { flex: 1, minHeight: 42, paddingVertical: 10, paddingHorizontal: 6, borderRadius: 14, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
     modoChipTexto: { fontSize: 12.5, fontWeight: '700' },
     opcaoRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        borderRadius: 14,
+        borderRadius: 16,
         borderWidth: 1,
-        paddingVertical: 14,
-        paddingHorizontal: 14,
+        paddingVertical: 15,
+        paddingHorizontal: 15,
         marginBottom: 10,
         gap: 10,
     },
@@ -1338,7 +1345,7 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     chipTexto: { fontSize: 14, fontWeight: '700' },
-    botaoSalvar: { height: 50, borderRadius: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+    botaoSalvar: { height: 52, borderRadius: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, elevation: 2 },
     botaoSalvarTexto: { color: '#FFF', fontSize: 16, fontWeight: '800' },
     perguntaInput: {
         flex: 1,
@@ -1348,7 +1355,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 14,
         fontSize: 15,
     },
-    botaoPerguntar: { width: 48, height: 48, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+    botaoPerguntar: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center', elevation: 2 },
     botaoFim: {
         position: 'absolute',
         right: 18,
