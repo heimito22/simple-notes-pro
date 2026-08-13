@@ -3,15 +3,25 @@ import * as LocalAuthentication from 'expo-local-authentication';
 import { Tabs } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import { AppState, AppStateStatus, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { alarmeEstado } from '../../context/alarme-estado';
+import { bloqueioEstado } from '../../context/bloqueio-estado';
 import { useTheme } from '../../context/ThemeContext';
 
 export default function TabLayout() {
   const { isDark, config } = useTheme();
 
   // --- LÓGICA DE BLOQUEIO ---
+  // "autenticado" = o usuário desbloqueou nesta sessão. A tela de bloqueio é DERIVADA:
+  // aparece sempre que a biometria está ativa e o usuário ainda não autenticou.
   const appState = useRef(AppState.currentState);
-  const [estaBloqueado, setEstaBloqueado] = useState(false);
+  const [autenticado, setAutenticado] = useState(false);
   const tempoSaida = useRef<number | null>(null);
+  const autenticadoRef = useRef(false);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    autenticadoRef.current = autenticado;
+  }, [autenticado]);
 
   const cores = {
     fundo: isDark ? '#000' : '#F2F2F7',
@@ -25,7 +35,7 @@ export default function TabLayout() {
     const cadastrado = await LocalAuthentication.isEnrolledAsync();
 
     if (!compativel || !cadastrado) {
-      setEstaBloqueado(false);
+      setAutenticado(true);
       return;
     }
 
@@ -36,46 +46,74 @@ export default function TabLayout() {
     });
 
     if (res.success) {
-      setEstaBloqueado(false);
+      setAutenticado(true);
       tempoSaida.current = null;
     }
   };
 
   useEffect(() => {
+    // Com biometria ativa o app abre BLOQUEADO (autenticado=false → tela de bloqueio
+    // derivada). Só pede biometria se NENHUM alarme estiver na frente — o alarme é
+    // visível sem desbloquear; ao fechar, o subscribe abaixo pede a biometria.
     if (config?.exigirBiometriaApp) {
-      setEstaBloqueado(true);
-      autenticar();
+      timeoutRef.current = setTimeout(() => {
+        if (!alarmeEstado.ativo && !autenticadoRef.current) autenticar();
+      }, 600);
     }
 
     const subscription = AppState.addEventListener('change', (nextState: AppStateStatus) => {
       if (!config?.exigirBiometriaApp) return;
 
       if (appState.current.match(/active/) && nextState.match(/inactive|background/)) {
-        tempoSaida.current = Date.now();
+        // Sair para UIs do SISTEMA (seletor de fotos, diálogo de permissão de áudio)
+        // também derruba o app para background — não deve contar como saída do usuário.
+        tempoSaida.current = bloqueioEstado.suspender ? null : Date.now();
       }
 
       if (appState.current.match(/inactive|background/) && nextState === 'active') {
+        // Alarme na frente OU voltando de seletor de fotos/permissão → não bloqueia
+        if (alarmeEstado.ativo || bloqueioEstado.suspender) {
+          tempoSaida.current = null;
+          appState.current = nextState;
+          return;
+        }
         if (tempoSaida.current) {
           const agora = Date.now();
           const diferencaMinutos = (agora - tempoSaida.current) / 1000 / 60;
 
           if (diferencaMinutos >= (config.tempoBloqueio || 0)) {
-            setEstaBloqueado(true);
+            setAutenticado(false);
             autenticar();
           }
         } else {
-          setEstaBloqueado(true);
+          setAutenticado(false);
           autenticar();
         }
       }
       appState.current = nextState;
     });
 
-    return () => subscription.remove();
+    // Quando um alarme ativo encerra e o usuário ainda não desbloqueou NESTA sessão
+    // (ex.: app abriu pelo alarme), pede biometria — as anotações só abrem desbloqueando.
+    // Se o usuário já estava usando o app desbloqueado quando o alarme tocou, não incomoda.
+    const unsubAlarme = alarmeEstado.ouvir(ativo => {
+      if (!config?.exigirBiometriaApp) return;
+      if (ativo) return;
+      if (!autenticadoRef.current && AppState.currentState === 'active') {
+        autenticar();
+      }
+    });
+
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      subscription.remove();
+      unsubAlarme();
+    };
   }, [config?.exigirBiometriaApp, config?.tempoBloqueio]);
 
   // --- TELA DE BLOQUEIO PERSONALIZADA ---
-  if (estaBloqueado && config?.exigirBiometriaApp) {
+  // Derivada: com biometria ativa, o conteúdo só aparece depois de autenticar.
+  if (!autenticado && config?.exigirBiometriaApp) {
     return (
       <View style={[styles.lockContainer, { backgroundColor: cores.fundo }]}>
         <View style={[styles.iconCircle, { backgroundColor: cores.itemFundo }]}>

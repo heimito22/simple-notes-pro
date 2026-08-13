@@ -16,6 +16,10 @@ export interface RichTextEditorHandle {
   execCommand: (cmd: string) => void;
   setContent: (html: string) => void;
   appendContent: (html: string) => void;
+  /** Alterna o modo leitura/edição (contenteditable) sem recarregar o WebView. */
+  setEditable: (editavel: boolean) => void;
+  /** Rola até o fim e posiciona o cursor no final (para continuar a nota após anexos). */
+  prepararEscrita: () => void;
 }
 
 interface Props {
@@ -23,6 +27,8 @@ interface Props {
   initialValue?: string;
   onChange?: (html: string) => void;
   onFormatoChange?: (fmt: FormatoAtivo) => void;
+  /** Modo leitura inicial. Mudanças usam setEditable() (sem recarregar o WebView). */
+  editavel?: boolean;
   placeholder?: string;
   textColor: string;
   placeholderColor: string;
@@ -31,6 +37,8 @@ interface Props {
   /** URI base das pastas de anexos (para converter marcadores antigos em <img>/<audio>). */
   imagensDirUri?: string;
   audiosDirUri?: string;
+  /** Posição de rolagem (y) e altura rolável máxima (com throttle) — p/ o botão "Continuar no fim". */
+  onScrollPos?: (y: number, maxScroll: number) => void;
   style?: any;
 }
 
@@ -78,7 +86,8 @@ const buildDoc = (
   placeholderColor: string,
   backgroundColor: string,
   accentColor: string,
-  placeholder: string
+  placeholder: string,
+  editavel: boolean
 ) => `<!DOCTYPE html>
 <html>
 <head>
@@ -86,15 +95,23 @@ const buildDoc = (
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <style>
   * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
-  html, body { margin: 0; padding: 0; height: 100%; }
+  /* min-height (não height fixa) é ESSENCIAL: com altura fixa + border-box o
+     conteúdo transborda o body e o padding-bottom nunca vira espaço rolável,
+     prendendo o fim da nota atrás da toolbar. */
+  html { height: 100%; }
+  body { margin: 0; padding: 0; min-height: 100%; }
   body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     font-size: 18px;
     line-height: 1.55;
     color: ${textColor};
     background: ${backgroundColor};
-    padding: 4px 25px 120px;
+    padding: 4px 25px 16px;
   }
+  /* Em edição: espaço extra no fim (acima da toolbar) para o texto final nunca
+     ficar preso atrás dela — com adjustResize o teclado encolhe a janela, então
+     o espaço do teclado já é liberado sozinho (innerHeight diminui). */
+  body.editando { padding-bottom: 210px; }
   #editor { outline: none; min-height: 60vh; word-break: break-word; }
   #editor:empty::before { content: attr(data-placeholder); color: ${placeholderColor}; pointer-events: none; }
   ul, ol { padding-left: 26px; margin: 6px 0; }
@@ -104,12 +121,15 @@ const buildDoc = (
   h3 { font-size: 19px; margin: 8px 0 4px; }
   blockquote { border-left: 3px solid ${accentColor}; margin: 8px 0; padding-left: 12px; color: ${placeholderColor}; }
   a { color: ${accentColor}; }
-  img.anexo-img { max-width: 100%; border-radius: 14px; margin: 8px 0; display: block; }
+  /* Limita a altura das imagens (fotos verticais grandes não podem bloquear o
+     acesso ao texto abaixo delas) — mantém a proporção com width/height auto. */
+  img { max-width: 100%; max-height: 60vh; width: auto; height: auto; }
+  img.anexo-img { border-radius: 14px; margin: 8px 0; display: block; }
   audio.anexo-audio { width: 100%; height: 48px; border-radius: 12px; margin: 8px 0; display: block; }
 </style>
 </head>
-<body>
-<div id="editor" contenteditable="true" data-placeholder="${placeholder.replace(/"/g, '&quot;')}"></div>
+<body class="${editavel ? 'editando' : ''}">
+<div id="editor" contenteditable="${editavel ? 'true' : 'false'}" data-placeholder="${placeholder.replace(/"/g, '&quot;')}"></div>
 <script>
 (function() {
   var el = document.getElementById('editor');
@@ -188,10 +208,43 @@ const buildDoc = (
       sel.collapseToEnd();
       document.execCommand('insertHTML', false, html);
     } catch (e) {}
+    // Rola para o FIM: garante que a área logo abaixo da imagem/áudio inserida
+    // fique visível e tocável para continuar a nota (o Android trava a rolagem
+    // quando o caret fica fora da tela após inserir um elemento grande).
+    setTimeout(rolarParaOFim, 60);
     notify();
     scheduleFormats();
     return true;
   };
+  window.editorSetEditable = function(v) {
+    el.contentEditable = v ? 'true' : 'false';
+    document.body.classList.toggle('editando', !!v);
+    if (v) {
+      el.focus();
+      try {
+        var sel = window.getSelection();
+        sel.selectAllChildren(el);
+        sel.collapseToEnd();
+      } catch (e) {}
+      // Rola até o fim: anexos grandes não podem impedir de tocar abaixo deles
+      setTimeout(rolarParaOFim, 80);
+    }
+    notifyScroll();
+    return true;
+  };
+  // Prepara a escrita após recarregar em modo edição: coloca o cursor no fim e
+  // rola até o final da nota (continuar a digitação logo abaixo das imagens).
+  window.editorPrepararEscrita = function() {
+    el.focus();
+    try {
+      var sel = window.getSelection();
+      sel.selectAllChildren(el);
+      sel.collapseToEnd();
+    } catch (e) {}
+    setTimeout(rolarParaOFim, 80);
+    return true;
+  };
+
   window.editorExec = function(cmd) {
     // Flag ANTES do focus: o próprio focus() pode disparar selectionchange (o Android
     // às vezes desloca o caret ao focar) e não pode sobrescrever o savedRange.
@@ -218,6 +271,30 @@ const buildDoc = (
     return true;
   };
 
+  // Posição de rolagem (com throttle) — o app usa para mostrar o botão
+  // "Continuar no fim" apenas quando a nota está no topo (ou levemente acima).
+  var scrollT = null;
+  function notifyScroll() {
+    var de = document.documentElement, be = document.body;
+    // Alguns WebViews rolam o body, outros o documentElement — leia de todas as fontes.
+    var y = Math.max(window.pageYOffset || 0, de.scrollTop || 0, be.scrollTop || 0);
+    var h = Math.max(de.scrollHeight || 0, be.scrollHeight || 0, de.offsetHeight || 0, be.offsetHeight || 0);
+    var max = Math.max(0, h - window.innerHeight);
+    window.ReactNativeWebView.postMessage('__scroll__' + Math.round(y) + '|' + Math.round(max));
+  }
+  // Rola até o FIM REAL (incluindo o padding extra que libera o texto da toolbar).
+  function rolarParaOFim() {
+    var de = document.documentElement, be = document.body;
+    var h = Math.max(de.scrollHeight || 0, be.scrollHeight || 0);
+    try { window.scrollTo(0, h); } catch (e) {}
+    notifyScroll();
+  }
+  window.addEventListener('scroll', function() {
+    if (scrollT) return;
+    scrollT = setTimeout(function() { scrollT = null; notifyScroll(); }, 80);
+  }, { passive: true });
+  notifyScroll();
+
   notify();
   notifyFormats();
 })();
@@ -236,8 +313,10 @@ const RichTextEditor = memo(
       placeholderColor,
       backgroundColor,
       accentColor,
+      editavel = true,
       imagensDirUri,
       audiosDirUri,
+      onScrollPos,
       style,
     },
     ref
@@ -254,9 +333,12 @@ const RichTextEditor = memo(
     // useRef usa o argumento apenas no mount: não sobrescreve o conteúdo digitado em re-renders.
     const ultimoConteudo = useRef(initialContent);
 
+    // O doc depende do modo (editavel): trocar leitura→edição recarrega o WebView
+    // com o contenteditable CORRETO embutido. Alternar via JS (el.contentEditable)
+    // é instável no Android (cursor/caret não aparecem) — por isso recarregamos.
     const doc = useMemo(
-      () => buildDoc(initialContent, textColor, placeholderColor, backgroundColor, accentColor, placeholder),
-      [initialContent, textColor, placeholderColor, backgroundColor, accentColor, placeholder]
+      () => buildDoc(initialContent, textColor, placeholderColor, backgroundColor, accentColor, placeholder, editavel),
+      [initialContent, textColor, placeholderColor, backgroundColor, accentColor, placeholder, editavel]
     );
     // Objeto estável: evita que o react-native-webview recarregue a página em re-renders.
     const source = useMemo(() => ({ html: doc }), [doc]);
@@ -284,10 +366,21 @@ const RichTextEditor = memo(
           pendingContent.current = ultimoConteudo.current;
         }
       },
+      setEditable: (v: boolean) => {
+        injetar(`window.editorSetEditable(${v}); true;`);
+      },
+      prepararEscrita: () => {
+        injetar('window.editorPrepararEscrita(); true;');
+      },
     }));
 
     const handleMessage = (event: WebViewMessageEvent) => {
       const data = event.nativeEvent.data;
+      if (typeof data === 'string' && data.startsWith('__scroll__')) {
+        const partes = data.slice(9).split('|');
+        onScrollPos?.(Number(partes[0]) || 0, Number(partes[1]) || 0);
+        return;
+      }
       if (typeof data === 'string' && data.startsWith('__fmt__')) {
         try {
           onFormatoChange?.(JSON.parse(data.slice(7)));
@@ -309,6 +402,12 @@ const RichTextEditor = memo(
       }
       if (alvo != null) {
         injetar(`window.editorSetContent(${toJSString(alvo)}); true;`);
+      }
+      // Ao entrar em edição (a troca de modo recarrega o WebView), posiciona o
+      // cursor no fim e rola até o final — sem isso, imagens grandes impedem de
+      // tocar abaixo delas para continuar a nota.
+      if (editavel) {
+        injetar('window.editorPrepararEscrita(); true;');
       }
     };
 

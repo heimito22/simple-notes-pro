@@ -1,0 +1,20 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'com.seuusuario.simplesnotes.alarm'
+version = '1.0.0'
+
+android {
+  namespace "com.seuusuario.simplesnotes.alarm"
+  defaultConfig {
+    versionCode 1
+    versionName '1.0.0'
+  }
+}
+
+// Google Play Billing (compra in-app "Remover anúncios")
+dependencies {
+  implementation 'com.android.billingclient:billing:7.1.1'
+}

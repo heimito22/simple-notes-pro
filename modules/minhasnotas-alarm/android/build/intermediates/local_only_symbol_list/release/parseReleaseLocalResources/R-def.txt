@@ -1,0 +1,11 @@
+R_DEF: Internal format may change without notice
+local
+raw som_classico
+raw som_digital
+raw som_eco
+raw som_galaxia
+raw som_ondas
+raw som_passaro
+raw som_sino
+raw som_suave
+raw som_urgente

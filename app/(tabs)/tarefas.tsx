@@ -1,8 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { AnimatePresence, MotiView, useAnimationState } from 'moti';
+import * as Haptics from 'expo-haptics';
 import React, { useCallback, useMemo, useState } from 'react';
-import { Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Animated, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Recorrencia, useTarefas } from '../../context/TarefasContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -69,6 +70,10 @@ export default function TarefasScreen() {
     success: { scale: [1.1, 1] },
   });
 
+  // Rotação do ícone "+" ao adicionar tarefa
+  const [rotacaoAdd] = useState(() => new Animated.Value(0));
+  const rotacaoIcone = rotacaoAdd.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '90deg'] });
+
   const horaExibicao = dataTemp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
   const { pendentes, concluidas } = useMemo(() => {
@@ -80,12 +85,17 @@ export default function TarefasScreen() {
 
   const handleAdicionar = useCallback(() => {
     if (novoTitulo.trim()) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      Animated.sequence([
+        Animated.timing(rotacaoAdd, { toValue: 1, duration: 160, useNativeDriver: true }),
+        Animated.spring(rotacaoAdd, { toValue: 0, friction: 4, tension: 100, useNativeDriver: true }),
+      ]).start();
       btnState.transitionTo('success');
       adicionarTarefa(novoTitulo, diaSelecionado, horaExibicao);
       setNovoTitulo('');
       setTimeout(() => btnState.transitionTo('idle'), 400);
     }
-  }, [novoTitulo, diaSelecionado, horaExibicao, adicionarTarefa, btnState]);
+  }, [novoTitulo, diaSelecionado, horaExibicao, adicionarTarefa, btnState, rotacaoAdd]);
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
@@ -116,7 +126,9 @@ export default function TarefasScreen() {
                 state={btnState}
                 style={[styles.btnAdd, { backgroundColor: cores.primaria }]}
               >
-                <Ionicons name="add" size={28} color="#FFF" />
+                <Animated.View style={{ transform: [{ rotate: rotacaoIcone }] }}>
+                  <Ionicons name="add" size={28} color="#FFF" />
+                </Animated.View>
               </MotiView>
             </Pressable>
           </View>

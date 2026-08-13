@@ -204,6 +204,9 @@ export default function HomeScreen() {
       setUser(userInfo.data.user);
       if (recarregarTudo) await recarregarTudo();
       await restaurarBackupCloud();
+      // Sobe um backup logo após o login: garante que a chave de IA (e as notas)
+      // digitadas ANTES de entrar cheguem à conta Google — não precisa repor.
+      fazerBackupCloud().catch(() => {});
       Alert.alert("Sucesso", `Conectado como ${userInfo.data.user.name || userInfo.data.user.email}`);
     } catch (error: any) {
       // Mostra o erro real (ex.: "10: The caller has no permission" = SHA-1 não cadastrado no Firebase)
@@ -340,6 +343,7 @@ export default function HomeScreen() {
                     <View style={styles.textosCard}>
                       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         {item.fixada && <Ionicons name="pin" size={14} color={cores.fixar} style={{ marginRight: 6 }} />}
+                        {item.lembrete && <Ionicons name="notifications" size={14} color={cores.botaoAdd} style={{ marginRight: 6 }} />}
                         <Text style={[styles.cardTitulo, { color: cores.textoPrincipal, flex: 1 }]} numberOfLines={1}>
                           {item.titulo || (item.tipoItem === 'lista' ? "Lista sem título" : "Nota sem título")}
                         </Text>

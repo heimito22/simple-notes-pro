@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { ehSomAlarme, SOM_PADRAO, type SomAlarme } from './sons-alarme';
 
 // 1. Defina a interface para as configurações
 interface Config {
@@ -7,6 +8,9 @@ interface Config {
   protegerNotasIndividuais: boolean;
   tempoBloqueio: number;
   exibirAjudaFAB: boolean;
+  tempoSoneca: number;
+  somAlarme: SomAlarme;
+  chaveIA: string;
 }
 
 const CONFIG_PADRAO: Config = {
@@ -14,6 +18,9 @@ const CONFIG_PADRAO: Config = {
   protegerNotasIndividuais: false,
   tempoBloqueio: 0,
   exibirAjudaFAB: true,
+  tempoSoneca: 10,
+  somAlarme: SOM_PADRAO,
+  chaveIA: '',
 };
 
 // 2. Defina o formato do Contexto
@@ -45,7 +52,14 @@ export default function ThemeProvider({ children }: { children: React.ReactNode 
 
         if (temaSalvo !== null) setIsDark(JSON.parse(temaSalvo));
         // Mescla com os padrões para garantir que opções novas (ex: exibirAjudaFAB) sempre existam
-        if (configSalva !== null) setConfig({ ...CONFIG_PADRAO, ...JSON.parse(configSalva) });
+        if (configSalva !== null) {
+          const parseada = JSON.parse(configSalva);
+          // Valida somAlarme (config antiga pode ter valor inválido/ausente)
+          if (parseada.somAlarme !== undefined && !ehSomAlarme(parseada.somAlarme)) {
+            delete parseada.somAlarme;
+          }
+          setConfig({ ...CONFIG_PADRAO, ...parseada });
+        }
       } catch (e) {
         console.error("Erro ao carregar preferências", e);
       } finally {

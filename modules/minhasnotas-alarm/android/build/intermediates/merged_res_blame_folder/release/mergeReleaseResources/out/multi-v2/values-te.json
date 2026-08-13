@@ -1,0 +1,116 @@
+{
+    "logs": [
+        {
+            "outputFile": "com.seuusuario.simplesnotes.alarm.minhasnotas-alarm-release-3:/values-te/values-te.xml",
+            "map": [
+                {
+                    "source": "C:\\Users\\Pichau\\.gradle\\caches\\9.3.1\\transforms\\4d5a6df182babc0499a1f99881550a31\\workspace\\transformed\\play-services-basement-18.4.0\\res\\values-te\\values.xml",
+                    "from": {
+                        "startLines": "4",
+                        "startColumns": "0",
+                        "startOffsets": "195",
+                        "endColumns": "133",
+                        "endOffsets": "328"
+                    },
+                    "to": {
+                        "startLines": "10",
+                        "startColumns": "4",
+                        "startOffsets": "1033",
+                        "endColumns": "137",
+                        "endOffsets": "1166"
+                    }
+                },
+                {
+                    "source": "C:\\Users\\Pichau\\.gradle\\caches\\9.3.1\\transforms\\358132b0937ba685e5c509cf040d51bb\\workspace\\transformed\\core-1.2.0\\res\\values-te\\values-te.xml",
+                    "from": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "55",
+                        "endColumns": "100",
+                        "endOffsets": "151"
+                    },
+                    "to": {
+                        "startLines": "20",
+                        "startColumns": "4",
+                        "startOffsets": "2249",
+                        "endColumns": "100",
+                        "endOffsets": "2345"
+                    }
+                },
+                {
+                    "source": "C:\\Users\\Pichau\\.gradle\\caches\\9.3.1\\transforms\\2f8f3e51c0ab2d1ffb3152c3b39585a1\\workspace\\transformed\\play-services-base-18.5.0\\res\\values-te\\values.xml",
+                    "from": {
+                        "startLines": "4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20",
+                        "startColumns": "0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0",
+                        "startOffsets": "193,301,451,577,688,821,942,1043,1139,1284,1392,1541,1669,1816,1975,2035,2101",
+                        "endColumns": "107,149,125,110,132,120,100,95,144,107,148,127,146,158,59,65,79",
+                        "endOffsets": "300,450,576,687,820,941,1042,1138,1283,1391,1540,1668,1815,1974,2034,2100,2180"
+                    },
+                    "to": {
+                        "startLines": "2,3,4,5,6,7,8,9,11,12,13,14,15,16,17,18,19",
+                        "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4",
+                        "startOffsets": "55,167,321,451,566,703,828,933,1171,1320,1432,1585,1717,1868,2031,2095,2165",
+                        "endColumns": "111,153,129,114,136,124,104,99,148,111,152,131,150,162,63,69,83",
+                        "endOffsets": "162,316,446,561,698,823,928,1028,1315,1427,1580,1712,1863,2026,2090,2160,2244"
+                    }
+                }
+            ]
+        },
+        {
+            "outputFile": "com.seuusuario.simplesnotes.alarm.minhasnotas-alarm-mergeReleaseResources-1:/values-te/values-te.xml",
+            "map": [
+                {
+                    "source": "C:\\Users\\Pichau\\.gradle\\caches\\9.3.1\\transforms\\4d5a6df182babc0499a1f99881550a31\\workspace\\transformed\\play-services-basement-18.4.0\\res\\values-te\\values.xml",
+                    "from": {
+                        "startLines": "4",
+                        "startColumns": "0",
+                        "startOffsets": "195",
+                        "endColumns": "133",
+                        "endOffsets": "328"
+                    },
+                    "to": {
+                        "startLines": "10",
+                        "startColumns": "4",
+                        "startOffsets": "1033",
+                        "endColumns": "137",
+                        "endOffsets": "1166"
+                    }
+                },
+                {
+                    "source": "C:\\Users\\Pichau\\.gradle\\caches\\9.3.1\\transforms\\358132b0937ba685e5c509cf040d51bb\\workspace\\transformed\\core-1.2.0\\res\\values-te\\values-te.xml",
+                    "from": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "55",
+                        "endColumns": "100",
+                        "endOffsets": "151"
+                    },
+                    "to": {
+                        "startLines": "20",
+                        "startColumns": "4",
+                        "startOffsets": "2249",
+                        "endColumns": "100",
+                        "endOffsets": "2345"
+                    }
+                },
+                {
+                    "source": "C:\\Users\\Pichau\\.gradle\\caches\\9.3.1\\transforms\\2f8f3e51c0ab2d1ffb3152c3b39585a1\\workspace\\transformed\\play-services-base-18.5.0\\res\\values-te\\values.xml",
+                    "from": {
+                        "startLines": "4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20",
+                        "startColumns": "0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0",
+                        "startOffsets": "193,301,451,577,688,821,942,1043,1139,1284,1392,1541,1669,1816,1975,2035,2101",
+                        "endColumns": "107,149,125,110,132,120,100,95,144,107,148,127,146,158,59,65,79",
+                        "endOffsets": "300,450,576,687,820,941,1042,1138,1283,1391,1540,1668,1815,1974,2034,2100,2180"
+                    },
+                    "to": {
+                        "startLines": "2,3,4,5,6,7,8,9,11,12,13,14,15,16,17,18,19",
+                        "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4",
+                        "startOffsets": "55,167,321,451,566,703,828,933,1171,1320,1432,1585,1717,1868,2031,2095,2165",
+                        "endColumns": "111,153,129,114,136,124,104,99,148,111,152,131,150,162,63,69,83",
+                        "endOffsets": "162,316,446,561,698,823,928,1028,1315,1427,1580,1712,1863,2026,2090,2160,2244"
+                    }
+                }
+            ]
+        }
+    ]
+}

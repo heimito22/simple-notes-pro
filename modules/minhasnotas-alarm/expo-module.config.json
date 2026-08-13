@@ -1,0 +1,9 @@
+{
+  "platforms": ["android"],
+  "android": {
+    "modules": [
+      "com.seuusuario.simplesnotes.alarm.AlarmModule",
+      "com.seuusuario.simplesnotes.alarm.BillingModule"
+    ]
+  }
+}

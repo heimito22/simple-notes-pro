@@ -1,0 +1,14 @@
+com.seuusuario.simplesnotes.alarm.minhasnotas-alarm-pngs-0 C:\MinhasNotas\modules\minhasnotas-alarm\android\build\generated\res\pngs\release
+com.seuusuario.simplesnotes.alarm.minhasnotas-alarm-resValues-1 C:\MinhasNotas\modules\minhasnotas-alarm\android\build\generated\res\resValues\release
+com.seuusuario.simplesnotes.alarm.minhasnotas-alarm-mergeReleaseResources-2 C:\MinhasNotas\modules\minhasnotas-alarm\android\build\intermediates\incremental\release\mergeReleaseResources\merged.dir
+com.seuusuario.simplesnotes.alarm.minhasnotas-alarm-mergeReleaseResources-3 C:\MinhasNotas\modules\minhasnotas-alarm\android\build\intermediates\incremental\release\mergeReleaseResources\stripped.dir
+com.seuusuario.simplesnotes.alarm.minhasnotas-alarm-release-4 C:\MinhasNotas\modules\minhasnotas-alarm\android\build\intermediates\merged_res\release\mergeReleaseResources
+com.seuusuario.simplesnotes.alarm.minhasnotas-alarm-main-5 C:\MinhasNotas\modules\minhasnotas-alarm\android\src\main\res
+com.seuusuario.simplesnotes.alarm.minhasnotas-alarm-release-6 C:\MinhasNotas\modules\minhasnotas-alarm\android\src\release\res
+com.seuusuario.simplesnotes.alarm.minhasnotas-alarm-play-services-base-18.5.0-7 C:\Users\Pichau\.gradle\caches\9.3.1\transforms\2f8f3e51c0ab2d1ffb3152c3b39585a1\workspace\transformed\play-services-base-18.5.0\res
+com.seuusuario.simplesnotes.alarm.minhasnotas-alarm-core-1.2.0-8 C:\Users\Pichau\.gradle\caches\9.3.1\transforms\358132b0937ba685e5c509cf040d51bb\workspace\transformed\core-1.2.0\res
+com.seuusuario.simplesnotes.alarm.minhasnotas-alarm-billing-7.1.1-9 C:\Users\Pichau\.gradle\caches\9.3.1\transforms\4477bd66955abd1b50afda44fa12ffc6\workspace\transformed\billing-7.1.1\res
+com.seuusuario.simplesnotes.alarm.minhasnotas-alarm-play-services-basement-18.4.0-10 C:\Users\Pichau\.gradle\caches\9.3.1\transforms\4d5a6df182babc0499a1f99881550a31\workspace\transformed\play-services-basement-18.4.0\res
+com.seuusuario.simplesnotes.alarm.minhasnotas-alarm-lifecycle-viewmodel-2.3.1-11 C:\Users\Pichau\.gradle\caches\9.3.1\transforms\8561817b8ebe25d101497c14e558f21c\workspace\transformed\lifecycle-viewmodel-2.3.1\res
+com.seuusuario.simplesnotes.alarm.minhasnotas-alarm-savedstate-1.1.0-12 C:\Users\Pichau\.gradle\caches\9.3.1\transforms\a2266729094e8464c6573fbd85dd897b\workspace\transformed\savedstate-1.1.0\res
+com.seuusuario.simplesnotes.alarm.minhasnotas-alarm-lifecycle-runtime-2.3.1-13 C:\Users\Pichau\.gradle\caches\9.3.1\transforms\b7317067aab6fe712a024a57c7f87ff5\workspace\transformed\lifecycle-runtime-2.3.1\res

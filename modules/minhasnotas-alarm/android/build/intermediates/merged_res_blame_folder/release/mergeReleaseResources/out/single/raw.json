@@ -1,0 +1,46 @@
+[
+    {
+        "merged": "com.seuusuario.simplesnotes.alarm.minhasnotas-alarm-release-3:/raw/som_eco.wav",
+        "source": "com.seuusuario.simplesnotes.alarm.minhasnotas-alarm-main-4:/raw/som_eco.wav"
+    },
+    {
+        "merged": "com.seuusuario.simplesnotes.alarm.minhasnotas-alarm-release-3:/raw/som_urgente.wav",
+        "source": "com.seuusuario.simplesnotes.alarm.minhasnotas-alarm-main-4:/raw/som_urgente.wav"
+    },
+    {
+        "merged": "com.seuusuario.simplesnotes.alarm.minhasnotas-alarm-release-3:/raw/som_ondas.wav",
+        "source": "com.seuusuario.simplesnotes.alarm.minhasnotas-alarm-main-4:/raw/som_ondas.wav"
+    },
+    {
+        "merged": "com.seuusuario.simplesnotes.alarm.minhasnotas-alarm-release-3:/raw/som_digital.wav",
+        "source": "com.seuusuario.simplesnotes.alarm.minhasnotas-alarm-main-4:/raw/som_digital.wav"
+    },
+    {
+        "merged": "com.seuusuario.simplesnotes.alarm.minhasnotas-alarm-release-3:/raw/som_classico.wav",
+        "source": "com.seuusuario.simplesnotes.alarm.minhasnotas-alarm-main-4:/raw/som_classico.wav"
+    },
+    {
+        "merged": "com.seuusuario.simplesnotes.alarm.minhasnotas-alarm-release-3:/raw/som_galaxia.wav",
+        "source": "com.seuusuario.simplesnotes.alarm.minhasnotas-alarm-main-4:/raw/som_galaxia.wav"
+    },
+    {
+        "merged": "com.seuusuario.simplesnotes.alarm.minhasnotas-alarm-release-3:/raw/som_sino.wav",
+        "source": "com.seuusuario.simplesnotes.alarm.minhasnotas-alarm-main-4:/raw/som_sino.wav"
+    },
+    {
+        "merged": "com.seuusuario.simplesnotes.alarm.minhasnotas-alarm-release-3:/raw/som_suave.wav",
+        "source": "com.seuusuario.simplesnotes.alarm.minhasnotas-alarm-main-4:/raw/som_suave.wav"
+    },
+    {
+        "merged": "com.seuusuario.simplesnotes.alarm.minhasnotas-alarm-release-3:/raw/som_passaro.wav",
+        "source": "com.seuusuario.simplesnotes.alarm.minhasnotas-alarm-main-4:/raw/som_passaro.wav"
+    },
+    {
+        "merged": "com.seuusuario.simplesnotes.alarm.minhasnotas-alarm-release-3:/raw/com_android_billingclient_registration_info.binarypb",
+        "source": "com.seuusuario.simplesnotes.alarm.minhasnotas-alarm-billing-7.1.1-8:/raw/com_android_billingclient_registration_info.binarypb"
+    },
+    {
+        "merged": "com.seuusuario.simplesnotes.alarm.minhasnotas-alarm-release-3:/raw/com_android_billingclient_heterodyne_info",
+        "source": "com.seuusuario.simplesnotes.alarm.minhasnotas-alarm-billing-7.1.1-8:/raw/com_android_billingclient_heterodyne_info"
+    }
+]

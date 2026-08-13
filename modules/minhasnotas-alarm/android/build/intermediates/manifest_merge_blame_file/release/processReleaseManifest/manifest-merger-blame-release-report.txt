@@ -1,0 +1,68 @@
+1<?xml version="1.0" encoding="utf-8"?>
+2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+3    package="com.seuusuario.simplesnotes.alarm" >
+4
+5    <uses-sdk android:minSdkVersion="24" />
+6
+7    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+7-->C:\MinhasNotas\modules\minhasnotas-alarm\android\src\main\AndroidManifest.xml:2:5-81
+7-->C:\MinhasNotas\modules\minhasnotas-alarm\android\src\main\AndroidManifest.xml:2:22-78
+8    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+8-->C:\MinhasNotas\modules\minhasnotas-alarm\android\src\main\AndroidManifest.xml:3:5-79
+8-->C:\MinhasNotas\modules\minhasnotas-alarm\android\src\main\AndroidManifest.xml:3:22-76
+9    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+9-->C:\MinhasNotas\modules\minhasnotas-alarm\android\src\main\AndroidManifest.xml:4:5-74
+9-->C:\MinhasNotas\modules\minhasnotas-alarm\android\src\main\AndroidManifest.xml:4:22-71
+10    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+10-->C:\MinhasNotas\modules\minhasnotas-alarm\android\src\main\AndroidManifest.xml:5:5-81
+10-->C:\MinhasNotas\modules\minhasnotas-alarm\android\src\main\AndroidManifest.xml:5:22-78
+11    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+11-->C:\MinhasNotas\modules\minhasnotas-alarm\android\src\main\AndroidManifest.xml:6:5-78
+11-->C:\MinhasNotas\modules\minhasnotas-alarm\android\src\main\AndroidManifest.xml:6:22-75
+12    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+12-->C:\MinhasNotas\modules\minhasnotas-alarm\android\src\main\AndroidManifest.xml:7:5-95
+12-->C:\MinhasNotas\modules\minhasnotas-alarm\android\src\main\AndroidManifest.xml:7:22-92
+13    <uses-permission android:name="android.permission.VIBRATE" />
+13-->C:\MinhasNotas\modules\minhasnotas-alarm\android\src\main\AndroidManifest.xml:8:5-66
+13-->C:\MinhasNotas\modules\minhasnotas-alarm\android\src\main\AndroidManifest.xml:8:22-63
+14    <uses-permission android:name="android.permission.WAKE_LOCK" />
+14-->C:\MinhasNotas\modules\minhasnotas-alarm\android\src\main\AndroidManifest.xml:9:5-68
+14-->C:\MinhasNotas\modules\minhasnotas-alarm\android\src\main\AndroidManifest.xml:9:22-65
+15
+16    <application>
+16-->C:\MinhasNotas\modules\minhasnotas-alarm\android\src\main\AndroidManifest.xml:11:5-28:19
+17
+18        <!-- Disparado pelo AlarmManager (intento explícito, sem intent-filter) -->
+19        <receiver
+19-->C:\MinhasNotas\modules\minhasnotas-alarm\android\src\main\AndroidManifest.xml:13:9-15:40
+20            android:name="com.seuusuario.simplesnotes.alarm.AlarmTriggerReceiver"
+20-->C:\MinhasNotas\modules\minhasnotas-alarm\android\src\main\AndroidManifest.xml:14:13-82
+21            android:exported="false" />
+21-->C:\MinhasNotas\modules\minhasnotas-alarm\android\src\main\AndroidManifest.xml:15:13-37
+22
+23        <!-- Reagenda os alarmes persistidos após reiniciar o celular -->
+24        <receiver
+24-->C:\MinhasNotas\modules\minhasnotas-alarm\android\src\main\AndroidManifest.xml:18:9-27:20
+25            android:name="com.seuusuario.simplesnotes.alarm.AlarmBootReceiver"
+25-->C:\MinhasNotas\modules\minhasnotas-alarm\android\src\main\AndroidManifest.xml:19:13-79
+26            android:exported="true" >
+26-->C:\MinhasNotas\modules\minhasnotas-alarm\android\src\main\AndroidManifest.xml:20:13-36
+27            <intent-filter>
+27-->C:\MinhasNotas\modules\minhasnotas-alarm\android\src\main\AndroidManifest.xml:21:13-26:29
+28                <action android:name="android.intent.action.BOOT_COMPLETED" />
+28-->C:\MinhasNotas\modules\minhasnotas-alarm\android\src\main\AndroidManifest.xml:22:17-79
+28-->C:\MinhasNotas\modules\minhasnotas-alarm\android\src\main\AndroidManifest.xml:22:25-76
+29                <action android:name="android.intent.action.REBOOT" />
+29-->C:\MinhasNotas\modules\minhasnotas-alarm\android\src\main\AndroidManifest.xml:23:17-71
+29-->C:\MinhasNotas\modules\minhasnotas-alarm\android\src\main\AndroidManifest.xml:23:25-68
+30                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+30-->C:\MinhasNotas\modules\minhasnotas-alarm\android\src\main\AndroidManifest.xml:24:17-84
+30-->C:\MinhasNotas\modules\minhasnotas-alarm\android\src\main\AndroidManifest.xml:24:25-81
+31                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+31-->C:\MinhasNotas\modules\minhasnotas-alarm\android\src\main\AndroidManifest.xml:25:17-82
+31-->C:\MinhasNotas\modules\minhasnotas-alarm\android\src\main\AndroidManifest.xml:25:25-79
+32            </intent-filter>
+33        </receiver>
+34    </application>
+35
+36</manifest>

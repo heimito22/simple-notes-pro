@@ -2,7 +2,7 @@
   "expo": {
     "name": "Simple Notes",
     "slug": "MinhasNotas",
-    "version": "1.0.0",
+    "version": "1.0.8",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "simplesnotes",
@@ -12,6 +12,7 @@
     },
     "android": {
       "package": "com.seuusuario.simplesnotes",
+      "versionCode": 8,
       "softwareKeyboardLayoutMode": "resize",
       "googleServicesFile": "./google-services.json",
       "predictiveBackGestureEnabled": true,
@@ -21,7 +22,6 @@
       },
       "permissions": [
         "android.permission.NOTIFICATIONS",
-        "com.android.alarm.permission.SET_ALARM",
         "android.permission.RECORD_AUDIO",
         "android.permission.USE_BIOMETRIC",
         "android.permission.USE_FINGERPRINT"
@@ -68,6 +68,14 @@
         "expo-audio",
         {
           "microphonePermission": "O aplicativo precisa acessar o microfone para gravar áudios nas notas."
+        }
+      ],
+      "./plugins/withAlarmFullScreen",
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "ca-app-pub-3940256099942544~3347511713",
+          "iosAppId": "ca-app-pub-3940256099942544~1458002511"
         }
       ]
     ],

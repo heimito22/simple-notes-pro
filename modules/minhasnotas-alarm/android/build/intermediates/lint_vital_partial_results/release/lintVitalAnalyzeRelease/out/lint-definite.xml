@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<incidents format="6" by="lint 8.12.0" type="incidents">
+
+    <incident
+        id="InvalidFragmentVersionForActivityResult"
+        severity="fatal"
+        message="Upgrade Fragment version to at least 1.3.0.">
+        <location
+            file="${:minhasnotas-alarm*release*MAIN*sourceProvider*0*javaDir*0}/com/seuusuario/simplesnotes/alarm/AlarmModule.kt"
+            line="106"
+            column="21"
+            startOffset="3991"
+            endLine="106"
+            endColumn="78"
+            endOffset="4048"/>
+    </incident>
+
+    <incident
+        id="InvalidFragmentVersionForActivityResult"
+        severity="fatal"
+        message="Upgrade Fragment version to at least 1.3.0.">
+        <location
+            file="${:minhasnotas-alarm*release*MAIN*sourceProvider*0*javaDir*0}/com/seuusuario/simplesnotes/alarm/AlarmModule.kt"
+            line="106"
+            column="21"
+            startOffset="3991"
+            endLine="106"
+            endColumn="78"
+            endOffset="4048"/>
+    </incident>
+
+    <incident
+        id="InvalidFragmentVersionForActivityResult"
+        severity="fatal"
+        message="Upgrade Fragment version to at least 1.3.0.">
+        <location
+            file="${:minhasnotas-alarm*release*MAIN*sourceProvider*0*javaDir*0}/com/seuusuario/simplesnotes/alarm/AlarmModule.kt"
+            line="106"
+            column="21"
+            startOffset="3991"
+            endLine="106"
+            endColumn="78"
+            endOffset="4048"/>
+    </incident>
+
+    <incident
+        id="InvalidFragmentVersionForActivityResult"
+        severity="fatal"
+        message="Upgrade Fragment version to at least 1.3.0.">
+        <location
+            file="${:minhasnotas-alarm*release*MAIN*sourceProvider*0*javaDir*0}/com/seuusuario/simplesnotes/alarm/AlarmModule.kt"
+            line="106"
+            column="21"
+            startOffset="3991"
+            endLine="106"
+            endColumn="78"
+            endOffset="4048"/>
+    </incident>
+
+    <incident
+        id="InvalidFragmentVersionForActivityResult"
+        severity="fatal"
+        message="Upgrade Fragment version to at least 1.3.0.">
+        <location
+            file="${:minhasnotas-alarm*release*MAIN*sourceProvider*0*javaDir*0}/com/seuusuario/simplesnotes/alarm/AlarmModule.kt"
+            line="106"
+            column="21"
+            startOffset="3991"
+            endLine="106"
+            endColumn="78"
+            endOffset="4048"/>
+    </incident>
+
+    <incident
+        id="InvalidFragmentVersionForActivityResult"
+        severity="fatal"
+        message="Upgrade Fragment version to at least 1.3.0.">
+        <location
+            file="${:minhasnotas-alarm*release*MAIN*sourceProvider*0*javaDir*0}/com/seuusuario/simplesnotes/alarm/AlarmModule.kt"
+            line="106"
+            column="21"
+            startOffset="3991"
+            endLine="106"
+            endColumn="78"
+            endOffset="4048"/>
+    </incident>
+
+    <incident
+        id="InvalidFragmentVersionForActivityResult"
+        severity="fatal"
+        message="Upgrade Fragment version to at least 1.3.0.">
+        <location
+            file="${:minhasnotas-alarm*release*MAIN*sourceProvider*0*javaDir*0}/com/seuusuario/simplesnotes/alarm/AlarmModule.kt"
+            line="106"
+            column="21"
+            startOffset="3991"
+            endLine="106"
+            endColumn="78"
+            endOffset="4048"/>
+    </incident>
+
+    <incident
+        id="InvalidFragmentVersionForActivityResult"
+        severity="fatal"
+        message="Upgrade Fragment version to at least 1.3.0.">
+        <location
+            file="${:minhasnotas-alarm*release*MAIN*sourceProvider*0*javaDir*0}/com/seuusuario/simplesnotes/alarm/AlarmModule.kt"
+            line="106"
+            column="21"
+            startOffset="3991"
+            endLine="106"
+            endColumn="78"
+            endOffset="4048"/>
+    </incident>
+
+</incidents>

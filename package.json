@@ -1,7 +1,7 @@
 {
   "name": "minhasnotas",
   "main": "expo-router/entry",
-  "version": "1.0.0",
+  "version": "1.0.8",
   "scripts": {
     "start": "expo start",
     "reset-project": "node ./scripts/reset-project.js",
@@ -25,7 +25,6 @@
     "expo-image": "~56.0.11",
     "expo-image-manipulator": "~56.0.23",
     "expo-image-picker": "~56.0.22",
-    "expo-intent-launcher": "~56.0.4",
     "expo-linking": "~56.0.16",
     "expo-local-authentication": "~56.0.5",
     "expo-network": "~56.0.5",
@@ -41,6 +40,7 @@
     "react-dom": "19.2.3",
     "react-native": "0.85.3",
     "react-native-gesture-handler": "~2.31.1",
+    "react-native-google-mobile-ads": "16.0.0",
     "react-native-reanimated": "4.3.1",
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "~4.26.0",
