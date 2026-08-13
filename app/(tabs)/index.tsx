@@ -25,7 +25,7 @@ import { useListas } from '../../context/ListaContext';
 import { useNotas } from '../../context/NotasContext';
 import { useTheme } from '../../context/ThemeContext';
 import RichText from '../../components/rich-text';
-import AudioPlayer, { excluirArquivoAudio, extrairAudios, removerAudioDoHtml, type AudioAttachment } from '../../components/audio-chip';
+import AudioPlayer, { extrairAudios } from '../../components/audio-chip';
 import { appColors } from '../../constants/theme';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -275,25 +275,6 @@ export default function HomeScreen() {
     ]);
   };
 
-  const handleRemoverAudio = (item: any, audio: AudioAttachment) => {
-    Alert.alert(
-      'Apagar áudio',
-      'Deseja remover este áudio da nota?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Apagar',
-          style: 'destructive',
-          onPress: async () => {
-            const novoConteudo = removerAudioDoHtml(item.conteudo || '', audio);
-            salvarNota(item.titulo || '', novoConteudo, item.id, !!item.protegida);
-            await excluirArquivoAudio(audio.uri);
-          },
-        },
-      ]
-    );
-  };
-
   const handleFixar = (item: any) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.spring);
     if (item.tipoItem === 'lista') alternarFixarLista(item.id);
@@ -430,7 +411,6 @@ export default function HomeScreen() {
                               compact
                               uri={audios[0].uri}
                               nome={audios[0].nome}
-                              onDelete={() => handleRemoverAudio(item, audios[0])}
                             />
                           )}
                           <Text style={[styles.cardConteudo, { color: cores.textoSecundario }]} numberOfLines={2}>

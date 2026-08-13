@@ -1,8 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { File } from 'expo-file-system';
 import { setAudioModeAsync, useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
-import React, { useEffect, useState } from 'react';
-import { LayoutChangeEvent, Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { Alert, LayoutChangeEvent, Pressable, StyleSheet, Text, View } from 'react-native';
 import { appColors } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
 
@@ -15,7 +15,8 @@ interface Props {
   uri: string;
   nome?: string;
   compact?: boolean;
-  onDelete?: () => void;
+  /** A exclusão é confirmada pelo próprio player e executada após liberar o player nativo. */
+  onDelete?: () => void | Promise<void>;
 }
 
 const formatarTempo = (segundos: number, vazio = '0:00') => {
@@ -85,9 +86,10 @@ export const removerAudioDoHtml = (html: string, audio: AudioAttachment) => {
 
 /** Apaga o arquivo local sem interromper a remoção do anexo no texto. */
 export const excluirArquivoAudio = async (uri: string) => {
-  if (!uri.startsWith('file://')) return;
+  if (!uri || !uri.startsWith('file://')) return;
   try {
-    new File(uri).delete();
+    const arquivo = new File(uri);
+    if (arquivo.exists) arquivo.delete();
   } catch {
     // O conteúdo da nota já pode ter sido removido; arquivo inexistente é seguro.
   }
@@ -96,40 +98,88 @@ export const excluirArquivoAudio = async (uri: string) => {
 export default function AudioPlayer({ uri, nome, compact = false, onDelete }: Props) {
   const { isDark } = useTheme();
   const paleta = appColors(isDark);
-  const player = useAudioPlayer(uri, { updateInterval: 250 });
+  const player = useAudioPlayer(uri, { updateInterval: compact ? 500 : 250 });
   const status = useAudioPlayerStatus(player);
   const [trackWidth, setTrackWidth] = useState(0);
+  const [removendo, setRemovendo] = useState(false);
+  const playerLiberadoRef = useRef(false);
 
   useEffect(() => {
     setAudioModeAsync({ playsInSilentMode: true }).catch(() => {});
     return () => {
-      player.pause();
+      // O hook libera o recurso nativo ao desmontar. Apenas pause aqui para não
+      // tentar operar em um player que já foi removido durante a exclusão.
+      if (!playerLiberadoRef.current) {
+        try { player.pause(); } catch { /* player já pode ter sido liberado pelo nativo */ }
+      }
     };
   }, [player]);
+
+  const liberarPlayer = () => {
+    if (playerLiberadoRef.current) return;
+    playerLiberadoRef.current = true;
+    try { player.pause(); } catch { /* ignora interrupções do player */ }
+    try { player.remove(); } catch { /* o hook pode já ter iniciado a liberação */ }
+  };
 
   const nomeExibido = nomeDoArquivo(nome || uri);
   const duracao = status.duration || 0;
   const progresso = duracao > 0 ? Math.min(status.currentTime / duracao, 1) : 0;
 
   const alternarReproducao = () => {
-    if (status.playing) {
-      player.pause();
-      return;
+    if (removendo || status.error) return;
+    try {
+      if (status.playing) {
+        player.pause();
+        return;
+      }
+      if (status.didJustFinish || (duracao > 0 && status.currentTime >= duracao - 0.05)) {
+        player.seekTo(0).catch(() => {});
+      }
+      player.play();
+    } catch {
+      // Uma URI antiga/inválida não pode derrubar a tela; o player apenas não inicia.
     }
-    if (status.didJustFinish || (duracao > 0 && status.currentTime >= duracao - 0.05)) {
-      player.seekTo(0).catch(() => {});
-    }
-    player.play();
   };
 
   const buscarNaFaixa = (event: Parameters<NonNullable<React.ComponentProps<typeof Pressable>['onPress']>>[0]) => {
-    if (!trackWidth || !duracao) return;
+    if (removendo || status.error || !trackWidth || !duracao) return;
     const percentual = Math.max(0, Math.min(1, event.nativeEvent.locationX / trackWidth));
-    player.seekTo(percentual * duracao).catch(() => {});
+    try {
+      player.seekTo(percentual * duracao).catch(() => {});
+    } catch {
+      // O arquivo pode ter sido removido externamente; ignora a busca inválida.
+    }
   };
 
   const aoMedirFaixa = (event: LayoutChangeEvent) => {
     setTrackWidth(event.nativeEvent.layout.width);
+  };
+
+  const solicitarExclusao = () => {
+    if (!onDelete || removendo) return;
+    Alert.alert(
+      'Apagar áudio',
+      'Deseja remover este áudio da nota?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Apagar',
+          style: 'destructive',
+          onPress: async () => {
+            setRemovendo(true);
+            // Primeiro para e remove o player nativo; só depois o callback
+            // altera o HTML e apaga o arquivo físico.
+            liberarPlayer();
+            try {
+              await onDelete();
+            } catch {
+              // A nota continua íntegra mesmo se o arquivo já não existir.
+            }
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -139,10 +189,11 @@ export default function AudioPlayer({ uri, nome, compact = false, onDelete }: Pr
         compact && styles.playerCompact,
         { backgroundColor: paleta.surfaceElevated, borderColor: paleta.border },
       ]}
+      onStartShouldSetResponder={compact ? () => true : undefined}
     >
       <Pressable
         onPress={alternarReproducao}
-        style={[styles.playButton, { backgroundColor: paleta.primary }]}
+        style={[styles.playButton, compact && styles.playButtonCompact, { backgroundColor: paleta.primary }]}
         hitSlop={6}
         accessibilityRole="button"
         accessibilityLabel={status.playing ? 'Pausar áudio' : 'Reproduzir áudio'}
@@ -175,15 +226,16 @@ export default function AudioPlayer({ uri, nome, compact = false, onDelete }: Pr
         </Pressable>
       </View>
 
-      {onDelete && (
+      {onDelete && !compact && (
         <Pressable
-          onPress={onDelete}
-          style={styles.deleteButton}
+          onPress={solicitarExclusao}
+          style={[styles.deleteButton, removendo && styles.deleteButtonDisabled]}
           hitSlop={8}
           accessibilityRole="button"
           accessibilityLabel="Apagar áudio"
+          disabled={removendo}
         >
-          <Ionicons name="trash-outline" size={compact ? 18 : 20} color={paleta.danger} />
+          <Ionicons name="trash-outline" size={20} color={removendo ? paleta.muted : paleta.danger} />
         </Pressable>
       )}
     </View>
@@ -203,10 +255,12 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   playerCompact: {
-    minHeight: 68,
-    padding: 10,
-    borderRadius: 16,
-    marginVertical: 6,
+    minHeight: 50,
+    paddingVertical: 7,
+    paddingHorizontal: 8,
+    borderRadius: 14,
+    marginVertical: 5,
+    gap: 8,
   },
   playButton: {
     width: 42,
@@ -215,6 +269,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  playButtonCompact: { width: 34, height: 34, borderRadius: 17 },
   content: { flex: 1, minWidth: 0 },
   titleRow: { flexDirection: 'row', alignItems: 'center', minWidth: 0, gap: 7 },
   audioIcon: { width: 27, height: 27, borderRadius: 9, justifyContent: 'center', alignItems: 'center' },
@@ -225,4 +280,5 @@ const styles = StyleSheet.create({
   trackFill: { height: '100%', borderRadius: 3 },
   trackThumb: { position: 'absolute', top: -3, width: 12, height: 12, borderRadius: 6, marginLeft: -6 },
   deleteButton: { width: 30, height: 36, justifyContent: 'center', alignItems: 'center' },
+  deleteButtonDisabled: { opacity: 0.55 },
 });

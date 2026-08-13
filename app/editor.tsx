@@ -398,25 +398,12 @@ export default function EditorScreen() {
         }
     };
 
-    const removerAudio = (audio: AudioAttachment) => {
-        Alert.alert(
-            'Apagar áudio',
-            'Deseja remover este áudio da nota?',
-            [
-                { text: 'Cancelar', style: 'cancel' },
-                {
-                    text: 'Apagar',
-                    style: 'destructive',
-                    onPress: async () => {
-                        const novoConteudo = removerAudioDoHtml(conteudoRef.current, audio);
-                        conteudoRef.current = novoConteudo;
-                        setAudios(extrairAudios(novoConteudo, DIR_AUDIOS.uri));
-                        editorRef.current?.setContent(novoConteudo);
-                        await excluirArquivoAudio(audio.uri);
-                    },
-                },
-            ]
-        );
+    const removerAudio = async (audio: AudioAttachment) => {
+        const novoConteudo = removerAudioDoHtml(conteudoRef.current, audio);
+        conteudoRef.current = novoConteudo;
+        setAudios(extrairAudios(novoConteudo, DIR_AUDIOS.uri));
+        editorRef.current?.setContent(novoConteudo);
+        await excluirArquivoAudio(audio.uri);
     };
 
     const pararGravacao = async () => {
