@@ -25,7 +25,7 @@ import { useListas } from '../../context/ListaContext';
 import { useNotas } from '../../context/NotasContext';
 import { useTheme } from '../../context/ThemeContext';
 import RichText from '../../components/rich-text';
-import AudioChip from '../../components/audio-chip';
+import AudioPlayer, { excluirArquivoAudio, extrairAudios, removerAudioDoHtml, type AudioAttachment } from '../../components/audio-chip';
 import { appColors } from '../../constants/theme';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -70,6 +70,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const { 
     notas, 
+    salvarNota,
     excluirNota, 
     restaurarBackupCloud, 
     fazerBackupCloud, 
@@ -274,6 +275,25 @@ export default function HomeScreen() {
     ]);
   };
 
+  const handleRemoverAudio = (item: any, audio: AudioAttachment) => {
+    Alert.alert(
+      'Apagar áudio',
+      'Deseja remover este áudio da nota?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Apagar',
+          style: 'destructive',
+          onPress: async () => {
+            const novoConteudo = removerAudioDoHtml(item.conteudo || '', audio);
+            salvarNota(item.titulo || '', novoConteudo, item.id, !!item.protegida);
+            await excluirArquivoAudio(audio.uri);
+          },
+        },
+      ]
+    );
+  };
+
   const handleFixar = (item: any) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.spring);
     if (item.tipoItem === 'lista') alternarFixarLista(item.id);
@@ -368,6 +388,7 @@ export default function HomeScreen() {
           ) : (
             notasFiltradas.map((item: any) => {
               const anexos = extrairAnexos(item.conteudo);
+              const audios = extrairAudios(item.conteudo || '', DIR_AUDIOS.uri);
               return (
               <MotiView
                 key={item.id}
@@ -399,15 +420,18 @@ export default function HomeScreen() {
                         </Text>
                       ) : (
                         <View>
-                          {(anexos.imgUri || anexos.audioUri) && (
+                          {anexos.imgUri && (
                             <View style={styles.linhaAnexo}>
-                              {anexos.imgUri && (
-                                <Image source={{ uri: anexos.imgUri }} style={styles.thumbAnexo} />
-                              )}
-                              {anexos.audioUri && (
-                                <AudioChip uri={anexos.audioUri} nome={anexos.audioNome ?? undefined} />
-                              )}
+                              <Image source={{ uri: anexos.imgUri }} style={styles.thumbAnexo} />
                             </View>
+                          )}
+                          {audios[0] && (
+                            <AudioPlayer
+                              compact
+                              uri={audios[0].uri}
+                              nome={audios[0].nome}
+                              onDelete={() => handleRemoverAudio(item, audios[0])}
+                            />
                           )}
                           <Text style={[styles.cardConteudo, { color: cores.textoSecundario }]} numberOfLines={2}>
                             {item.conteudo ? (

@@ -125,7 +125,8 @@ const buildDoc = (
      acesso ao texto abaixo delas) — mantém a proporção com width/height auto. */
   img { max-width: 100%; max-height: 60vh; width: auto; height: auto; }
   img.anexo-img { border-radius: 14px; margin: 8px 0; display: block; }
-  audio.anexo-audio { width: 100%; height: 48px; border-radius: 12px; margin: 8px 0; display: block; }
+  /* O player nativo é substituído pelo AudioPlayer React Native, que também permite excluir o anexo. */
+  audio, audio.anexo-audio { display: none !important; }
 </style>
 </head>
 <body class="${editavel ? 'editando' : ''}">

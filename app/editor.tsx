@@ -23,6 +23,7 @@ import { DIAS_SEMANA, resumoLembrete, type LembreteNota, type TipoLembrete } fro
 import { useMonetizacao } from '../context/monetizacao';
 import { appColors } from '../constants/theme';
 import RichTextEditor, { FormatoAtivo, RichTextEditorHandle } from '../components/rich-text-editor';
+import AudioPlayer, { excluirArquivoAudio, extrairAudios, removerAudioDoHtml, type AudioAttachment } from '../components/audio-chip';
 import * as Haptics from 'expo-haptics';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -156,6 +157,7 @@ export default function EditorScreen() {
     const [editando, setEditando] = useState<boolean>(() => !params.id);
     const [carregandoImagem, setCarregandoImagem] = useState(false);
     const [gravando, setGravando] = useState(false);
+    const [audios, setAudios] = useState<AudioAttachment[]>([]);
     // Lembrete de revisão da nota (modal)
     const [modalLembreteAberto, setModalLembreteAberto] = useState(false);
     const [rTipo, setRTipo] = useState<TipoLembrete>('data');
@@ -295,12 +297,14 @@ export default function EditorScreen() {
                 setProtegida(!!notaExistente.protegida);
                 const tem = TEM_ANEXO.test(conteudo);
                 setTemAnexo(prev => (prev === tem ? prev : tem));
+                setAudios(extrairAudios(conteudo, DIR_AUDIOS.uri));
             } else {
                 setTitulo('');
                 conteudoRef.current = '';
                 setProtegida(false);
                 setEditando(true);
                 setTemAnexo(false);
+                setAudios([]);
             }
         }, 0);
         return () => clearTimeout(timer);
@@ -334,6 +338,7 @@ export default function EditorScreen() {
         conteudoRef.current = html;
         const tem = TEM_ANEXO.test(html);
         setTemAnexo(prev => (prev === tem ? prev : tem));
+        setAudios(extrairAudios(html, DIR_AUDIOS.uri));
     }, []);
 
     // Atualiza os estados ativos dos botões da toolbar (negrito, listas etc.)
@@ -363,6 +368,7 @@ export default function EditorScreen() {
     const anexarAudio = useCallback((uri: string, nome: string) => {
         const html = `<br><audio controls src="${uri}" class="anexo-audio"></audio><br>`;
         conteudoRef.current += html;
+        setAudios(prev => [...prev, { uri, nome }]);
         editorRef.current?.appendContent(html);
     }, []);
 
@@ -390,6 +396,27 @@ export default function EditorScreen() {
         } finally {
             bloqueioEstado.liberar();
         }
+    };
+
+    const removerAudio = (audio: AudioAttachment) => {
+        Alert.alert(
+            'Apagar áudio',
+            'Deseja remover este áudio da nota?',
+            [
+                { text: 'Cancelar', style: 'cancel' },
+                {
+                    text: 'Apagar',
+                    style: 'destructive',
+                    onPress: async () => {
+                        const novoConteudo = removerAudioDoHtml(conteudoRef.current, audio);
+                        conteudoRef.current = novoConteudo;
+                        setAudios(extrairAudios(novoConteudo, DIR_AUDIOS.uri));
+                        editorRef.current?.setContent(novoConteudo);
+                        await excluirArquivoAudio(audio.uri);
+                    },
+                },
+            ]
+        );
     };
 
     const pararGravacao = async () => {
@@ -904,6 +931,19 @@ export default function EditorScreen() {
                     style={styles.inputConteudo}
                 />
 
+                {audios.length > 0 && (
+                    <View style={styles.audioStack}>
+                        {audios.map(audio => (
+                            <AudioPlayer
+                                key={audio.uri}
+                                uri={audio.uri}
+                                nome={audio.nome}
+                                onDelete={() => removerAudio(audio)}
+                            />
+                        ))}
+                    </View>
+                )}
+
                 {/* Toolbar no fluxo: no Android o paddingBottom do container usa a
                     altura REAL do teclado (alturaTeclado) e ela sobe junto; no iOS o
                     KeyboardAvoidingView cuida. Sem animação manual. */}
@@ -1304,6 +1344,7 @@ const styles = StyleSheet.create({
     txtGravando: { color: '#FFF', fontWeight: 'bold', marginLeft: 8 },
     lembreteRow: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', marginHorizontal: 25, marginBottom: 12, paddingHorizontal: 10, paddingVertical: 7, borderRadius: 12, borderWidth: 1, gap: 6 },
     lembreteTexto: { fontSize: 13, fontWeight: '700' },
+    audioStack: { paddingHorizontal: 20, paddingBottom: 4 },
     modalFundo: { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'flex-end' },
     modalDismiss: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
     sheet: {
