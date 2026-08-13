@@ -505,7 +505,7 @@ export default function SettingsScreen() {
       </Modal>
 
       <View style={styles.footer}>
-        <Text style={styles.footerText}>Versão do App: 1.0.8</Text>
+        <Text style={styles.footerText}>Versão do App: 1.0.9</Text>
       </View>
 
       {/* SELETOR DE SOM DO ALARME (modal OLED) */}
