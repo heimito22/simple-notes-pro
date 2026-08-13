@@ -70,7 +70,6 @@ export default function HomeScreen() {
   const router = useRouter();
   const { 
     notas, 
-    salvarNota,
     excluirNota, 
     restaurarBackupCloud, 
     fazerBackupCloud, 
