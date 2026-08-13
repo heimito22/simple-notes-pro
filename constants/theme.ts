@@ -5,8 +5,8 @@
 
 import { Platform } from 'react-native';
 
-const tintColorLight = '#0a7ea4';
-const tintColorDark = '#fff';
+const tintColorLight = '#8E44AD';
+const tintColorDark = '#FFFFFF';
 
 export const Colors = {
   light: {
@@ -26,6 +26,50 @@ export const Colors = {
     tabIconSelected: tintColorDark,
   },
 };
+
+/** Paleta visual do Simple Notes usada pelas telas do app.
+ * Mantém a mesma linguagem OLED/roxo nos temas claro e escuro.
+ */
+export const AppColors = {
+  dark: {
+    background: '#000000',
+    surface: '#1C1C1E',
+    surfaceElevated: '#2C2C2E',
+    border: '#3A3A3C',
+    text: '#FFFFFF',
+    muted: '#8E8E93',
+    placeholder: '#66666F',
+    primary: '#BF5AF2',
+    primaryStrong: '#D09BFF',
+    primarySoft: '#24162F',
+    success: '#34C759',
+    danger: '#FF453A',
+    dangerSoft: '#3A1D1D',
+    warning: '#FFD60A',
+    onPrimary: '#FFFFFF',
+    tabBackground: '#09090B',
+  },
+  light: {
+    background: '#F2F2F7',
+    surface: '#FFFFFF',
+    surfaceElevated: '#E9E9EF',
+    border: '#E5E5EA',
+    text: '#1C1C1E',
+    muted: '#6E6E73',
+    placeholder: '#8E8E93',
+    primary: '#8E44AD',
+    primaryStrong: '#7C3AED',
+    primarySoft: '#F0E7F7',
+    success: '#34C759',
+    danger: '#FF3B30',
+    dangerSoft: '#FBE9E9',
+    warning: '#B58900',
+    onPrimary: '#FFFFFF',
+    tabBackground: '#FFFFFF',
+  },
+} as const;
+
+export const appColors = (isDark: boolean) => (isDark ? AppColors.dark : AppColors.light);
 
 export const Fonts = Platform.select({
   ios: {

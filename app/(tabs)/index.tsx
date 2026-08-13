@@ -26,6 +26,7 @@ import { useNotas } from '../../context/NotasContext';
 import { useTheme } from '../../context/ThemeContext';
 import RichText from '../../components/rich-text';
 import AudioChip from '../../components/audio-chip';
+import { appColors } from '../../constants/theme';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -137,18 +138,21 @@ export default function HomeScreen() {
     return () => clearTimeout(timer);
   }, [user]);
 
+  const paleta = appColors(isDark);
   const cores = {
-    fundo: isDark ? '#000' : '#F2F2F7',
-    textoPrincipal: isDark ? '#FFF' : '#000',
-    textoSecundario: isDark ? '#888' : '#666',
-    card: isDark ? '#1C1C1E' : '#FFF',
-    searchBar: isDark ? '#1C1C1E' : '#E5E5EA',
-    placeholder: isDark ? '#666' : '#999',
-    borda: isDark ? '#2C2C2E' : '#DDD',
-    botaoAdd: isDark ? '#BB86FC' : '#6200EE', 
-    corIconeAdd: isDark ? '#000' : '#FFF',
-    corLista: '#34C759',
-    fixar: '#FFD60A' 
+    fundo: paleta.background,
+    textoPrincipal: paleta.text,
+    textoSecundario: paleta.muted,
+    card: paleta.surface,
+    searchBar: paleta.surface,
+    placeholder: paleta.placeholder,
+    borda: paleta.border,
+    botaoAdd: paleta.primary,
+    corIconeAdd: paleta.onPrimary,
+    onPrimary: paleta.onPrimary,
+    corLista: paleta.primary,
+    fixar: paleta.warning,
+    perigo: paleta.danger,
   };
 
   const notasFiltradas = useMemo(() => {
@@ -289,8 +293,8 @@ export default function HomeScreen() {
   );
 
   const renderRightActions = (item: any) => (
-    <TouchableOpacity style={[styles.botaoSwipe, { backgroundColor: '#FF3B30' }]} onPress={() => handleExcluir(item)} activeOpacity={0.8}>
-      <Ionicons name="trash-sharp" size={28} color="#FFF" />
+    <TouchableOpacity style={[styles.botaoSwipe, { backgroundColor: cores.perigo }]} onPress={() => handleExcluir(item)} activeOpacity={0.8}>
+      <Ionicons name="trash-sharp" size={28} color={cores.onPrimary} />
     </TouchableOpacity>
   );
 
@@ -451,8 +455,8 @@ export default function HomeScreen() {
               </TouchableOpacity>
               {user && (
                 <TouchableOpacity style={styles.modalOption} onPress={handleLogout}>
-                  <Ionicons name="log-out-outline" size={24} color="#FF3B30" />
-                  <Text style={[styles.modalOptionText, { color: "#FF3B30" }]}>Sair</Text>
+                  <Ionicons name="log-out-outline" size={24} color={cores.perigo} />
+                  <Text style={[styles.modalOptionText, { color: cores.perigo }]}>Sair</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -475,8 +479,8 @@ export default function HomeScreen() {
               </View>
 
               <View style={styles.helpItem}>
-                <View style={[styles.helpIconCircle, { backgroundColor: '#FF3B30' }]}>
-                  <Ionicons name="trash" size={20} color="#FFF" />
+                <View style={[styles.helpIconCircle, { backgroundColor: cores.perigo }]}>
+                  <Ionicons name="trash" size={20} color={cores.onPrimary} />
                 </View>
                 <Text style={[styles.modalOptionText, { color: cores.textoPrincipal, flex: 1 }]}>
                   Arraste para a <Text style={{fontWeight: '900'}}>Esquerda</Text> para excluir uma nota.
@@ -485,7 +489,7 @@ export default function HomeScreen() {
 
               <View style={styles.helpItem}>
                 <View style={[styles.helpIconCircle, { backgroundColor: cores.botaoAdd }]}>
-                  <Ionicons name="cloud-upload" size={20} color="#FFF" />
+                  <Ionicons name="cloud-upload" size={20} color={cores.onPrimary} />
                 </View>
                 <Text style={[styles.modalOptionText, { color: cores.textoPrincipal, flex: 1 }]}>
                   Suas notas são salvas <Text style={{fontWeight: '900'}}>automaticamente</Text> na sua conta Google.
@@ -496,7 +500,7 @@ export default function HomeScreen() {
                 style={[styles.botaoEntendi, { backgroundColor: cores.botaoAdd }]} 
                 onPress={() => setModalAjudaVisible(false)}
               >
-                <Text style={{color: '#FFF', fontWeight: 'bold', fontSize: 16}}>Entendi!</Text>
+                <Text style={{color: cores.onPrimary, fontWeight: 'bold', fontSize: 16}}>Entendi!</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -508,23 +512,23 @@ export default function HomeScreen() {
           {/* AJUSTE: Botão de ajuda condicional à configuração */}
           {(config.exibirAjudaFAB !== false) && (
             <Animated.View style={[styles.miniBotaoWrap, { opacity: animaMenu, transform: [{ scale: animaMenu }, { translateY: animaMenu.interpolate({ inputRange: [0, 1], outputRange: [0, -215] }) }] }]}>
-              <TouchableOpacity style={[styles.miniBotao, { backgroundColor: '#5856D6' }]} onPress={() => { toggleMenu(); setModalAjudaVisible(true); }}>
-                <Ionicons name="help" size={26} color="#FFF" />
+              <TouchableOpacity style={[styles.miniBotao, { backgroundColor: paleta.primarySoft }]} onPress={() => { toggleMenu(); setModalAjudaVisible(true); }}>
+                <Ionicons name="help" size={26} color={cores.onPrimary} />
               </TouchableOpacity>
             </Animated.View>
           )}
           
           <Animated.View style={[styles.miniBotaoWrap, { opacity: animaMenu, transform: [{ scale: animaMenu }, { translateY: animaMenu.interpolate({ inputRange: [0, 1], outputRange: [0, -145] }) }] }]}>
             <TouchableOpacity style={[styles.miniBotao, { backgroundColor: cores.corLista }]} onPress={() => { toggleMenu(); router.push('/editorL'); }}>
-              <Ionicons name="list" size={26} color="#FFF" />
+              <Ionicons name="list" size={26} color={cores.onPrimary} />
             </TouchableOpacity>
           </Animated.View>
           <Animated.View style={[styles.miniBotaoWrap, { opacity: animaMenu, transform: [{ scale: animaMenu }, { translateY: animaMenu.interpolate({ inputRange: [0, 1], outputRange: [0, -75] }) }] }]}>
-            <TouchableOpacity style={[styles.miniBotao, { backgroundColor: isDark ? '#FFF' : cores.card, borderWidth: isDark ? 0 : 1, borderColor: '#DDD' }]} onPress={() => { toggleMenu(); navegarParaItem(); }}>
-              <Ionicons name="document-text" size={26} color={isDark ? "#000" : cores.botaoAdd} />
+            <TouchableOpacity style={[styles.miniBotao, { backgroundColor: isDark ? paleta.onPrimary : cores.card, borderWidth: isDark ? 0 : 1, borderColor: cores.borda }]} onPress={() => { toggleMenu(); navegarParaItem(); }}>
+              <Ionicons name="document-text" size={26} color={isDark ? paleta.background : cores.botaoAdd} />
             </TouchableOpacity>
           </Animated.View>
-          <TouchableOpacity onPress={toggleMenu} style={[styles.botaoPrincipal, { backgroundColor: cores.botaoAdd }]} activeOpacity={0.9}>
+          <TouchableOpacity onPress={toggleMenu} style={[styles.botaoPrincipal, { backgroundColor: cores.botaoAdd, shadowColor: paleta.primary }]} activeOpacity={0.9}>
             <Animated.View style={{ transform: [{ rotate: animaMenu.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '135deg'] }) }] }}>
               <Ionicons name="add" size={40} color={cores.corIconeAdd} />
             </Animated.View>
@@ -572,7 +576,7 @@ const styles = StyleSheet.create({
   botaoPrincipal: { 
     width: 70, height: 70, borderRadius: 35, 
     justifyContent: 'center', alignItems: 'center', elevation: 10,
-    shadowColor: '#BB86FC', shadowOpacity: 0.42, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }
+    shadowOpacity: 0.42, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }
   },
   miniBotaoWrap: { position: 'absolute' },
   miniBotao: { width: 55, height: 55, borderRadius: 27.5, justifyContent: 'center', alignItems: 'center', elevation: 7, shadowColor: '#000', shadowOpacity: 0.22, shadowRadius: 8, shadowOffset: { width: 0, height: 3 } },

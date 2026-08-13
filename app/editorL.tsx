@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useEffect, useRef, useState } from 'react';
+import { MotiView } from 'moti';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Animated,
   KeyboardAvoidingView,
@@ -13,14 +14,17 @@ import {
   TextInput,
   TouchableOpacity,
   UIManager,
-  View
+  View,
 } from 'react-native';
+import { appColors } from '../constants/theme';
 import { ItemLista, useListas } from '../context/ListaContext';
 import { useTheme } from '../context/ThemeContext';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
+
+const criarIdItem = () => Date.now().toString();
 
 const layoutAnimConfig = {
   duration: 300,
@@ -38,28 +42,40 @@ export default function EditorL() {
   const [itens, setItens] = useState<ItemLista[]>([]);
   const [novoItem, setNovoItem] = useState('');
 
-  const animacaoBotao = useRef(new Animated.Value(1)).current;
-  const animacaoRotacao = useRef(new Animated.Value(0)).current;
+  const [animacaoBotao] = useState(() => new Animated.Value(1));
+  const [animacaoRotacao] = useState(() => new Animated.Value(0));
 
+  const paleta = appColors(isDark);
   const cores = {
-    fundo: isDark ? '#000' : '#F8F9FB',
-    texto: isDark ? '#FFF' : '#1C1C1E',
-    card: isDark ? '#1C1C1E' : '#FFF',
-    borda: isDark ? '#333' : '#E5E5EA',
-    primaria: isDark ? "#BB86FC" : "#5856D6",
-    sucesso: "#34C759",
-    erro: "#FF3B30"
+    fundo: paleta.background,
+    texto: paleta.text,
+    subtexto: paleta.muted,
+    card: paleta.surface,
+    cardElevated: paleta.surfaceElevated,
+    borda: paleta.border,
+    primaria: paleta.primary,
+    primariaForte: paleta.primaryStrong,
+    primariaSoft: paleta.primarySoft,
+    sucesso: paleta.success,
+    erro: paleta.danger,
   };
 
+  const listaExistente = useMemo(
+    () => (id ? listas.find(l => l.id === id) : undefined),
+    [id, listas]
+  );
+  const concluidos = itens.filter(item => item.concluido).length;
+  const progresso = itens.length > 0 ? concluidos / itens.length : 0;
+
   useEffect(() => {
-    if (id) {
-      const listaExistente = listas.find(l => l.id === id);
+    const timer = setTimeout(() => {
       if (listaExistente) {
         setTitulo(listaExistente.titulo);
         setItens(listaExistente.itens);
       }
-    }
-  }, [id]);
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [listaExistente]);
 
   const adicionarItem = () => {
     if (!novoItem.trim()) return;
@@ -79,29 +95,30 @@ export default function EditorL() {
 
     LayoutAnimation.configureNext(layoutAnimConfig);
 
-    const item: ItemLista = { id: Date.now().toString(), texto: novoItem, concluido: false };
-    setItens([item, ...itens]);
+    const item: ItemLista = { id: criarIdItem(), texto: novoItem.trim(), concluido: false };
+    setItens(prev => [item, ...prev]);
     setNovoItem('');
   };
 
   const toggleItem = (itemId: string) => {
     Haptics.selectionAsync();
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setItens(itens.map(i => i.id === itemId ? { ...i, concluido: !i.concluido } : i));
+    setItens(prev => prev.map(item => item.id === itemId ? { ...item, concluido: !item.concluido } : item));
   };
 
   const removerItem = (itemId: string) => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
     LayoutAnimation.configureNext(layoutAnimConfig);
-    setItens(itens.filter(i => i.id !== itemId));
+    setItens(prev => prev.filter(item => item.id !== itemId));
   };
 
   const salvarETotalizar = () => {
     salvarLista({
       id: (id as string) || Date.now().toString(),
-      titulo: titulo || "Nova Lista",
-      itens
-      // O campo 'fixada' não é passado aqui, então ele morre.
+      titulo: titulo.trim() || "Nova Lista",
+      itens,
+      fixada: listaExistente?.fixada,
+      protegida: listaExistente?.protegida,
     });
     router.back();
 };
@@ -116,88 +133,152 @@ export default function EditorL() {
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{flex: 1}}>
         
         <View style={styles.header}>
-          <TouchableOpacity 
-            onPress={salvarETotalizar} 
-            style={[styles.backBtn, {backgroundColor: cores.card}]}
+          <TouchableOpacity
+            onPress={salvarETotalizar}
+            style={[styles.roundButton, { backgroundColor: cores.card, borderColor: cores.borda }]}
+            activeOpacity={0.75}
           >
-            <Ionicons name="chevron-back" size={24} color={cores.primaria} />
+            <Ionicons name="chevron-back" size={23} color={cores.primariaForte} />
           </TouchableOpacity>
-          <TextInput 
-            style={[styles.inputTitulo, { color: cores.texto }]}
-            placeholder="Título da Lista"
-            placeholderTextColor="#8E8E93"
-            value={titulo}
-            onChangeText={setTitulo}
-          />
+          <View style={styles.headerTitleArea}>
+            <Text style={[styles.eyebrow, { color: cores.primaria }]}>LISTA</Text>
+            <TextInput
+              style={[styles.inputTitulo, { color: cores.texto }]}
+              placeholder="Título da lista"
+              placeholderTextColor={cores.subtexto}
+              value={titulo}
+              onChangeText={setTitulo}
+              returnKeyType="done"
+            />
+          </View>
+          <TouchableOpacity
+            onPress={salvarETotalizar}
+            style={[styles.saveButton, { backgroundColor: cores.primaria }]}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="checkmark" size={22} color={paleta.onPrimary} />
+          </TouchableOpacity>
+        </View>
+
+        <View style={[styles.summaryCard, { backgroundColor: cores.card, borderColor: cores.borda }]}>
+          <View style={[styles.summaryIcon, { backgroundColor: cores.primariaSoft }]}>
+            <Ionicons name="checkmark-done" size={22} color={cores.primaria} />
+          </View>
+          <View style={styles.summaryContent}>
+            <View style={styles.summaryTopLine}>
+              <Text style={[styles.summaryTitle, { color: cores.texto }]}>Progresso da lista</Text>
+              <Text style={[styles.summaryCount, { color: cores.primaria }]}>{concluidos}/{itens.length}</Text>
+            </View>
+            <View style={[styles.progressTrack, { backgroundColor: cores.cardElevated }]}>
+              <MotiView
+                animate={{ width: `${Math.max(progresso * 100, itens.length > 0 ? 4 : 0)}%` }}
+                transition={{ type: 'timing', duration: 400 }}
+                style={[styles.progressFill, { backgroundColor: cores.primaria }]}
+              />
+            </View>
+            <Text style={[styles.summarySubtext, { color: cores.subtexto }]}>Toque em um item para marcar como feito</Text>
+          </View>
         </View>
 
         <View style={styles.inputArea}>
           <View style={[styles.inputContainer, { backgroundColor: cores.card, borderColor: cores.borda }]}>
-            <TextInput 
-                style={[styles.inputNovo, { color: cores.texto }]}
-                placeholder="Adicionar à lista..."
-                placeholderTextColor="#8E8E93"
-                value={novoItem}
-                onChangeText={setNovoItem}
-                onSubmitEditing={adicionarItem}
+            <View style={[styles.inputIcon, { backgroundColor: cores.primariaSoft }]}>
+              <Ionicons name="add" size={21} color={cores.primaria} />
+            </View>
+            <TextInput
+              style={[styles.inputNovo, { color: cores.texto }]}
+              placeholder="Adicionar item..."
+              placeholderTextColor={cores.subtexto}
+              value={novoItem}
+              onChangeText={setNovoItem}
+              onSubmitEditing={adicionarItem}
+              returnKeyType="done"
             />
             <Animated.View style={{ transform: [{ scale: animacaoBotao }] }}>
-                <TouchableOpacity 
-                    style={[styles.btnAdd, { backgroundColor: cores.primaria }]} 
-                    onPress={adicionarItem}
-                >
-                    <Animated.View style={{ transform: [{ rotate: rotaçãoIcone }] }}>
-                        <Ionicons name="add" size={30} color="#FFF" />
-                    </Animated.View>
-                </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.btnAdd, { backgroundColor: cores.primaria }]}
+                onPress={adicionarItem}
+                activeOpacity={0.8}
+              >
+                <Animated.View style={{ transform: [{ rotate: rotaçãoIcone }] }}>
+                  <Ionicons name="add" size={28} color={paleta.onPrimary} />
+                </Animated.View>
+              </TouchableOpacity>
             </Animated.View>
           </View>
         </View>
 
-        <ScrollView 
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ padding: 20, paddingBottom: 100 }}
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.listContent}
+          keyboardShouldPersistTaps="handled"
         >
-          {itens.length === 0 && (
-              <View style={styles.emptyState}>
-                  <Ionicons name="cart-outline" size={80} color={cores.borda} />
-                  <Text style={{color: '#888', marginTop: 10}}>Sua lista está vazia</Text>
-              </View>
-          )}
-
-          {itens.map((item) => (
-            <View 
-                key={item.id} 
-                style={[styles.itemRow, { 
-                  backgroundColor: cores.card, 
-                  borderLeftWidth: 5, 
-                  borderLeftColor: item.concluido ? cores.sucesso : cores.primaria 
-                }]}
+          {itens.length === 0 ? (
+            <MotiView
+              from={{ opacity: 0, scale: 0.9, translateY: 15 }}
+              animate={{ opacity: 1, scale: 1, translateY: 0 }}
+              transition={{ type: 'spring', damping: 16, stiffness: 120 }}
+              style={styles.emptyState}
             >
-              <TouchableOpacity onPress={() => toggleItem(item.id)} style={styles.checkArea}>
-                <View style={[styles.customCheck, { 
-                  borderColor: item.concluido ? cores.sucesso : cores.borda, 
-                  backgroundColor: item.concluido ? cores.sucesso : 'transparent' 
-                }]}>
-                   {item.concluido && <Ionicons name="checkmark" size={16} color="#FFF" />}
-                </View>
-                <Text style={[
-                  styles.itemTexto, 
-                  { 
-                    color: cores.texto, 
-                    textDecorationLine: item.concluido ? 'line-through' : 'none', 
-                    opacity: item.concluido ? 0.4 : 1 
-                  }
-                ]}>
-                  {item.texto}
-                </Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity onPress={() => removerItem(item.id)} style={styles.deleteBtn}>
-                <Ionicons name="trash-outline" size={20} color={cores.erro} />
-              </TouchableOpacity>
-            </View>
-          ))}
+              <View style={[styles.emptyIcon, { backgroundColor: cores.primariaSoft }]}>
+                <Ionicons name="list-outline" size={42} color={cores.primaria} />
+              </View>
+              <Text style={[styles.emptyTitle, { color: cores.texto }]}>Sua lista está vazia</Text>
+              <Text style={[styles.emptyText, { color: cores.subtexto }]}>Adicione o primeiro item acima para começar.</Text>
+            </MotiView>
+          ) : (
+            itens.map((item, index) => (
+              <MotiView
+                key={item.id}
+                from={{ opacity: 0, translateX: 20, scale: 0.97 }}
+                animate={{ opacity: 1, translateX: 0, scale: 1 }}
+                transition={{ type: 'spring', damping: 17, stiffness: 150, delay: Math.min(index * 45, 220) }}
+                style={[
+                  styles.itemRow,
+                  {
+                    backgroundColor: cores.card,
+                    borderColor: cores.borda,
+                    borderLeftColor: item.concluido ? cores.sucesso : cores.primaria,
+                  },
+                ]}
+              >
+                <TouchableOpacity onPress={() => toggleItem(item.id)} style={styles.checkArea} activeOpacity={0.75}>
+                  <MotiView
+                    animate={{ scale: item.concluido ? [0.85, 1.12, 1] : 1 }}
+                    transition={{ type: 'spring', damping: 10, stiffness: 220 }}
+                  >
+                    <View style={[
+                      styles.customCheck,
+                      {
+                        borderColor: item.concluido ? cores.sucesso : cores.borda,
+                        backgroundColor: item.concluido ? cores.sucesso : 'transparent',
+                      },
+                    ]}>
+                      {item.concluido && <Ionicons name="checkmark" size={17} color={paleta.onPrimary} />}
+                    </View>
+                  </MotiView>
+                  <View style={styles.itemTextArea}>
+                    <Text style={[
+                      styles.itemTexto,
+                      {
+                        color: cores.texto,
+                        opacity: item.concluido ? 0.55 : 1,
+                        textDecorationLine: item.concluido ? 'line-through' : 'none',
+                      },
+                    ]}>
+                      {item.texto}
+                    </Text>
+                    <Text style={[styles.itemStatus, { color: item.concluido ? cores.sucesso : cores.subtexto }]}>
+                      {item.concluido ? 'Concluído' : 'Pendente'}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => removerItem(item.id)} style={styles.deleteBtn} activeOpacity={0.7}>
+                  <Ionicons name="trash-outline" size={20} color={cores.erro} />
+                </TouchableOpacity>
+              </MotiView>
+            ))
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
@@ -205,18 +286,73 @@ export default function EditorL() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingTop: 50 },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, marginBottom: 25 },
-  backBtn: { width: 45, height: 45, borderRadius: 15, justifyContent: 'center', alignItems: 'center', elevation: 2, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 5 },
-  inputTitulo: { fontSize: 26, fontWeight: '800', marginLeft: 15, flex: 1, letterSpacing: -0.5 },
-  inputArea: { paddingHorizontal: 20, marginBottom: 15 },
-  inputContainer: { flexDirection: 'row', alignItems: 'center', borderRadius: 22, borderWidth: 1, paddingLeft: 15, paddingRight: 6, height: 65, elevation: 3, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10 },
-  inputNovo: { flex: 1, fontSize: 16, fontWeight: '500' },
-  btnAdd: { width: 52, height: 52, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
-  itemRow: { flexDirection: 'row', alignItems: 'center', padding: 18, borderRadius: 20, marginBottom: 15, elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5 },
+  container: { flex: 1, paddingTop: 52 },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, marginBottom: 18 },
+  roundButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 15,
+    borderWidth: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+  },
+  headerTitleArea: { flex: 1, marginHorizontal: 14 },
+  eyebrow: { fontSize: 11, fontWeight: '900', letterSpacing: 1.8, marginBottom: 2 },
+  inputTitulo: { fontSize: 25, fontWeight: '800', padding: 0, letterSpacing: -0.5 },
+  saveButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 15,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+  },
+  summaryCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 20,
+    marginBottom: 16,
+    padding: 16,
+    borderRadius: 22,
+    borderWidth: 1,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 9,
+    shadowOffset: { width: 0, height: 4 },
+  },
+  summaryIcon: { width: 46, height: 46, borderRadius: 15, justifyContent: 'center', alignItems: 'center', marginRight: 13 },
+  summaryContent: { flex: 1 },
+  summaryTopLine: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 9 },
+  summaryTitle: { fontSize: 15, fontWeight: '800' },
+  summaryCount: { fontSize: 16, fontWeight: '900' },
+  progressTrack: { height: 7, borderRadius: 4, overflow: 'hidden' },
+  progressFill: { height: '100%', borderRadius: 4 },
+  summarySubtext: { fontSize: 11.5, marginTop: 8 },
+  inputArea: { paddingHorizontal: 20, marginBottom: 8 },
+  inputContainer: { flexDirection: 'row', alignItems: 'center', borderRadius: 22, borderWidth: 1, paddingLeft: 10, paddingRight: 6, height: 64, elevation: 3, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } },
+  inputIcon: { width: 40, height: 40, borderRadius: 13, justifyContent: 'center', alignItems: 'center', marginRight: 10 },
+  inputNovo: { flex: 1, fontSize: 16, fontWeight: '500', paddingVertical: 0 },
+  btnAdd: { width: 50, height: 50, borderRadius: 17, justifyContent: 'center', alignItems: 'center' },
+  listContent: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 45 },
+  itemRow: { flexDirection: 'row', alignItems: 'center', padding: 16, borderRadius: 20, marginBottom: 12, borderWidth: 1, borderLeftWidth: 4, elevation: 2, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 7, shadowOffset: { width: 0, height: 3 } },
   checkArea: { flex: 1, flexDirection: 'row', alignItems: 'center' },
-  customCheck: { width: 26, height: 26, borderRadius: 8, borderWidth: 2, justifyContent: 'center', alignItems: 'center' },
-  itemTexto: { fontSize: 17, marginLeft: 15, fontWeight: '600' },
-  deleteBtn: { padding: 5 },
-  emptyState: { alignItems: 'center', marginTop: 100, opacity: 0.5 }
+  customCheck: { width: 28, height: 28, borderRadius: 10, borderWidth: 2, justifyContent: 'center', alignItems: 'center' },
+  itemTextArea: { flex: 1, marginLeft: 14 },
+  itemTexto: { fontSize: 17, fontWeight: '700', lineHeight: 22 },
+  itemStatus: { fontSize: 12, fontWeight: '700', marginTop: 4 },
+  deleteBtn: { padding: 8, marginLeft: 5 },
+  emptyState: { alignItems: 'center', marginTop: 74, paddingHorizontal: 25 },
+  emptyIcon: { width: 88, height: 88, borderRadius: 44, justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
+  emptyTitle: { fontSize: 19, fontWeight: '800' },
+  emptyText: { fontSize: 14, textAlign: 'center', marginTop: 8, lineHeight: 20 },
 });

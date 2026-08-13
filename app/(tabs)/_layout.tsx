@@ -6,6 +6,7 @@ import { AppState, AppStateStatus, StyleSheet, Text, TouchableOpacity, View } fr
 import { alarmeEstado } from '../../context/alarme-estado';
 import { bloqueioEstado } from '../../context/bloqueio-estado';
 import { useTheme } from '../../context/ThemeContext';
+import { appColors } from '../../constants/theme';
 
 export default function TabLayout() {
   const { isDark, config } = useTheme();
@@ -23,11 +24,12 @@ export default function TabLayout() {
     autenticadoRef.current = autenticado;
   }, [autenticado]);
 
+  const paleta = appColors(isDark);
   const cores = {
-    fundo: isDark ? '#000' : '#F2F2F7',
-    texto: isDark ? '#FFF' : '#000',
-    accent: isDark ? '#BB86FC' : '#6200EE',
-    itemFundo: isDark ? '#1C1C1E' : '#FFF',
+    fundo: paleta.background,
+    texto: paleta.text,
+    accent: paleta.primary,
+    itemFundo: paleta.surface,
   };
 
   const autenticar = async () => {
@@ -121,14 +123,14 @@ export default function TabLayout() {
         </View>
         
         <Text style={[styles.lockTitle, { color: cores.texto }]}>App Bloqueado</Text>
-        <Text style={styles.lockSubTitle}>Toque no botão abaixo para acessar suas notas e tarefas.</Text>
+        <Text style={[styles.lockSubTitle, { color: paleta.muted }]}>Toque no botão abaixo para acessar suas notas e tarefas.</Text>
 
         <TouchableOpacity 
           style={[styles.btnAutenticar, { backgroundColor: cores.accent }]} 
           onPress={autenticar}
           activeOpacity={0.8}
         >
-          <Ionicons name="finger-print" size={24} color="#FFF" style={{ marginRight: 10 }} />
+          <Ionicons name="finger-print" size={24} color={paleta.onPrimary} style={{ marginRight: 10 }} />
           <Text style={styles.btnText}>Desbloquear</Text>
         </TouchableOpacity>
       </View>
@@ -139,9 +141,9 @@ export default function TabLayout() {
     <Tabs screenOptions={{
       headerShown: false,
       tabBarStyle: {
-        backgroundColor: isDark ? '#09090B' : '#FFF',
+        backgroundColor: paleta.tabBackground,
         borderTopWidth: 1,
-        borderTopColor: isDark ? '#242229' : '#E7E5EC',
+        borderTopColor: paleta.border,
         height: 78,
         paddingBottom: 14,
         paddingTop: 9,
@@ -153,8 +155,8 @@ export default function TabLayout() {
       },
       tabBarItemStyle: { borderRadius: 18, marginHorizontal: 8 },
       tabBarLabelStyle: { fontSize: 12, fontWeight: '700', marginTop: 1 },
-      tabBarActiveTintColor: isDark ? '#D2A6FF' : '#6200EE',
-      tabBarInactiveTintColor: isDark ? '#77747F' : '#8E8E93',
+      tabBarActiveTintColor: paleta.primaryStrong,
+      tabBarInactiveTintColor: paleta.muted,
     }}>
       <Tabs.Screen name="index" options={{ title: 'Notas', tabBarIcon: ({ color, size }) => <Ionicons name="document-text" size={size} color={color} /> }} />
       <Tabs.Screen name="tarefas" options={{ title: 'Tarefas', tabBarIcon: ({ color, size }) => <Ionicons name="list" size={size} color={color} /> }} />
@@ -190,7 +192,6 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   lockSubTitle: {
-    color: '#888',
     fontSize: 16,
     textAlign: 'center',
     marginBottom: 40,
@@ -204,7 +205,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   btnText: {
-    color: '#FFF',
+    color: '#FFFFFF',
     fontSize: 18,
     fontWeight: '600',
   },

@@ -7,6 +7,7 @@ import { Animated, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput,
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Recorrencia, useTarefas } from '../../context/TarefasContext';
 import { useTheme } from '../../context/ThemeContext';
+import { appColors } from '../../constants/theme';
 
 const DIAS: Recorrencia[] = ['Uma vez', 'Diária', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
 
@@ -31,7 +32,7 @@ const TaskCard = ({ t, cores, onToggle, onDelete, isDone }: any) => (
             backgroundColor: isDone ? cores.primaria : 'transparent'
           }
         ]}>
-          {isDone && <Ionicons name="checkmark" size={16} color="#FFF" />}
+          {isDone && <Ionicons name="checkmark" size={16} color={cores.onPrimary} />}
         </View>
       </MotiView>
       <View style={{ marginLeft: 15 }}>
@@ -45,7 +46,7 @@ const TaskCard = ({ t, cores, onToggle, onDelete, isDone }: any) => (
       </View>
     </TouchableOpacity>
     <TouchableOpacity onPress={() => onDelete(t.id)} style={styles.btnDelete} activeOpacity={0.7}>
-      <Ionicons name="trash-outline" size={20} color="#FF453A" />
+      <Ionicons name="trash-outline" size={20} color={cores.perigo} />
     </TouchableOpacity>
   </MotiView>
 );
@@ -59,15 +60,20 @@ export default function TarefasScreen() {
   const [exibirRelogio, setExibirRelogio] = useState(false);
   const [dataTemp, setDataTemp] = useState(new Date());
 
-  const cores = useMemo(() => ({
-    fundo: isDark ? '#000000' : '#F2F2F7',
-    card: isDark ? '#1C1C1E' : '#FFFFFF',
-    texto: isDark ? '#FFFFFF' : '#000000',
-    subtexto: '#8E8E93',
-    primaria: isDark ? '#BF5AF2' : '#AF52DE',
-    borda: isDark ? '#3A3A3C' : '#E5E5EA',
-    inputFundo: isDark ? '#2C2C2E' : '#E9E9EB',
-  }), [isDark]);
+  const cores = useMemo(() => {
+    const paleta = appColors(isDark);
+    return {
+      fundo: paleta.background,
+      card: paleta.surface,
+      texto: paleta.text,
+      subtexto: paleta.muted,
+      primaria: paleta.primary,
+      borda: paleta.border,
+      inputFundo: paleta.surfaceElevated,
+      onPrimary: paleta.onPrimary,
+      perigo: paleta.danger,
+    };
+  }, [isDark]);
 
   const btnState = useAnimationState({
     idle: { scale: 1 },
@@ -157,7 +163,7 @@ export default function TarefasScreen() {
                 style={[styles.btnAdd, { backgroundColor: cores.primaria }]}
               >
                 <Animated.View style={{ transform: [{ rotate: rotacaoIcone }] }}>
-                  <Ionicons name="add" size={28} color="#FFF" />
+                  <Ionicons name="add" size={28} color={cores.onPrimary} />
                 </Animated.View>
               </MotiView>
             </Pressable>
@@ -175,7 +181,7 @@ export default function TarefasScreen() {
                     : { backgroundColor: cores.card, borderColor: cores.borda }
                 ]}
               >
-                <Text style={{ color: diaSelecionado === d ? '#FFF' : cores.texto, fontWeight: '700' }}>{d}</Text>
+                <Text style={{ color: diaSelecionado === d ? cores.onPrimary : cores.texto, fontWeight: '700' }}>{d}</Text>
               </TouchableOpacity>
             ))}
           </ScrollView>

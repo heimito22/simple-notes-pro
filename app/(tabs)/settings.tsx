@@ -6,6 +6,7 @@ import { Alert, Linking, Modal, Platform, ScrollView, StyleSheet, Switch, Text, 
 import PreviewSom from '../../components/preview-som';
 import { useMonetizacao } from '../../context/monetizacao';
 import { useTheme } from '../../context/ThemeContext';
+import { appColors } from '../../constants/theme';
 import { infoDoSom, SONS_ALARME } from '../../context/sons-alarme';
 import { alarmeNativoDisponivel, obterPrecoRemoverAnuncios, pararSomAlarme, previewSomAlarme } from '../../modules/minhasnotas-alarm';
 
@@ -49,28 +50,30 @@ export default function SettingsScreen() {
     };
   }, []);
 
+  const paleta = appColors(isDark);
   const cores = {
-    fundo: isDark ? '#000' : '#F2F2F7',
-    textoPrincipal: isDark ? '#FFF' : '#000',
-    textoSecundario: '#888',
-    itemFundo: isDark ? '#1C1C1E' : '#FFF',
-    borda: isDark ? '#333' : '#E5E5EA',
-    accent: isDark ? '#BB86FC' : '#6200EE',
+    fundo: paleta.background,
+    textoPrincipal: paleta.text,
+    textoSecundario: paleta.muted,
+    itemFundo: paleta.surface,
+    borda: paleta.border,
+    accent: paleta.primary,
     // Modal do seletor de som (tema claro/escuro)
-    sheetFundo: isDark ? '#0D0D12' : '#FEFEFE',
-    sheetBorda: isDark ? '#2A2A33' : '#E5E5EA',
-    sheetHandle: isDark ? '#3A3A3C' : '#D1D1D6',
-    sheetTitulo: isDark ? '#FFF' : '#1C1C1E',
-    sheetSub: isDark ? '#8E8E93' : '#6E6E73',
-    botaoFecharFundo: isDark ? '#1C1C1E' : '#F0F0F3',
-    botaoFecharIcone: isDark ? '#FFF' : '#1C1C1E',
-    somRowFundo: isDark ? '#16161D' : '#F5F5F7',
-    somRowBorda: isDark ? '#23232B' : '#E8E8ED',
-    somNome: isDark ? '#FFF' : '#1C1C1E',
-    somIconeFundo: isDark ? '#241F33' : '#EDE7F6',
-    botaoOuvirFundo: isDark ? '#2A2A33' : '#E8E8ED',
-    botaoOuvirIcone: isDark ? '#FFF' : '#1C1C1E',
-    botaoRemoverFundo: isDark ? '#3A1D1D' : '#FBE9E9',
+    sheetFundo: paleta.background,
+    sheetBorda: paleta.border,
+    sheetHandle: paleta.border,
+    sheetTitulo: paleta.text,
+    sheetSub: paleta.muted,
+    botaoFecharFundo: paleta.surfaceElevated,
+    botaoFecharIcone: paleta.text,
+    somRowFundo: paleta.surface,
+    somRowBorda: paleta.border,
+    somNome: paleta.text,
+    somIconeFundo: paleta.primarySoft,
+    botaoOuvirFundo: paleta.surfaceElevated,
+    botaoOuvirIcone: paleta.text,
+    botaoRemoverFundo: paleta.dangerSoft,
+    onPrimary: paleta.onPrimary,
   };
 
   // Preço real do produto "remover_anuncios" no Play Console (se publicado)
@@ -170,7 +173,7 @@ export default function SettingsScreen() {
       
       {/* SEÇÃO APARÊNCIA */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Aparência</Text>
+        <Text style={[styles.sectionTitle, { color: cores.textoSecundario } ]}>Aparência</Text>
         <View style={[styles.item, { backgroundColor: cores.itemFundo, borderRadius: 15 }]}>
           <Text style={[styles.itemText, { color: cores.textoPrincipal }]}>Modo Escuro</Text>
           <Switch 
@@ -183,12 +186,12 @@ export default function SettingsScreen() {
 
       {/* SEÇÃO INTERFACE - NOVO */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Interface</Text>
+        <Text style={[styles.sectionTitle, { color: cores.textoSecundario } ]}>Interface</Text>
         <View style={[styles.group, { backgroundColor: cores.itemFundo }]}>
           <View style={styles.innerItem}>
             <View style={{ flex: 1 }}>
               <Text style={[styles.itemText, { color: cores.textoPrincipal }]}>Ajuda no Menu +</Text>
-              <Text style={styles.subText}>Mostrar botão de guia no menu de criação</Text>
+              <Text style={[styles.subText, { color: cores.textoSecundario } ]}>Mostrar botão de guia no menu de criação</Text>
             </View>
             <Switch 
               value={config.exibirAjudaFAB ?? true} 
@@ -201,19 +204,19 @@ export default function SettingsScreen() {
 
       {/* SEÇÃO ALARME */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Alarme</Text>
+        <Text style={[styles.sectionTitle, { color: cores.textoSecundario } ]}>Alarme</Text>
         <View style={[styles.group, { backgroundColor: cores.itemFundo }]}>
           <TouchableOpacity
             style={[styles.innerItem, { borderBottomColor: cores.borda, borderBottomWidth: 1 }]}
             onPress={() => setSomModalAberto(true)}
             activeOpacity={0.6}
           >
-            <View style={[styles.iconeItem, { backgroundColor: isDark ? '#241F33' : '#EDE7F6' }]}>
+            <View style={[styles.iconeItem, { backgroundColor: paleta.primarySoft }]}>
               <Ionicons name="musical-notes" size={20} color={cores.accent} />
             </View>
             <View style={{ flex: 1, marginLeft: 12 }}>
               <Text style={[styles.itemText, { color: cores.textoPrincipal }]}>Som do alarme</Text>
-              <Text style={styles.subText}>Toca no volume de alarme, no máximo</Text>
+              <Text style={[styles.subText, { color: cores.textoSecundario } ]}>Toca no volume de alarme, no máximo</Text>
             </View>
             <Text
               style={{ color: cores.accent, fontWeight: 'bold', fontSize: 16, maxWidth: 110 }}
@@ -229,12 +232,12 @@ export default function SettingsScreen() {
             onPress={selecionarSoneca}
             activeOpacity={0.6}
           >
-            <View style={[styles.iconeItem, { backgroundColor: isDark ? '#1E2410' : '#F5F3DC' }]}>
-              <Ionicons name="alarm" size={20} color={isDark ? '#FFD60A' : '#B58900'} />
+            <View style={[styles.iconeItem, { backgroundColor: paleta.primarySoft }]}>
+              <Ionicons name="alarm" size={20} color={paleta.warning} />
             </View>
             <View style={{ flex: 1, marginLeft: 12 }}>
               <Text style={[styles.itemText, { color: cores.textoPrincipal }]}>Soneca do alarme</Text>
-              <Text style={styles.subText}>Tempo ao tocar em “Daqui a X min”</Text>
+              <Text style={[styles.subText, { color: cores.textoSecundario } ]}>Tempo ao tocar em “Daqui a X min”</Text>
             </View>
             <Text style={{ color: cores.accent, fontWeight: 'bold', fontSize: 16 }}>
               {config.tempoSoneca} min
@@ -246,12 +249,12 @@ export default function SettingsScreen() {
             onPress={() => router.push('/permissoes')}
             activeOpacity={0.6}
           >
-            <View style={[styles.iconeItem, { backgroundColor: isDark ? '#1F1933' : '#EDE7F6' }]}>
+            <View style={[styles.iconeItem, { backgroundColor: paleta.primarySoft }]}>
               <Ionicons name="shield-checkmark" size={20} color={cores.accent} />
             </View>
             <View style={{ flex: 1, marginLeft: 12 }}>
               <Text style={[styles.itemText, { color: cores.textoPrincipal }]}>Permissões do alarme</Text>
-              <Text style={styles.subText}>Popup em tela cheia · Xiaomi · bateria</Text>
+              <Text style={[styles.subText, { color: cores.textoSecundario } ]}>Popup em tela cheia · Xiaomi · bateria</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color="#999" />
           </TouchableOpacity>
@@ -260,28 +263,28 @@ export default function SettingsScreen() {
 
       {/* SEÇÃO ANÚNCIOS / REMOVER ANÚNCIOS */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Anúncios</Text>
+        <Text style={[styles.sectionTitle, { color: cores.textoSecundario } ]}>Anúncios</Text>
         <View style={[styles.group, { backgroundColor: cores.itemFundo }]}>
           {anunciosRemovidos ? (
             <View style={styles.innerItem}>
-              <View style={[styles.iconeItem, { backgroundColor: isDark ? '#0E2418' : '#E4F6EC' }]}>
-                <Ionicons name="checkmark-circle" size={20} color="#34C759" />
+              <View style={[styles.iconeItem, { backgroundColor: paleta.primarySoft }]}>
+                <Ionicons name="checkmark-circle" size={20} color={paleta.success} />
               </View>
               <View style={{ flex: 1, marginLeft: 12 }}>
                 <Text style={[styles.itemText, { color: cores.textoPrincipal }]}>Anúncios removidos</Text>
-                <Text style={styles.subText}>
+                <Text style={[styles.subText, { color: cores.textoSecundario } ]}>
                   {premiumPorEmail
                     ? 'Premium liberado por convite do desenvolvedor'
                     : 'Obrigado pelo apoio! Sem anúncios para sempre'}
                 </Text>
               </View>
               {premiumPorEmail ? (
-                <View style={[styles.seloPremium, { backgroundColor: isDark ? '#3A2E0A' : '#FFF4D6' }]}>
-                  <Ionicons name="gift" size={12} color="#FFB300" />
+                <View style={[styles.seloPremium, { backgroundColor: paleta.primarySoft }]}>
+                  <Ionicons name="gift" size={12} color={paleta.warning} />
                   <Text style={styles.seloPremiumTexto} numberOfLines={1}>Premium por convite</Text>
                 </View>
               ) : (
-                <Ionicons name="sparkles" size={20} color="#FFD60A" />
+                <Ionicons name="sparkles" size={20} color={paleta.warning} />
               )}
             </View>
           ) : (
@@ -291,14 +294,14 @@ export default function SettingsScreen() {
               activeOpacity={0.6}
               disabled={comprando}
             >
-              <View style={[styles.iconeItem, { backgroundColor: isDark ? '#241F33' : '#EDE7F6' }]}>
+              <View style={[styles.iconeItem, { backgroundColor: paleta.primarySoft }]}>
                 <Ionicons name="shield-checkmark" size={20} color={cores.accent} />
               </View>
               <View style={{ flex: 1, marginLeft: 12 }}>
                 <Text style={[styles.itemText, { color: cores.textoPrincipal }]}>
                   Remover anúncios para sempre
                 </Text>
-                <Text style={styles.subText}>Pagamento único pela Play Store</Text>
+                <Text style={[styles.subText, { color: cores.textoSecundario } ]}>Pagamento único pela Play Store</Text>
               </View>
               <View
                 style={{
@@ -319,12 +322,12 @@ export default function SettingsScreen() {
 
       {/* SEÇÃO IA */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>IA</Text>
+        <Text style={[styles.sectionTitle, { color: cores.textoSecundario } ]}>IA</Text>
         <View style={[styles.group, { backgroundColor: cores.itemFundo }]}>
           <View style={styles.innerItem}>
             <View style={{ flex: 1 }}>
               <Text style={[styles.itemText, { color: cores.textoPrincipal }]}>Chave da IA (gratuita)</Text>
-              <Text style={styles.subText}>
+              <Text style={[styles.subText, { color: cores.textoSecundario } ]}>
                 Respostas como ChatGPT usando modelos grátis do OpenRouter
               </Text>
             </View>
@@ -341,10 +344,10 @@ export default function SettingsScreen() {
                   paddingHorizontal: 12,
                   fontSize: 14,
                   color: cores.textoPrincipal,
-                  backgroundColor: isDark ? '#000' : '#F8F8FA',
+                  backgroundColor: paleta.background,
                 }}
                 placeholder="sk-or-v1-..."
-                placeholderTextColor="#888"
+                placeholderTextColor={cores.textoSecundario}
                 value={chaveEditando}
                 onChangeText={salvarChaveIA}
                 secureTextEntry={!chaveVisivel}
@@ -356,7 +359,7 @@ export default function SettingsScreen() {
                 style={{ marginLeft: 8, padding: 6 }}
                 hitSlop={8}
               >
-                <Ionicons name={chaveVisivel ? 'eye-off-outline' : 'eye-outline'} size={20} color="#888" />
+                <Ionicons name={chaveVisivel ? 'eye-off-outline' : 'eye-outline'} size={20} color={cores.textoSecundario} />
               </TouchableOpacity>
             </View>
             <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
@@ -400,13 +403,13 @@ export default function SettingsScreen() {
 
       {/* SEÇÃO SEGURANÇA */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Segurança</Text>
+        <Text style={[styles.sectionTitle, { color: cores.textoSecundario } ]}>Segurança</Text>
         <View style={[styles.group, { backgroundColor: cores.itemFundo }]}>
           
           <View style={[styles.innerItem, { borderBottomColor: cores.borda, borderBottomWidth: config.exigirBiometriaApp ? 1 : 0 }]}>
             <View style={{ flex: 1 }}>
               <Text style={[styles.itemText, { color: cores.textoPrincipal }]}>Bloquear App</Text>
-              <Text style={styles.subText}>Exigir biometria ao abrir o aplicativo</Text>
+              <Text style={[styles.subText, { color: cores.textoSecundario } ]}>Exigir biometria ao abrir o aplicativo</Text>
             </View>
             <Switch 
               value={config.exigirBiometriaApp} 
@@ -419,7 +422,7 @@ export default function SettingsScreen() {
             <TouchableOpacity style={[styles.innerItem, { borderBottomWidth: 0 }]} onPress={selecionarTempo}>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.itemText, { color: cores.textoPrincipal }]}>Tempo de Bloqueio</Text>
-                <Text style={styles.subText}>Janela de carência antes de bloquear</Text>
+                <Text style={[styles.subText, { color: cores.textoSecundario } ]}>Janela de carência antes de bloquear</Text>
               </View>
               <Text style={{ color: cores.accent, fontWeight: 'bold', fontSize: 16 }}>
                 {config.tempoBloqueio === 0 ? "Imediato" : `${config.tempoBloqueio} min`}
@@ -505,7 +508,7 @@ export default function SettingsScreen() {
       </Modal>
 
       <View style={styles.footer}>
-        <Text style={styles.footerText}>Versão do App: 1.0.9</Text>
+        <Text style={[styles.footerText, { color: cores.textoSecundario }]}>Versão do App: 1.0.9</Text>
       </View>
 
       {/* SELETOR DE SOM DO ALARME (modal OLED) */}
@@ -587,7 +590,7 @@ const styles = StyleSheet.create({
   contentContainer: { paddingTop: 70, paddingHorizontal: 20, paddingBottom: 60 },
   title: { fontSize: 34, fontWeight: '900', marginBottom: 30 },
   section: { marginBottom: 25 },
-  sectionTitle: { color: '#888', fontSize: 12, textTransform: 'uppercase', marginBottom: 8, marginLeft: 10, letterSpacing: 1 },
+  sectionTitle: { fontSize: 12, textTransform: 'uppercase', marginBottom: 8, marginLeft: 10, letterSpacing: 1 },
   group: { borderRadius: 15, overflow: 'hidden' },
   item: { 
     flexDirection: 'row', 
@@ -604,9 +607,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
   },
   itemText: { fontSize: 17, fontWeight: '500' },
-  subText: { color: '#888', fontSize: 12, marginTop: 2 },
+  subText: { fontSize: 12, marginTop: 2 },
   footer: { marginTop: 30, marginBottom: 20, alignItems: 'center' },
-  footerText: { color: '#888', fontSize: 14 },
+  footerText: { fontSize: 14 },
   seloPremium: {
     flexDirection: 'row',
     alignItems: 'center',
