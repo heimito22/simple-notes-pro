@@ -373,7 +373,7 @@ export default function EditorScreen() {
             .replace(/>/g, '&gt;');
         const nomeHtml = escaparHtml(nome);
         const uriHtml = escaparHtml(uri);
-        const html = `<br><span class="anexo-audio-inline" data-audio-uri="${uriHtml}" data-audio-name="${nomeHtml}"><span class="anexo-audio-text">🎙️ ${nomeHtml}</span><audio controls src="${uriHtml}" class="anexo-audio"></audio><button type="button" class="anexo-audio-remove" data-audio-delete="${uriHtml}" aria-label="Apagar áudio">×</button></span><br>`;
+        const html = `<br><span class="anexo-audio-inline" data-audio-uri="${uriHtml}" data-audio-name="${nomeHtml}"><audio controls src="${uriHtml}" class="anexo-audio"></audio><button type="button" class="anexo-audio-remove" data-audio-delete="${uriHtml}" aria-label="Apagar áudio">×</button></span><br>`;
         conteudoRef.current += html;
         setAudios(prev => [...prev, { uri, nome }]);
         // O áudio já nasce dentro do fluxo textual do WebView e não devolve o

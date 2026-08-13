@@ -73,8 +73,15 @@ const escaparHtml = (valor: string) => valor
 const audioInlineHtml = (uri: string, nome: string) => {
   const uriHtml = escaparHtml(uri);
   const nomeHtml = escaparHtml(nome);
-  return `<span class="anexo-audio-inline" data-audio-uri="${uriHtml}" data-audio-name="${nomeHtml}"><span class="anexo-audio-text">🎙️ ${nomeHtml}</span><audio controls src="${uriHtml}" class="anexo-audio"></audio><button type="button" class="anexo-audio-remove" data-audio-delete="${uriHtml}" aria-label="Apagar áudio">×</button></span>`;
+  return `<span class="anexo-audio-inline" data-audio-uri="${uriHtml}" data-audio-name="${nomeHtml}"><audio controls src="${uriHtml}" class="anexo-audio"></audio><button type="button" class="anexo-audio-remove" data-audio-delete="${uriHtml}" aria-label="Apagar áudio">×</button></span>`;
 };
+
+// Remove as apresentações antigas (texto, player circular ou card) e preserva
+// somente o controle nativo do Android dentro do conteúdo da nota.
+const normalizarAudioInline = (html: string) => html.replace(
+  /<span\b[^>]*class=["'][^"']*anexo-audio-inline[^"']*["'][^>]*>[\s\S]*?(<audio\b[^>]*\bsrc=["']([^"']+)["'][^>]*>[\s\S]*?<\/audio>)[\s\S]*?<\/span>/gi,
+  (_bloco, audioTag: string, uri: string) => `<span class="anexo-audio-inline" data-audio-uri="${uri}">${audioTag}<button type="button" class="anexo-audio-remove" data-audio-delete="${uri}" aria-label="Apagar áudio">×</button></span>`
+);
 
 // Converte marcadores de anexos antigos ("[Imagem anexada: x.jpg]") em tags reais.
 const converterMarcadores = (html: string, imagensDirUri?: string, audiosDirUri?: string) => {
@@ -91,7 +98,7 @@ const converterMarcadores = (html: string, imagensDirUri?: string, audiosDirUri?
         ? `<br>${audioInlineHtml(`${audiosDirUri}/${nomeLimpo}`, nomeLimpo)}<br>`
         : m;
     });
-  return convertido;
+  return normalizarAudioInline(convertido);
 };
 
 // Serializa para uma string JS segura dentro de <script> (escapa `<` para
@@ -143,40 +150,36 @@ const buildDoc = (
      acesso ao texto abaixo delas) — mantém a proporção com width/height auto. */
   img { max-width: 100%; max-height: 60vh; width: auto; height: auto; }
   img.anexo-img { border-radius: 14px; margin: 8px 0; display: block; }
-  /* Controle nativo do Android/WebView, mantido inline no conteúdo da nota. */
+  /* Player original: controle nativo do Android/WebView, sem card, nome ou
+     player customizado. O wrapper existe apenas para manter a exclusão. */
   .anexo-audio-inline {
-    display: inline-flex;
+    display: flex;
     align-items: center;
-    vertical-align: middle;
-    gap: 6px;
-    margin: 5px 0;
-    padding: 5px 7px;
-    border: 1px solid ${accentColor};
-    border-radius: 10px;
-    color: ${accentColor};
-  }
-  .anexo-audio-text {
-    color: ${accentColor};
-    font-size: 14px;
-    font-weight: 700;
-    white-space: nowrap;
+    width: 100%;
+    margin: 8px 0;
+    gap: 8px;
   }
   audio.anexo-audio {
-    display: inline-block !important;
-    width: 178px;
-    height: 32px;
-    vertical-align: middle;
+    display: block !important;
+    flex: 1;
+    min-width: 0;
+    width: 100%;
+    height: 48px;
+    margin: 0;
   }
   .anexo-audio-remove {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 28px;
     border: 0;
-    border-radius: 12px;
+    border-radius: 14px;
     background: ${accentColor};
     color: ${backgroundColor};
     font-size: 18px;
-    line-height: 22px;
-    width: 23px;
-    height: 23px;
+    line-height: 28px;
+    width: 28px;
+    height: 28px;
     padding: 0;
   }
   body:not(.editando) .anexo-audio-remove { display: none; }
