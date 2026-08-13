@@ -42,6 +42,7 @@ const limparAnexos = (html: string) =>
   (html || '')
     .replace(/\[(?:Imagem|Áudio) anexad[oa]:\s*[^\]]*\]/gi, ' ')
     .replace(/<img[^>]*>/gi, ' ')
+    .replace(/<span[^>]*class=["']anexo-audio-inline["'][^>]*>[\s\S]*?<\/span>/gi, ' ')
     .replace(/<audio[\s\S]*?<\/audio>/gi, ' ')
     .replace(/<span[^>]*class=["']anexo-audio-text["'][^>]*>[\s\S]*?<\/span>/gi, ' ');
 

@@ -23,7 +23,7 @@ import { DIAS_SEMANA, resumoLembrete, type LembreteNota, type TipoLembrete } fro
 import { useMonetizacao } from '../context/monetizacao';
 import { appColors } from '../constants/theme';
 import RichTextEditor, { FormatoAtivo, RichTextEditorHandle } from '../components/rich-text-editor';
-import AudioPlayer, { excluirArquivoAudio, extrairAudios, removerAudioDoHtml, type AudioAttachment } from '../components/audio-chip';
+import { excluirArquivoAudio, extrairAudios, removerAudioDoHtml, type AudioAttachment } from '../components/audio-chip';
 import * as Haptics from 'expo-haptics';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -373,11 +373,11 @@ export default function EditorScreen() {
             .replace(/>/g, '&gt;');
         const nomeHtml = escaparHtml(nome);
         const uriHtml = escaparHtml(uri);
-        const html = `<br><span class="anexo-audio-text" data-audio-uri="${uriHtml}" data-audio-name="${nomeHtml}">🎙️ ${nomeHtml}</span><audio controls src="${uriHtml}" class="anexo-audio"></audio><br>`;
+        const html = `<br><span class="anexo-audio-inline" data-audio-uri="${uriHtml}" data-audio-name="${nomeHtml}"><span class="anexo-audio-text">🎙️ ${nomeHtml}</span><audio controls src="${uriHtml}" class="anexo-audio"></audio><button type="button" class="anexo-audio-remove" data-audio-delete="${uriHtml}" aria-label="Apagar áudio">×</button></span><br>`;
         conteudoRef.current += html;
         setAudios(prev => [...prev, { uri, nome }]);
-        // Não devolve o foco ao WebView: ao terminar a gravação o teclado não
-        // deve reabrir nem provocar novo cálculo da posição da toolbar.
+        // O áudio já nasce dentro do fluxo textual do WebView e não devolve o
+        // foco, evitando que o teclado reabra ao terminar a gravação.
         editorRef.current?.appendContent(html, { focus: false });
     }, []);
 
@@ -423,6 +423,23 @@ export default function EditorScreen() {
         editorRef.current?.setContent(novoConteudo);
         await excluirArquivoAudio(audio.uri);
     };
+
+    const solicitarRemocaoAudio = useCallback((uri: string) => {
+        const audio = audios.find(item => item.uri === uri);
+        if (!audio) return;
+        Alert.alert(
+            'Apagar áudio',
+            'Deseja remover este áudio da nota?',
+            [
+                { text: 'Cancelar', style: 'cancel' },
+                {
+                    text: 'Apagar',
+                    style: 'destructive',
+                    onPress: () => { removerAudio(audio).catch(() => {}); },
+                },
+            ]
+        );
+    }, [audios]);
 
     const pararGravacao = async () => {
         if (!gravando) return;
@@ -933,22 +950,12 @@ export default function EditorScreen() {
                     imagensDirUri={DIR_IMAGENS.uri}
                     audiosDirUri={DIR_AUDIOS.uri}
                     onScrollPos={aoRolarEditor}
+                    onAudioDelete={solicitarRemocaoAudio}
                     style={styles.inputConteudo}
                 />
 
-                {audios.length > 0 && (
-                    <View style={styles.audioStack}>
-                        {audios.map(audio => (
-                            <AudioPlayer
-                                key={audio.uri}
-                                uri={audio.uri}
-                                nome={audio.nome}
-                                textual
-                                onDelete={() => removerAudio(audio)}
-                            />
-                        ))}
-                    </View>
-                )}
+                {/* Os áudios são renderizados pelo próprio WebView, junto do texto
+                    da nota. A toolbar permanece fora desse conteúdo. */}
 
                 {/* Toolbar no fluxo: no Android o paddingBottom do container usa a
                     altura REAL do teclado (alturaTeclado) e ela sobe junto; no iOS o

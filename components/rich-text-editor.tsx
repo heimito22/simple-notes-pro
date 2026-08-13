@@ -41,6 +41,8 @@ interface Props {
   audiosDirUri?: string;
   /** Posição de rolagem (y) e altura rolável máxima (com throttle) — p/ o botão "Continuar no fim". */
   onScrollPos?: (y: number, maxScroll: number) => void;
+  /** Solicita a remoção de um áudio exibido inline na nota. */
+  onAudioDelete?: (uri: string) => void;
   style?: any;
 }
 
@@ -62,6 +64,18 @@ const sanitize = (html: string) =>
     .replace(/\r\n/g, '\n')
     .replace(/\n/g, '<br>');
 
+const escaparHtml = (valor: string) => valor
+  .replace(/&/g, '&amp;')
+  .replace(/"/g, '&quot;')
+  .replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;');
+
+const audioInlineHtml = (uri: string, nome: string) => {
+  const uriHtml = escaparHtml(uri);
+  const nomeHtml = escaparHtml(nome);
+  return `<span class="anexo-audio-inline" data-audio-uri="${uriHtml}" data-audio-name="${nomeHtml}"><span class="anexo-audio-text">🎙️ ${nomeHtml}</span><audio controls src="${uriHtml}" class="anexo-audio"></audio><button type="button" class="anexo-audio-remove" data-audio-delete="${uriHtml}" aria-label="Apagar áudio">×</button></span>`;
+};
+
 // Converte marcadores de anexos antigos ("[Imagem anexada: x.jpg]") em tags reais.
 const converterMarcadores = (html: string, imagensDirUri?: string, audiosDirUri?: string) => {
   if (!html || (!imagensDirUri && !audiosDirUri)) return html;
@@ -74,20 +88,10 @@ const converterMarcadores = (html: string, imagensDirUri?: string, audiosDirUri?
     .replace(/\[Áudio anexado:\s*([^\]]+?)\s*\]/gi, (m, nome: string) => {
       const nomeLimpo = nome.trim();
       return audiosDirUri
-        ? `<br><span class="anexo-audio-text" data-audio-name="${nomeLimpo}">🎙️ ${nomeLimpo}</span><audio controls src="${audiosDirUri}/${nomeLimpo}" class="anexo-audio"></audio><br>`
+        ? `<br>${audioInlineHtml(`${audiosDirUri}/${nomeLimpo}`, nomeLimpo)}<br>`
         : m;
     });
-
-  // Áudios criados por versões anteriores não tinham a linha textual. Adiciona
-  // a representação sem duplicá-la quando ela já existe junto do <audio>.
-  return convertido.replace(
-    /(<span[^>]*class=["']anexo-audio-text["'][^>]*>[\s\S]*?<\/span>\s*)?<audio[^>]*\bsrc=["']([^"']+)["'][^>]*>[\s\S]*?<\/audio>/gi,
-    (tagCompleta, textoExistente: string | undefined, uri: string) => {
-      if (textoExistente) return tagCompleta;
-      const nome = uri.substring(uri.lastIndexOf('/') + 1) || 'Áudio';
-      return `<span class="anexo-audio-text" data-audio-uri="${uri}" data-audio-name="${nome}">🎙️ ${nome}</span>${tagCompleta}`;
-    }
-  );
+  return convertido;
 };
 
 // Serializa para uma string JS segura dentro de <script> (escapa `<` para
@@ -139,18 +143,43 @@ const buildDoc = (
      acesso ao texto abaixo delas) — mantém a proporção com width/height auto. */
   img { max-width: 100%; max-height: 60vh; width: auto; height: auto; }
   img.anexo-img { border-radius: 14px; margin: 8px 0; display: block; }
-  /* O player nativo é substituído pelo AudioPlayer React Native, que também permite excluir o anexo. */
-  audio, audio.anexo-audio { display: none !important; }
-  .anexo-audio-text {
-    display: inline-block;
-    color: ${accentColor};
-    font-size: 15px;
-    font-weight: 700;
-    padding: 6px 10px;
+  /* O áudio fica no mesmo fluxo do texto, dentro do conteúdo da nota. */
+  .anexo-audio-inline {
+    display: inline-flex;
+    align-items: center;
+    vertical-align: middle;
+    gap: 6px;
     margin: 5px 0;
+    padding: 5px 7px;
     border: 1px solid ${accentColor};
     border-radius: 10px;
+    color: ${accentColor};
   }
+  .anexo-audio-text {
+    color: ${accentColor};
+    font-size: 14px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  audio.anexo-audio {
+    display: inline-block !important;
+    width: 178px;
+    height: 32px;
+    vertical-align: middle;
+  }
+  .anexo-audio-remove {
+    display: inline-block;
+    border: 0;
+    border-radius: 12px;
+    background: ${accentColor};
+    color: ${backgroundColor};
+    font-size: 18px;
+    line-height: 22px;
+    width: 23px;
+    height: 23px;
+    padding: 0;
+  }
+  body:not(.editando) .anexo-audio-remove { display: none; }
 </style>
 </head>
 <body class="${editavel ? 'editando' : ''}">
@@ -206,6 +235,18 @@ const buildDoc = (
   // do comando e os botões da toolbar ficam alternando modos sozinhos.
   var aplicandoComando = false;
 
+  el.addEventListener('click', function(event) {
+    var target = event.target;
+    var botao = target && target.closest ? target.closest('[data-audio-delete]') : null;
+    if (!botao) return;
+    event.preventDefault();
+    event.stopPropagation();
+    var audio = botao.parentNode && botao.parentNode.querySelector ? botao.parentNode.querySelector('audio') : null;
+    if (audio) {
+      try { audio.pause(); audio.removeAttribute('src'); audio.load(); } catch (e) {}
+    }
+    window.ReactNativeWebView.postMessage('__delete_audio__' + (botao.getAttribute('data-audio-delete') || ''));
+  });
   el.addEventListener('input', notify);
   el.addEventListener('blur', function() {
     var sel = window.getSelection();
@@ -354,6 +395,7 @@ const RichTextEditor = memo(
       imagensDirUri,
       audiosDirUri,
       onScrollPos,
+      onAudioDelete,
       style,
     },
     ref
@@ -428,6 +470,10 @@ const RichTextEditor = memo(
         } catch {
           // ignora payload de formato inválido
         }
+        return;
+      }
+      if (typeof data === 'string' && data.startsWith('__delete_audio__')) {
+        onAudioDelete?.(data.slice('__delete_audio__'.length));
         return;
       }
       ultimoConteudo.current = data;
