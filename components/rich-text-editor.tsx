@@ -143,60 +143,40 @@ const buildDoc = (
      acesso ao texto abaixo delas) — mantém a proporção com width/height auto. */
   img { max-width: 100%; max-height: 60vh; width: auto; height: auto; }
   img.anexo-img { border-radius: 14px; margin: 8px 0; display: block; }
-  /* Player inline minimalista: sem nome, sem controle HTML padrão e sem card grande. */
+  /* Controle nativo do Android/WebView, mantido inline no conteúdo da nota. */
   .anexo-audio-inline {
     display: inline-flex;
     align-items: center;
     vertical-align: middle;
-    gap: 7px;
-    margin: 6px 2px;
-    padding: 3px;
-    border-radius: 24px;
+    gap: 6px;
+    margin: 5px 0;
+    padding: 5px 7px;
+    border: 1px solid ${accentColor};
+    border-radius: 10px;
+    color: ${accentColor};
   }
-  .anexo-audio-text { display: none !important; }
-  audio.anexo-audio { display: none !important; }
-  .anexo-audio-round {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border: 0;
-    border-radius: 50%;
-    background: ${accentColor};
-    color: #FFFFFF;
-    font-size: 18px;
+  .anexo-audio-text {
+    color: ${accentColor};
+    font-size: 14px;
     font-weight: 700;
-    line-height: 40px;
-    width: 40px;
-    height: 40px;
-    padding: 0;
+    white-space: nowrap;
   }
-  .anexo-audio-progress {
-    display: inline-block;
-    width: 48px;
-    height: 4px;
-    overflow: hidden;
-    border-radius: 3px;
-    background: ${accentColor}33;
-  }
-  .anexo-audio-progress-fill {
-    display: block;
-    width: 0%;
-    height: 100%;
-    border-radius: 3px;
-    background: ${accentColor};
+  audio.anexo-audio {
+    display: inline-block !important;
+    width: 178px;
+    height: 32px;
+    vertical-align: middle;
   }
   .anexo-audio-remove {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
+    display: inline-block;
     border: 0;
-    border-radius: 50%;
-    background: transparent;
-    color: ${accentColor};
+    border-radius: 12px;
+    background: ${accentColor};
+    color: ${backgroundColor};
     font-size: 18px;
     line-height: 22px;
-    width: 24px;
-    height: 24px;
+    width: 23px;
+    height: 23px;
     padding: 0;
   }
   body:not(.editando) .anexo-audio-remove { display: none; }
@@ -255,95 +235,8 @@ const buildDoc = (
   // do comando e os botões da toolbar ficam alternando modos sozinhos.
   var aplicandoComando = false;
 
-  function atualizarAudioUI(audio) {
-    var wrapper = audio && audio.parentNode;
-    if (!wrapper) return;
-    var botao = wrapper.querySelector('[data-audio-toggle]');
-    var preenchimento = wrapper.querySelector('.anexo-audio-progress-fill');
-    if (botao) {
-      botao.textContent = audio.paused ? '▶' : 'Ⅱ';
-      botao.setAttribute('aria-label', audio.paused ? 'Reproduzir áudio' : 'Pausar áudio');
-    }
-    if (preenchimento) {
-      var percentual = audio.duration > 0 ? (audio.currentTime / audio.duration) * 100 : 0;
-      preenchimento.style.width = Math.max(0, Math.min(100, percentual)) + '%';
-    }
-  }
-
-  function prepararAudios() {
-    // Converte áudios antigos que ainda estejam soltos no HTML para o mesmo
-    // player circular inline.
-    el.querySelectorAll('audio.anexo-audio').forEach(function(audio) {
-      if (audio.closest && audio.closest('.anexo-audio-inline')) return;
-      var uri = audio.getAttribute('src') || '';
-      var wrapper = document.createElement('span');
-      wrapper.className = 'anexo-audio-inline';
-      wrapper.setAttribute('data-audio-uri', uri);
-      audio.parentNode.insertBefore(wrapper, audio);
-      wrapper.appendChild(audio);
-    });
-    var wrappers = el.querySelectorAll('.anexo-audio-inline');
-    wrappers.forEach(function(wrapper) {
-      var audio = wrapper.querySelector('audio.anexo-audio');
-      if (!audio) return;
-      var uri = wrapper.getAttribute('data-audio-uri') || audio.getAttribute('src') || '';
-      var botao = wrapper.querySelector('[data-audio-toggle]');
-      var preenchimento = wrapper.querySelector('.anexo-audio-progress-fill');
-      var remover = wrapper.querySelector('[data-audio-delete]');
-      if (!botao) {
-        wrapper.innerHTML = '';
-        botao = document.createElement('button');
-        botao.type = 'button';
-        botao.className = 'anexo-audio-round';
-        botao.setAttribute('data-audio-toggle', 'true');
-        botao.setAttribute('data-audio-uri', uri);
-        botao.textContent = '▶';
-        preenchimento = document.createElement('span');
-        preenchimento.className = 'anexo-audio-progress';
-        var preenchimentoInterno = document.createElement('span');
-        preenchimentoInterno.className = 'anexo-audio-progress-fill';
-        preenchimento.appendChild(preenchimentoInterno);
-        remover = document.createElement('button');
-        remover.type = 'button';
-        remover.className = 'anexo-audio-remove';
-        remover.setAttribute('data-audio-delete', uri);
-        remover.setAttribute('aria-label', 'Apagar áudio');
-        remover.textContent = '×';
-        wrapper.appendChild(botao);
-        wrapper.appendChild(preenchimento);
-        wrapper.appendChild(remover);
-        wrapper.appendChild(audio);
-      }
-      if (audio.getAttribute('data-ui-ready') !== 'true') {
-        audio.setAttribute('data-ui-ready', 'true');
-        audio.addEventListener('timeupdate', function() { atualizarAudioUI(audio); });
-        audio.addEventListener('play', function() { atualizarAudioUI(audio); });
-        audio.addEventListener('pause', function() { atualizarAudioUI(audio); });
-        audio.addEventListener('ended', function() { atualizarAudioUI(audio); });
-      }
-      atualizarAudioUI(audio);
-    });
-  }
-
   el.addEventListener('click', function(event) {
     var target = event.target;
-    var toggle = target && target.closest ? target.closest('[data-audio-toggle]') : null;
-    if (toggle) {
-      event.preventDefault();
-      event.stopPropagation();
-      var wrapper = toggle.closest('.anexo-audio-inline');
-      var audio = wrapper && wrapper.querySelector ? wrapper.querySelector('audio.anexo-audio') : null;
-      if (!audio) return;
-      if (audio.paused) {
-        el.querySelectorAll('audio.anexo-audio').forEach(function(outro) {
-          if (outro !== audio) outro.pause();
-        });
-        try { audio.play().catch(function() {}); } catch (e) {}
-      } else {
-        audio.pause();
-      }
-      return;
-    }
     var botao = target && target.closest ? target.closest('[data-audio-delete]') : null;
     if (!botao) return;
     event.preventDefault();
@@ -354,7 +247,6 @@ const buildDoc = (
     }
     window.ReactNativeWebView.postMessage('__delete_audio__' + (botao.getAttribute('data-audio-delete') || ''));
   });
-  prepararAudios();
   el.addEventListener('input', notify);
   el.addEventListener('blur', function() {
     var sel = window.getSelection();
@@ -370,7 +262,6 @@ const buildDoc = (
 
   window.editorSetContent = function(html) {
     el.innerHTML = html;
-    prepararAudios();
     notify();
     scheduleFormats();
     return true;
@@ -391,7 +282,6 @@ const buildDoc = (
       // teclado reabra quando a gravação termina.
       try { el.insertAdjacentHTML('beforeend', html); } catch (e) {}
     }
-    prepararAudios();
     notify();
     scheduleFormats();
     return true;
