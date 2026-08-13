@@ -15,7 +15,9 @@ export interface FormatoAtivo {
 export interface RichTextEditorHandle {
   execCommand: (cmd: string) => void;
   setContent: (html: string) => void;
-  appendContent: (html: string) => void;
+  appendContent: (html: string, options?: { focus?: boolean }) => void;
+  /** Remove o foco do WebView sem recarregar o conteúdo ou reabrir o teclado. */
+  blur: () => void;
   /** Alterna o modo leitura/edição (contenteditable) sem recarregar o WebView. */
   setEditable: (editavel: boolean) => void;
   /** Rola até o fim e posiciona o cursor no final (para continuar a nota após anexos). */
@@ -63,17 +65,29 @@ const sanitize = (html: string) =>
 // Converte marcadores de anexos antigos ("[Imagem anexada: x.jpg]") em tags reais.
 const converterMarcadores = (html: string, imagensDirUri?: string, audiosDirUri?: string) => {
   if (!html || (!imagensDirUri && !audiosDirUri)) return html;
-  return html
+  const convertido = html
     .replace(/\[Imagem anexada:\s*([^\]]+?)\s*\]/gi, (m, nome: string) =>
       imagensDirUri
         ? `<img src="${imagensDirUri}/${nome.trim()}" alt="${nome.trim()}" class="anexo-img">`
         : m
     )
-    .replace(/\[Áudio anexado:\s*([^\]]+?)\s*\]/gi, (m, nome: string) =>
-      audiosDirUri
-        ? `<audio controls src="${audiosDirUri}/${nome.trim()}" class="anexo-audio"></audio>`
-        : m
-    );
+    .replace(/\[Áudio anexado:\s*([^\]]+?)\s*\]/gi, (m, nome: string) => {
+      const nomeLimpo = nome.trim();
+      return audiosDirUri
+        ? `<br><span class="anexo-audio-text" data-audio-name="${nomeLimpo}">🎙️ ${nomeLimpo}</span><audio controls src="${audiosDirUri}/${nomeLimpo}" class="anexo-audio"></audio><br>`
+        : m;
+    });
+
+  // Áudios criados por versões anteriores não tinham a linha textual. Adiciona
+  // a representação sem duplicá-la quando ela já existe junto do <audio>.
+  return convertido.replace(
+    /(<span[^>]*class=["']anexo-audio-text["'][^>]*>[\s\S]*?<\/span>\s*)?<audio[^>]*\bsrc=["']([^"']+)["'][^>]*>[\s\S]*?<\/audio>/gi,
+    (tagCompleta, textoExistente: string | undefined, uri: string) => {
+      if (textoExistente) return tagCompleta;
+      const nome = uri.substring(uri.lastIndexOf('/') + 1) || 'Áudio';
+      return `<span class="anexo-audio-text" data-audio-uri="${uri}" data-audio-name="${nome}">🎙️ ${nome}</span>${tagCompleta}`;
+    }
+  );
 };
 
 // Serializa para uma string JS segura dentro de <script> (escapa `<` para
@@ -127,6 +141,16 @@ const buildDoc = (
   img.anexo-img { border-radius: 14px; margin: 8px 0; display: block; }
   /* O player nativo é substituído pelo AudioPlayer React Native, que também permite excluir o anexo. */
   audio, audio.anexo-audio { display: none !important; }
+  .anexo-audio-text {
+    display: inline-block;
+    color: ${accentColor};
+    font-size: 15px;
+    font-weight: 700;
+    padding: 6px 10px;
+    margin: 5px 0;
+    border: 1px solid ${accentColor};
+    border-radius: 10px;
+  }
 </style>
 </head>
 <body class="${editavel ? 'editando' : ''}">
@@ -201,20 +225,32 @@ const buildDoc = (
     scheduleFormats();
     return true;
   };
-  window.editorAppend = function(html) {
-    el.focus();
-    try {
-      var sel = window.getSelection();
-      sel.selectAllChildren(el);
-      sel.collapseToEnd();
-      document.execCommand('insertHTML', false, html);
-    } catch (e) {}
-    // Rola para o FIM: garante que a área logo abaixo da imagem/áudio inserida
-    // fique visível e tocável para continuar a nota (o Android trava a rolagem
-    // quando o caret fica fora da tela após inserir um elemento grande).
-    setTimeout(rolarParaOFim, 60);
+  window.editorAppend = function(html, shouldFocus) {
+    if (shouldFocus !== false) {
+      el.focus();
+      try {
+        var sel = window.getSelection();
+        sel.selectAllChildren(el);
+        sel.collapseToEnd();
+        document.execCommand('insertHTML', false, html);
+      } catch (e) {}
+      // Rola para o FIM quando a inserção também devolve o foco ao editor.
+      setTimeout(rolarParaOFim, 60);
+    } else {
+      // Anexos de áudio entram no conteúdo sem focar o WebView. Isso evita que o
+      // teclado reabra quando a gravação termina.
+      try { el.insertAdjacentHTML('beforeend', html); } catch (e) {}
+    }
     notify();
     scheduleFormats();
+    return true;
+  };
+  window.editorBlur = function() {
+    try { el.blur(); } catch (e) {}
+    try {
+      var active = document.activeElement;
+      if (active && active !== document.body && active.blur) active.blur();
+    } catch (e) {}
     return true;
   };
   window.editorSetEditable = function(v) {
@@ -359,13 +395,17 @@ const RichTextEditor = memo(
           pendingContent.current = h;
         }
       },
-      appendContent: (html: string) => {
+      appendContent: (html: string, options?: { focus?: boolean }) => {
         ultimoConteudo.current = ultimoConteudo.current + html;
         if (loadedRef.current) {
-          injetar(`window.editorAppend(${toJSString(html)}); true;`);
+          const deveFocar = options?.focus !== false;
+          injetar(`window.editorAppend(${toJSString(html)}, ${deveFocar}); true;`);
         } else {
           pendingContent.current = ultimoConteudo.current;
         }
+      },
+      blur: () => {
+        injetar('window.editorBlur(); true;');
       },
       setEditable: (v: boolean) => {
         injetar(`window.editorSetEditable(${v}); true;`);

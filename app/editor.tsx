@@ -366,13 +366,31 @@ export default function EditorScreen() {
     }, []);
 
     const anexarAudio = useCallback((uri: string, nome: string) => {
-        const html = `<br><audio controls src="${uri}" class="anexo-audio"></audio><br>`;
+        const escaparHtml = (valor: string) => valor
+            .replace(/&/g, '&amp;')
+            .replace(/"/g, '&quot;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+        const nomeHtml = escaparHtml(nome);
+        const uriHtml = escaparHtml(uri);
+        const html = `<br><span class="anexo-audio-text" data-audio-uri="${uriHtml}" data-audio-name="${nomeHtml}">🎙️ ${nomeHtml}</span><audio controls src="${uriHtml}" class="anexo-audio"></audio><br>`;
         conteudoRef.current += html;
         setAudios(prev => [...prev, { uri, nome }]);
-        editorRef.current?.appendContent(html);
+        // Não devolve o foco ao WebView: ao terminar a gravação o teclado não
+        // deve reabrir nem provocar novo cálculo da posição da toolbar.
+        editorRef.current?.appendContent(html, { focus: false });
     }, []);
 
     const iniciarGravacao = async () => {
+        // O WebView mantém o foco no Android e o teclado pode reaparecer quando
+        // o diálogo/permissão de áudio fecha. Desfoca antes de iniciar e fixa o
+        // layout fechado para a toolbar não oscilar.
+        if (Platform.OS === 'android' && Keyboard.isVisible()) {
+            editorRef.current?.blur();
+            Keyboard.dismiss();
+            setAlturaTeclado(0);
+            await new Promise(resolve => setTimeout(resolve, 120));
+        }
         // O diálogo de permissão do sistema derruba o app para background — sem
         // suspender o bloqueio, a biometria travaria o meio da gravação.
         bloqueioEstado.ativar();
@@ -925,6 +943,7 @@ export default function EditorScreen() {
                                 key={audio.uri}
                                 uri={audio.uri}
                                 nome={audio.nome}
+                                textual
                                 onDelete={() => removerAudio(audio)}
                             />
                         ))}

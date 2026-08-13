@@ -15,6 +15,8 @@ interface Props {
   uri: string;
   nome?: string;
   compact?: boolean;
+  /** Aparência textual para anexos dentro da nota. */
+  textual?: boolean;
   /** A exclusão é confirmada pelo próprio player e executada após liberar o player nativo. */
   onDelete?: () => void | Promise<void>;
 }
@@ -74,8 +76,22 @@ export const removerAudioDoHtml = (html: string, audio: AudioAttachment) => {
   );
 
   if (audio.nome) {
+    const nomeSeguro = escaparRegExp(audio.nome);
     resultado = resultado.replace(
-      new RegExp(`\\[Áudio anexado:\\s*${escaparRegExp(audio.nome)}\\s*\\]\\s*`, 'i'),
+      new RegExp(`\\[Áudio anexado:\\s*${nomeSeguro}\\s*\\]\\s*`, 'i'),
+      ''
+    );
+    // Remove a representação textual criada junto com o áudio, sem atingir
+    // outras linhas de texto da nota.
+    resultado = resultado.replace(
+      new RegExp(`<span\\b[^>]*data-audio-name=["']${nomeSeguro}["'][^>]*>[\\s\\S]*?<\\/span>\\s*`, 'i'),
+      ''
+    );
+  }
+
+  if (audio.uri) {
+    resultado = resultado.replace(
+      new RegExp(`<span\\b[^>]*data-audio-uri=["']${escaparRegExp(audio.uri)}["'][^>]*>[\\s\\S]*?<\\/span>\\s*`, 'i'),
       ''
     );
   }
@@ -95,10 +111,10 @@ export const excluirArquivoAudio = async (uri: string) => {
   }
 };
 
-export default function AudioPlayer({ uri, nome, compact = false, onDelete }: Props) {
+export default function AudioPlayer({ uri, nome, compact = false, textual = false, onDelete }: Props) {
   const { isDark } = useTheme();
   const paleta = appColors(isDark);
-  const player = useAudioPlayer(uri, { updateInterval: compact ? 500 : 250 });
+  const player = useAudioPlayer(uri, { updateInterval: compact || textual ? 500 : 250 });
   const status = useAudioPlayerStatus(player);
   const [trackWidth, setTrackWidth] = useState(0);
   const [removendo, setRemovendo] = useState(false);
@@ -187,13 +203,14 @@ export default function AudioPlayer({ uri, nome, compact = false, onDelete }: Pr
       style={[
         styles.player,
         compact && styles.playerCompact,
-        { backgroundColor: paleta.surfaceElevated, borderColor: paleta.border },
+        textual && styles.playerTextual,
+        { backgroundColor: textual ? 'transparent' : paleta.surfaceElevated, borderColor: textual ? paleta.border : paleta.border },
       ]}
       onStartShouldSetResponder={compact ? () => true : undefined}
     >
       <Pressable
         onPress={alternarReproducao}
-        style={[styles.playButton, compact && styles.playButtonCompact, { backgroundColor: paleta.primary }]}
+        style={[styles.playButton, compact && styles.playButtonCompact, textual && styles.playButtonTextual, { backgroundColor: paleta.primary }]}
         hitSlop={6}
         accessibilityRole="button"
         accessibilityLabel={status.playing ? 'Pausar áudio' : 'Reproduzir áudio'}
@@ -203,8 +220,8 @@ export default function AudioPlayer({ uri, nome, compact = false, onDelete }: Pr
 
       <View style={styles.content}>
         <View style={styles.titleRow}>
-          <View style={[styles.audioIcon, { backgroundColor: paleta.primarySoft }]}>
-            <Ionicons name="mic" size={compact ? 14 : 16} color={paleta.primary} />
+          <View style={[styles.audioIcon, textual && styles.audioIconTextual, { backgroundColor: paleta.primarySoft }]}>
+            <Ionicons name="mic" size={compact || textual ? 14 : 16} color={paleta.primary} />
           </View>
           <Text style={[styles.title, compact && styles.titleCompact, { color: paleta.text }]} numberOfLines={1}>
             {nomeExibido}
@@ -217,7 +234,7 @@ export default function AudioPlayer({ uri, nome, compact = false, onDelete }: Pr
         <Pressable
           onLayout={aoMedirFaixa}
           onPress={buscarNaFaixa}
-          style={[styles.track, { backgroundColor: paleta.border }]}
+          style={[styles.track, textual && styles.trackTextual, { backgroundColor: paleta.border }]}
           accessibilityRole="adjustable"
           accessibilityLabel="Posição do áudio"
         >
@@ -262,6 +279,16 @@ const styles = StyleSheet.create({
     marginVertical: 5,
     gap: 8,
   },
+  playerTextual: {
+    minHeight: 44,
+    paddingVertical: 5,
+    paddingHorizontal: 2,
+    borderWidth: 0,
+    borderBottomWidth: 1,
+    borderRadius: 0,
+    marginVertical: 3,
+    gap: 8,
+  },
   playButton: {
     width: 42,
     height: 42,
@@ -270,13 +297,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   playButtonCompact: { width: 34, height: 34, borderRadius: 17 },
+  playButtonTextual: { width: 30, height: 30, borderRadius: 15 },
   content: { flex: 1, minWidth: 0 },
   titleRow: { flexDirection: 'row', alignItems: 'center', minWidth: 0, gap: 7 },
   audioIcon: { width: 27, height: 27, borderRadius: 9, justifyContent: 'center', alignItems: 'center' },
+  audioIconTextual: { width: 23, height: 23, borderRadius: 7 },
   title: { flex: 1, fontSize: 13.5, fontWeight: '800' },
   titleCompact: { fontSize: 12.5 },
   duration: { fontSize: 11, fontWeight: '700' },
   track: { height: 6, borderRadius: 3, marginTop: 10, overflow: 'visible', position: 'relative' },
+  trackTextual: { height: 4, borderRadius: 2, marginTop: 6 },
   trackFill: { height: '100%', borderRadius: 3 },
   trackThumb: { position: 'absolute', top: -3, width: 12, height: 12, borderRadius: 6, marginLeft: -6 },
   deleteButton: { width: 30, height: 36, justifyContent: 'center', alignItems: 'center' },
