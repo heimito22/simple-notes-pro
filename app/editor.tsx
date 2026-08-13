@@ -21,6 +21,7 @@ import { useTheme } from '../context/ThemeContext';
 import { bloqueioEstado } from '../context/bloqueio-estado';
 import { DIAS_SEMANA, resumoLembrete, type LembreteNota, type TipoLembrete } from '../context/lembrete-notas';
 import { useMonetizacao } from '../context/monetizacao';
+import { appColors } from '../constants/theme';
 import RichTextEditor, { FormatoAtivo, RichTextEditorHandle } from '../components/rich-text-editor';
 import * as Haptics from 'expo-haptics';
 
@@ -244,27 +245,28 @@ export default function EditorScreen() {
     // Gravador gerenciado pelo hook (liberado automaticamente ao desmontar o editor)
     const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
 
+    const paleta = appColors(isDark);
     const tema = {
-        fundo: isDark ? '#000' : '#FFF',
-        texto: isDark ? '#FFF' : '#000',
-        placeholder: isDark ? '#444' : '#AAA',
-        toolbar: isDark ? '#1C1C1E' : '#F0F0F0',
-        accent: isDark ? '#BB86FC' : '#6200EE',
+        fundo: paleta.background,
+        texto: paleta.text,
+        placeholder: paleta.placeholder,
+        toolbar: paleta.surface,
+        accent: paleta.primary,
         // Modal do lembrete (tema claro/escuro)
-        sheetFundo: isDark ? '#0D0D12' : '#FEFEFE',
-        sheetBorda: isDark ? '#2A2A33' : '#E5E5EA',
-        sheetHandle: isDark ? '#3A3A3C' : '#D1D1D6',
-        sheetTitulo: isDark ? '#FFF' : '#1C1C1E',
-        sheetSub: isDark ? '#8E8E93' : '#6E6E73',
-        botaoFecharFundo: isDark ? '#1C1C1E' : '#F0F0F3',
-        botaoFecharIcone: isDark ? '#FFF' : '#1C1C1E',
-        chipFundo: isDark ? '#16161D' : '#F5F5F7',
-        chipBorda: isDark ? '#2A2A33' : '#E8E8ED',
-        chipTextoInativo: isDark ? '#CCC' : '#6E6E73',
-        opcaoFundo: isDark ? '#16161D' : '#F5F5F7',
-        opcaoBorda: isDark ? '#23232B' : '#E8E8ED',
-        opcaoLabel: isDark ? '#FFF' : '#1C1C1E',
-        removerFundo: isDark ? '#3A1D1D' : '#FBE9E9',
+        sheetFundo: paleta.background,
+        sheetBorda: paleta.border,
+        sheetHandle: paleta.border,
+        sheetTitulo: paleta.text,
+        sheetSub: paleta.muted,
+        botaoFecharFundo: paleta.surfaceElevated,
+        botaoFecharIcone: paleta.text,
+        chipFundo: paleta.surface,
+        chipBorda: paleta.border,
+        chipTextoInativo: paleta.muted,
+        opcaoFundo: paleta.surface,
+        opcaoBorda: paleta.border,
+        opcaoLabel: paleta.text,
+        removerFundo: paleta.dangerSoft,
     };
 
     // O teclado é tratado do jeito certo: no Android o editor é uma tela modal

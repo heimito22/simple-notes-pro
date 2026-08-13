@@ -5,7 +5,7 @@
 
 import { Platform } from 'react-native';
 
-const tintColorLight = '#8E44AD';
+const tintColorLight = '#7C3AED';
 const tintColorDark = '#FFFFFF';
 
 export const Colors = {
@@ -57,9 +57,9 @@ export const AppColors = {
     text: '#1C1C1E',
     muted: '#6E6E73',
     placeholder: '#8E8E93',
-    primary: '#8E44AD',
-    primaryStrong: '#7C3AED',
-    primarySoft: '#F0E7F7',
+    primary: '#7C3AED',
+    primaryStrong: '#6D28D9',
+    primarySoft: '#EDE9FE',
     success: '#34C759',
     danger: '#FF3B30',
     dangerSoft: '#FBE9E9',

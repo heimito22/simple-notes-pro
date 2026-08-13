@@ -359,7 +359,7 @@ export default function HomeScreen() {
               transition={{ type: 'spring', damping: 16, stiffness: 120 }}
               style={styles.emptyState}
             >
-              <View style={[styles.emptyIconCircle, { backgroundColor: isDark ? '#17131F' : '#EDE7F6' }]}>
+              <View style={[styles.emptyIconCircle, { backgroundColor: paleta.primarySoft }]}>
                 <Ionicons name="pencil-outline" size={42} color={cores.botaoAdd} />
               </View>
               <Text style={[styles.emptyText, { color: cores.textoPrincipal }]}>Nenhuma nota encontrada</Text>
@@ -448,7 +448,7 @@ export default function HomeScreen() {
                    <Text style={[styles.userName, { color: cores.textoPrincipal, marginTop: 10 }]}>Sem sincronização</Text>
                 </View>
               )}
-              <View style={[styles.separator, { backgroundColor: isDark ? '#333' : '#EEE' }]} />
+              <View style={[styles.separator, { backgroundColor: cores.borda }]} />
               <TouchableOpacity style={[styles.modalOption, { opacity: isOffline ? 0.5 : 1 }]} onPress={handleTrocarConta}>
                 <Ionicons name={user ? "swap-horizontal-outline" : "log-in-outline"} size={24} color={cores.botaoAdd} />
                 <Text style={[styles.modalOptionText, { color: cores.textoPrincipal }]}>{user ? "Trocar Conta" : "Entrar com Google"}</Text>
@@ -513,7 +513,7 @@ export default function HomeScreen() {
           {(config.exibirAjudaFAB !== false) && (
             <Animated.View style={[styles.miniBotaoWrap, { opacity: animaMenu, transform: [{ scale: animaMenu }, { translateY: animaMenu.interpolate({ inputRange: [0, 1], outputRange: [0, -215] }) }] }]}>
               <TouchableOpacity style={[styles.miniBotao, { backgroundColor: paleta.primarySoft }]} onPress={() => { toggleMenu(); setModalAjudaVisible(true); }}>
-                <Ionicons name="help" size={26} color={cores.onPrimary} />
+                <Ionicons name="help" size={26} color={paleta.primary} />
               </TouchableOpacity>
             </Animated.View>
           )}

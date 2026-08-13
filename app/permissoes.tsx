@@ -5,6 +5,7 @@ import { MotiView } from 'moti';
 import React, { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
+import { appColors } from '../constants/theme';
 import {
   abrirConfigAlarmeExato,
   abrirConfigAutostart,
@@ -37,34 +38,23 @@ const ICONES_STATUS: Record<Status, { icone: any; cor: string }> = {
   desconhecido: { icone: 'help-circle', cor: '#8E8E93' },
 };
 
-// Paleta OLED (preto puro) + roxo do app
-const OLED = {
-  fundo: '#000000',
-  card: '#0C0C0E',
-  cardBorda: '#1F1F24',
-  texto: '#FFFFFF',
-  subtexto: '#9A9AA0',
-  accent: '#BB86FC',
-  accentForte: '#CF9FFF',
-};
-
 export default function PermissoesScreen() {
   const { isDark } = useTheme();
   const [itens, setItens] = useState<ItemPermissao[] | null>(null);
   const [ehXiaomi, setEhXiaomi] = useState(false);
   const [verificando, setVerificando] = useState(true);
 
-  const cores = isDark
-    ? OLED
-    : {
-        fundo: '#F2F2F7',
-        card: '#FFFFFF',
-        cardBorda: '#E5E5EA',
-        texto: '#000000',
-        subtexto: '#6E6E73',
-        accent: '#6200EE',
-        accentForte: '#7C4DFF',
-      };
+  const paleta = appColors(isDark);
+  const cores = {
+    fundo: paleta.background,
+    card: paleta.surface,
+    cardBorda: paleta.border,
+    texto: paleta.text,
+    subtexto: paleta.muted,
+    accent: paleta.primary,
+    accentForte: paleta.primaryStrong,
+    avisoFundo: paleta.surfaceElevated,
+  };
 
   const verificar = useCallback(async () => {
     setVerificando(true);
@@ -237,12 +227,12 @@ export default function PermissoesScreen() {
           animate={{ opacity: 1, translateY: 0 }}
           transition={{ type: 'timing', duration: 400, delay: 80 }}
         >
-          <Text style={styles.subtitle}>
+          <Text style={[styles.subtitle, { color: cores.subtexto } ]}>
             No Android, o alarme só abre em POPUP (por cima de outros apps) se o app tiver as
             permissões abaixo. Em aparelhos Xiaomi (MIUI/HyperOS) são necessários alguns passos extras.
           </Text>
 
-          <View style={[styles.avisoBox, { backgroundColor: isDark ? '#131313' : '#F0F0F5', borderColor: cores.cardBorda }]}>
+          <View style={[styles.avisoBox, { backgroundColor: cores.avisoFundo, borderColor: cores.cardBorda }]}>
             <Ionicons name="bulb" size={18} color={cores.accentForte} />
             <Text style={[styles.avisoBoxTexto, { color: cores.subtexto }]}>
               Com a permissão de popup (sobreposição) ativada, o alarme abre por cima de tudo — mesmo
@@ -270,7 +260,7 @@ export default function PermissoesScreen() {
         {itens === null || verificando ? (
           <View style={styles.carregando}>
             <ActivityIndicator color={cores.accent} size="large" />
-            <Text style={styles.carregandoTexto}>Verificando permissões...</Text>
+            <Text style={[styles.carregandoTexto, { color: cores.subtexto } ]}>Verificando permissões...</Text>
           </View>
         ) : (
           <View style={styles.lista}>
@@ -316,7 +306,7 @@ export default function PermissoesScreen() {
           </View>
         )}
 
-        <Text style={styles.nota}>
+        <Text style={[styles.nota, { color: cores.subtexto } ]}>
           Dica: se ainda assim o popup não abrir, verifique também em Ajustes → Bateria →
           Gerenciar bateria do aparelho se o app está como “Sem restrições” (o nome varia por
           fabricante: Samsung, Xiaomi, Motorola, etc.).
@@ -339,7 +329,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   title: { fontSize: 24, fontWeight: '900', flex: 1, marginHorizontal: 12, letterSpacing: -0.5 },
-  subtitle: { color: '#8E8E93', fontSize: 14, lineHeight: 20, marginBottom: 14 },
+  subtitle: { fontSize: 14, lineHeight: 20, marginBottom: 14 },
   avisoBox: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -361,7 +351,7 @@ const styles = StyleSheet.create({
   },
   chipText: { fontSize: 13, fontWeight: '600', marginLeft: 10, flex: 1, lineHeight: 18 },
   carregando: { alignItems: 'center', paddingVertical: 60 },
-  carregandoTexto: { color: '#8E8E93', fontSize: 14, marginTop: 14 },
+  carregandoTexto: { fontSize: 14, marginTop: 14 },
   lista: { marginTop: 4 },
   card: {
     borderRadius: 16,
@@ -385,5 +375,5 @@ const styles = StyleSheet.create({
   okPillTexto: { color: '#34C759', fontSize: 12, fontWeight: '800' },
   acionarBtn: { borderRadius: 20, paddingHorizontal: 16, paddingVertical: 8, marginLeft: 8 },
   acionarBtnTexto: { color: '#FFF', fontSize: 13, fontWeight: '700' },
-  nota: { color: '#777', fontSize: 12, lineHeight: 18, textAlign: 'center', paddingHorizontal: 10, marginTop: 12 },
+  nota: { fontSize: 12, lineHeight: 18, textAlign: 'center', paddingHorizontal: 10, marginTop: 12 },
 });
