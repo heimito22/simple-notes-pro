@@ -19,10 +19,17 @@ GoogleSignin.configure({
   scopes: ['https://www.googleapis.com/auth/drive.appdata'],
 });
 
+export interface Pasta {
+  id: string;
+  nome: string;
+  data?: string;
+}
+
 const NotasContext = createContext<any>(null);
 
 export function NotasProvider({ children }: any) {
   const [notas, setNotas] = useState<any[]>([]);
+  const [pastas, setPastas] = useState<Pasta[]>([]);
   const [isAppBloqueado, setIsAppBloqueado] = useState<boolean>(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [estaOnline, setEstaOnline] = useState<boolean>(true);
@@ -72,15 +79,19 @@ export function NotasProvider({ children }: any) {
           // Formato legado: array puro de notas
           setNotas(parsed);
         } else {
-          // Formato atual: { notas, listas } — não quebra se só existirem listas salvas
+          // Formato atual: { notas, listas, pastas } — não quebra se só existirem listas/pastas salvas
           setNotas(parsed.notas || []);
           if (parsed.listas && typeof setListas === 'function') {
             setListas(parsed.listas);
+          }
+          if (Array.isArray(parsed.pastas)) {
+            setPastas(parsed.pastas);
           }
         }
       } else {
         setNotas([]);
         if (typeof setListas === 'function') setListas([]);
+        setPastas([]);
       }
 
       const bloqueio = await AsyncStorage.getItem('@config_bloqueio_app');
@@ -114,7 +125,7 @@ export function NotasProvider({ children }: any) {
     const salvarLocal = async () => {
       try {
         const key = await getStorageKey();
-        const payload = JSON.stringify({ notas, listas });
+        const payload = JSON.stringify({ notas, listas, pastas });
         await AsyncStorage.setItem(key, payload);
         console.log("[Storage] Save local garantido no telefone.");
       } catch (e) {
@@ -123,7 +134,7 @@ export function NotasProvider({ children }: any) {
     };
     // Salva até o estado vazio — assim apagar a última nota/lista persiste
     if (dadosCarregados) salvarLocal();
-  }, [notas, listas, dadosCarregados]);
+  }, [notas, listas, pastas, dadosCarregados]);
 
   // 3. BACKUP AUTOMÁTICO NA NUVEM
   useEffect(() => {
@@ -181,6 +192,7 @@ export function NotasProvider({ children }: any) {
       const bodyContent = JSON.stringify({
         notas,
         listas,
+        pastas,
         chaveIA: configTema?.chaveIA || '',
         ultimaSincronizacao: new Date().toISOString()
       });
@@ -242,6 +254,7 @@ export function NotasProvider({ children }: any) {
       }
       if (backupData.notas) setNotas(backupData.notas);
       if (backupData.listas && typeof setListas === 'function') setListas(backupData.listas);
+      if (Array.isArray(backupData.pastas)) setPastas(backupData.pastas);
       // Restaura a chave de IA SOMENTE se o aparelho não tiver uma configurada
       // (evita que um backup antigo apague uma chave local recém-colada).
       const chaveLocal = configTema?.chaveIA || '';
@@ -280,11 +293,12 @@ export function NotasProvider({ children }: any) {
     await GoogleSignin.signOut();
     setNotas([]);
     if (typeof setListas === 'function') setListas([]);
+    setPastas([]);
     setCurrentUserId('local');
     Alert.alert("Sair", "Desconectado.");
   };
 
-  const salvarNota = (titulo: string, conteudo: string, id?: string, protegida: boolean = false) => {
+  const salvarNota = (titulo: string, conteudo: string, id?: string, protegida: boolean = false, pastaId?: string | null) => {
   // Nota NOVA = sem id (o contexto gera o id). Anúncio curto só na criação.
   const ehNova = !id;
   // Id gerado FORA do updater para poder retorná-lo — o editor usa o retorno
@@ -308,7 +322,9 @@ export function NotasProvider({ children }: any) {
         conteudo, 
         data: new Date().toLocaleDateString('pt-BR'),
         fixada: false, // Começa sempre false
-        protegida: protegida 
+        protegida: protegida,
+        // Nota criada dentro de uma pasta (ou movida) carrega o id da pasta
+        pastaId: pastaId || undefined
       };
       return [nova, ...prev];
     }
@@ -364,9 +380,40 @@ export function NotasProvider({ children }: any) {
     await AsyncStorage.setItem('@config_bloqueio_app', JSON.stringify(val));
   };
 
+  // --- PASTAS ---
+  const criarPasta = useCallback((nome: string): string => {
+    const id = Math.random().toString(36).substr(2, 9);
+    const pasta: Pasta = {
+      id,
+      nome: nome.trim() || 'Nova pasta',
+      data: new Date().toLocaleDateString('pt-BR'),
+    };
+    setPastas(prev => [pasta, ...prev]);
+    return id;
+  }, []);
+
+  const renomearPasta = useCallback((id: string, nome: string) => {
+    setPastas(prev => prev.map(p => (p.id === id ? { ...p, nome: nome.trim() || p.nome } : p)));
+  }, []);
+
+  /** Remove a pasta e devolve as notas dela para a lista principal. */
+  const excluirPasta = useCallback((id: string) => {
+    setPastas(prev => prev.filter(p => p.id !== id));
+    setNotas(prev => prev.map(n => (n.pastaId === id ? { ...n, pastaId: undefined } : n)));
+  }, []);
+
+  /** Move notas para uma pasta (pastaId null = tira da pasta, volta à lista principal). */
+  const moverNotasParaPasta = useCallback((ids: string[], pastaId: string | null) => {
+    const alvo = new Set(ids);
+    setNotas(prev =>
+      prev.map(n => (alvo.has(n.id) ? { ...n, pastaId: pastaId || undefined } : n))
+    );
+  }, []);
+
   return (
     <NotasContext.Provider value={{ 
-      notas, salvarNota, salvarLembreteNota, excluirNota, alternarFixarNota, logout, 
+      notas, pastas, criarPasta, renomearPasta, excluirPasta, moverNotasParaPasta,
+      salvarNota, salvarLembreteNota, excluirNota, alternarFixarNota, logout, 
       fazerBackupCloud, estaOnline,
       restaurarBackupCloud, isAppBloqueado, toggleBloqueioApp,
       recarregarTudo: carregarTudo 

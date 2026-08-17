@@ -1,5 +1,6 @@
 import { Stack } from 'expo-router';
 import React from 'react';
+import { View } from 'react-native';
 import AlarmeOverlay from '../components/alarme-overlay';
 import { ListaProvider } from '../context/ListaContext'; // <-- Com chaves {}
 import { MonetizacaoProvider } from '../context/monetizacao';
@@ -14,13 +15,15 @@ export default function RootLayout() {
         <TarefasProvider>
           <ListaProvider> 
             <NotasProvider>
-              <Stack screenOptions={{ headerShown: false }}>
-                <Stack.Screen name="(tabs)" />
-                <Stack.Screen name="editor" options={{ presentation: 'modal' }} />
-                <Stack.Screen name="editorL" options={{ presentation: 'modal' }} />
-                <Stack.Screen name="permissoes" options={{ presentation: 'modal' }} />
-              </Stack>
-              <AlarmeOverlay />
+              <View style={{ flex: 1 }}>
+                <Stack screenOptions={{ headerShown: false }}>
+                  <Stack.Screen name="(tabs)" />
+                  <Stack.Screen name="editor" options={{ presentation: 'modal' }} />
+                  <Stack.Screen name="editorL" options={{ presentation: 'modal' }} />
+                  <Stack.Screen name="permissoes" options={{ presentation: 'modal' }} />
+                </Stack>
+                <AlarmeOverlay />
+              </View>
             </NotasProvider>
           </ListaProvider>
         </TarefasProvider>

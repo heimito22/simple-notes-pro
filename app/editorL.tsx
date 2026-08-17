@@ -33,7 +33,7 @@ const layoutAnimConfig = {
 };
 
 export default function EditorL() {
-  const { id } = useLocalSearchParams();
+  const { id, pastaId } = useLocalSearchParams();
   const router = useRouter();
   const { isDark } = useTheme();
   const { listas, salvarLista } = useListas();
@@ -119,6 +119,8 @@ export default function EditorL() {
       itens,
       fixada: listaExistente?.fixada,
       protegida: listaExistente?.protegida,
+      // Lista criada dentro de uma pasta nasce com a pasta definida
+      pastaId: pastaId ? String(pastaId) : listaExistente?.pastaId,
     });
     router.back();
 };

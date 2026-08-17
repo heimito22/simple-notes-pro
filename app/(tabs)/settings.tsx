@@ -174,13 +174,15 @@ export default function SettingsScreen() {
       {/* SEÇÃO APARÊNCIA */}
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: cores.textoSecundario } ]}>Aparência</Text>
-        <View style={[styles.item, { backgroundColor: cores.itemFundo, borderRadius: 15 }]}>
-          <Text style={[styles.itemText, { color: cores.textoPrincipal }]}>Modo Escuro</Text>
-          <Switch 
-            value={isDark} 
-            onValueChange={toggleTheme} 
-            trackColor={{ false: '#767577', true: cores.accent }}
-          />
+        <View style={[styles.group, { backgroundColor: cores.itemFundo }]}>
+          <View style={[styles.innerItem, { borderBottomWidth: 0 }]}>
+            <Text style={[styles.itemText, { color: cores.textoPrincipal }]}>Modo Escuro</Text>
+            <Switch 
+              value={isDark} 
+              onValueChange={toggleTheme} 
+              trackColor={{ false: '#767577', true: cores.accent }}
+            />
+          </View>
         </View>
       </View>
 

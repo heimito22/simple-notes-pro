@@ -69,7 +69,9 @@ export const AppColors = {
   },
 } as const;
 
-export const appColors = (isDark: boolean) => (isDark ? AppColors.dark : AppColors.light);
+export const appColors = (isDark: boolean) => {
+  return isDark ? AppColors.dark : AppColors.light;
+};
 
 export const Fonts = Platform.select({
   ios: {

@@ -14,6 +14,8 @@ export interface ListaCompras {
   itens: ItemLista[];
   protegida?: boolean;
   fixada?: boolean; // Nova propriedade
+  /** Pasta à qual a lista pertence (undefined = lista principal de notas). */
+  pastaId?: string;
 }
 
 interface ListaContextData {
@@ -22,6 +24,7 @@ interface ListaContextData {
   salvarLista: (lista: ListaCompras) => void;
   excluirLista: (id: string) => void;
   alternarFixarLista: (id: string) => void; // Nova função
+  moverListasParaPasta: (ids: string[], pastaId: string | null) => void;
   recarregarListas: () => Promise<void>;
 }
 
@@ -116,6 +119,16 @@ export const ListaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     });
   };
 
+  /** Move listas para uma pasta (pastaId null = tira da pasta, volta à lista principal). */
+  const moverListasParaPasta = (ids: string[], pastaId: string | null) => {
+    const alvo = new Set(ids);
+    setListas(prev => {
+      const novas = prev.map(l => (alvo.has(l.id) ? { ...l, pastaId: pastaId || undefined } : l));
+      persistirDados(novas);
+      return novas;
+    });
+  };
+
   return (
     <ListaContext.Provider value={{ 
       listas, 
@@ -123,6 +136,7 @@ export const ListaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       salvarLista, 
       excluirLista, 
       alternarFixarLista,
+      moverListasParaPasta,
       recarregarListas: carregarListas
     }}>
       {children}

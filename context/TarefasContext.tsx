@@ -97,7 +97,9 @@ export default function TarefasProvider({ children }: any) {
   }, [config?.somAlarme]);
 
   // Categoria com os botões de ação — o título da soneca usa o tempo configurado
+  // (não existe na web: setNotificationCategoryAsync não é implementado)
   useEffect(() => {
+    if (Platform.OS === 'web') return;
     Notifications.setNotificationCategoryAsync(CATEGORIA_TAREFA, [
       { identifier: ACAO_VOU_FAZER, buttonTitle: 'Vou fazer', options: { opensAppToForeground: true } },
       { identifier: ACAO_SONECA_10, buttonTitle: `Daqui a ${tempoSoneca} min`, options: { opensAppToForeground: true } },

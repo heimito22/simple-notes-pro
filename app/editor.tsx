@@ -30,9 +30,11 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
     UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-// Diretórios de anexos no armazenamento do app (API nova do expo-file-system)
-const DIR_IMAGENS = new Directory(Paths.document, 'imagens_notas');
-const DIR_AUDIOS = new Directory(Paths.document, 'audios_notas');
+// Diretórios de anexos no armazenamento do app (API nova do expo-file-system).
+// expo-file-system não é suportado na web (Directory lança erro no construtor),
+// então os diretórios só existem em Android/iOS.
+const DIR_IMAGENS = Platform.OS === 'web' ? null : new Directory(Paths.document, 'imagens_notas');
+const DIR_AUDIOS = Platform.OS === 'web' ? null : new Directory(Paths.document, 'audios_notas');
 
 const FORMATO_INICIAL: FormatoAtivo = {
     bold: false,
@@ -147,6 +149,9 @@ export default function EditorScreen() {
     // id criado na hora em que o sino é usado pela primeira vez.
     const [idNotaCriada, setIdNotaCriada] = useState<string | undefined>(undefined);
     const idEditor = params.id ? String(params.id) : idNotaCriada;
+    // Pasta de origem: quando o usuário cria uma nota DENTRO de uma pasta,
+    // a rota traz pastaId e a nota nova já nasce dentro dela.
+    const pastaId = params.pastaId ? String(params.pastaId) : undefined;
     // Garante que a busca no array não quebre se "notas" estiver indefinido
     const notaExistente = (notas || []).find((n: any) => n.id === idEditor);
 
@@ -250,6 +255,9 @@ export default function EditorScreen() {
     const paleta = appColors(isDark);
     const tema = {
         fundo: paleta.background,
+        // O WebView da nota precisa de fundo SÓLIDO para o texto ficar legível
+        // mesmo com o Modo Glass ativo (o resto do chrome fica translúcido).
+        editorFundo: appColors(isDark).background,
         texto: paleta.text,
         placeholder: paleta.placeholder,
         toolbar: paleta.surface,
@@ -297,7 +305,7 @@ export default function EditorScreen() {
                 setProtegida(!!notaExistente.protegida);
                 const tem = TEM_ANEXO.test(conteudo);
                 setTemAnexo(prev => (prev === tem ? prev : tem));
-                setAudios(extrairAudios(conteudo, DIR_AUDIOS.uri));
+                setAudios(extrairAudios(conteudo, DIR_AUDIOS?.uri));
             } else {
                 setTitulo('');
                 conteudoRef.current = '';
@@ -318,6 +326,7 @@ export default function EditorScreen() {
     // Criação segura das pastas locais (API nova do expo-file-system)
     useEffect(() => {
         const garantirPasta = async () => {
+            if (!DIR_IMAGENS || !DIR_AUDIOS) return;
             try {
                 if (!DIR_IMAGENS.exists) {
                     await DIR_IMAGENS.create({ intermediates: true, idempotent: true });
@@ -338,7 +347,7 @@ export default function EditorScreen() {
         conteudoRef.current = html;
         const tem = TEM_ANEXO.test(html);
         setTemAnexo(prev => (prev === tem ? prev : tem));
-        setAudios(extrairAudios(html, DIR_AUDIOS.uri));
+        setAudios(extrairAudios(html, DIR_AUDIOS?.uri));
     }, []);
 
     // Atualiza os estados ativos dos botões da toolbar (negrito, listas etc.)
@@ -419,7 +428,7 @@ export default function EditorScreen() {
     const removerAudio = async (audio: AudioAttachment) => {
         const novoConteudo = removerAudioDoHtml(conteudoRef.current, audio);
         conteudoRef.current = novoConteudo;
-        setAudios(extrairAudios(novoConteudo, DIR_AUDIOS.uri));
+        setAudios(extrairAudios(novoConteudo, DIR_AUDIOS?.uri));
         editorRef.current?.setContent(novoConteudo);
         await excluirArquivoAudio(audio.uri);
     };
@@ -456,9 +465,11 @@ export default function EditorScreen() {
         if (uri) {
             try {
                 const nomeArquivo = `audio_${Date.now()}.m4a`;
-                const destino = new File(DIR_AUDIOS, nomeArquivo);
-                await new File(uri).move(destino, { overwrite: true });
-                anexarAudio(destino.uri, nomeArquivo);
+                if (DIR_AUDIOS) {
+                    const destino = new File(DIR_AUDIOS, nomeArquivo);
+                    await new File(uri).move(destino, { overwrite: true });
+                    anexarAudio(destino.uri, nomeArquivo);
+                }
             } catch (error) {
                 // Só mostra erro se realmente não conseguiu salvar o arquivo
                 console.error("[Audio] Erro ao salvar o arquivo:", error);
@@ -567,7 +578,7 @@ export default function EditorScreen() {
         // lembrete — o sino funciona já na primeira edição, sem precisar sair,
         // salvar e voltar para editar de novo.
         if (!params.id && !idNotaCriada) {
-            const novoId = salvarNota(titulo, conteudoRef.current, undefined, protegida);
+            const novoId = salvarNota(titulo, conteudoRef.current, undefined, protegida, pastaId);
             setIdNotaCriada(novoId);
         }
         const l = notaExistente?.lembrete;
@@ -744,11 +755,11 @@ export default function EditorScreen() {
             // Nota criada pelo sino / nota existente: passa o id → atualiza
             // (evita criar nota duplicada ao finalizar).
             const idFinal = params.id ? String(params.id) : idNotaCriada;
-            salvarNota(titulo, conteudoRef.current, idFinal, protegida);
+            salvarNota(titulo, conteudoRef.current, idFinal, protegida, pastaId);
             setEditando(false);
         }
         router.back();
-    }, [titulo, params.id, salvarNota, router, editando, protegida]);
+    }, [titulo, params.id, salvarNota, router, editando, protegida, pastaId]);
 
     useFocusEffect(
         useCallback(() => {
@@ -785,10 +796,12 @@ export default function EditorScreen() {
                         { compress: 0.5, format: ImageManipulator.SaveFormat.JPEG }
                     );
                     const nomeImagem = `img_${Date.now()}.jpg`;
-                    const destino = new File(DIR_IMAGENS, nomeImagem);
-                    await new File(manip.uri).move(destino, { overwrite: true });
+                    if (DIR_IMAGENS) {
+                        const destino = new File(DIR_IMAGENS, nomeImagem);
+                        await new File(manip.uri).move(destino, { overwrite: true });
 
-                    anexarImagem(destino.uri, nomeImagem);
+                        anexarImagem(destino.uri, nomeImagem);
+                    }
                 } catch (e) {
                     Alert.alert("Erro", "Não foi possível carregar a imagem.");
                 } finally {
@@ -945,10 +958,10 @@ export default function EditorScreen() {
                     placeholder={editando ? "Comece a escrever..." : ""}
                     textColor={tema.texto}
                     placeholderColor={tema.placeholder}
-                    backgroundColor={tema.fundo}
+                    backgroundColor={tema.editorFundo}
                     accentColor={tema.accent}
-                    imagensDirUri={DIR_IMAGENS.uri}
-                    audiosDirUri={DIR_AUDIOS.uri}
+                    imagensDirUri={DIR_IMAGENS?.uri ?? ''}
+                    audiosDirUri={DIR_AUDIOS?.uri ?? ''}
                     onScrollPos={aoRolarEditor}
                     onAudioDelete={solicitarRemocaoAudio}
                     style={styles.inputConteudo}

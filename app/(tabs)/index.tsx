@@ -42,8 +42,9 @@ const limparHTML = (html: string) => {
     .trim();
 };
 
-const DIR_IMAGENS = new Directory(Paths.document, 'imagens_notas');
-const DIR_AUDIOS = new Directory(Paths.document, 'audios_notas');
+// expo-file-system não é suportado na web (Directory lança erro no construtor)
+const DIR_IMAGENS = Platform.OS === 'web' ? null : new Directory(Paths.document, 'imagens_notas');
+const DIR_AUDIOS = Platform.OS === 'web' ? null : new Directory(Paths.document, 'audios_notas');
 
 // Extrai a primeira foto/áudio do conteúdo (marcador antigo ou tag <img>/<audio>)
 const extrairAnexos = (conteudo?: string) => {
@@ -55,12 +56,12 @@ const extrairAnexos = (conteudo?: string) => {
   const audTag = conteudo.match(/<audio[^>]*src=["']([^"']+)["'][^>]*>/);
   if (imgMarcador) {
     const n = imgMarcador[1].trim();
-    return { ...vazio, imgUri: n.startsWith('file://') ? n : `${DIR_IMAGENS.uri}/${n}` };
+    return { ...vazio, imgUri: n.startsWith('file://') ? n : (DIR_IMAGENS ? `${DIR_IMAGENS.uri}/${n}` : n) };
   }
   if (imgTag) return { ...vazio, imgUri: imgTag[1] };
   if (audMarcador) {
     const n = audMarcador[1].trim();
-    return { ...vazio, audioUri: n.startsWith('file://') ? n : `${DIR_AUDIOS.uri}/${n}`, audioNome: n };
+    return { ...vazio, audioUri: n.startsWith('file://') ? n : (DIR_AUDIOS ? `${DIR_AUDIOS.uri}/${n}` : n), audioNome: n };
   }
   if (audTag) return { ...vazio, audioUri: audTag[1], audioNome: 'Áudio' };
   return vazio;
@@ -69,7 +70,10 @@ const extrairAnexos = (conteudo?: string) => {
 export default function HomeScreen() {
   const router = useRouter();
   const { 
-    notas, 
+    notas,
+    pastas,
+    criarPasta,
+    moverNotasParaPasta,
     excluirNota, 
     restaurarBackupCloud, 
     fazerBackupCloud, 
@@ -78,7 +82,7 @@ export default function HomeScreen() {
     logout 
   } = useNotas(); 
   
-  const { listas, excluirLista, alternarFixarLista } = useListas(); 
+  const { listas, excluirLista, alternarFixarLista, moverListasParaPasta } = useListas(); 
   const { isDark, config } = useTheme(); // AJUSTE: config adicionado
   
   const [busca, setBusca] = useState('');
@@ -92,10 +96,29 @@ export default function HomeScreen() {
   const [isOffline, setIsOffline] = useState(false);
   // Se a foto do Google falhar ao carregar, mostra a inicial do nome no avatar
   const [fotoFalhou, setFotoFalhou] = useState<string | null>(null);
+  // --- Seleção múltipla de notas para mover para pastas ---
+  const [selecionando, setSelecionando] = useState(false);
+  const [idsSelecionados, setIdsSelecionados] = useState<string[]>([]);
+  const [modalPastaAberto, setModalPastaAberto] = useState(false);
+  const [modalNovaPastaAberto, setModalNovaPastaAberto] = useState(false);
+  const [nomeNovaPasta, setNomeNovaPasta] = useState('');
   
   const swipeableRefs = useRef<Map<string, Swipeable>>(new Map());
   const animaMenu = useMemo(() => new Animated.Value(0), []);
   const animaBusca = useMemo(() => new Animated.Value(0), []);
+  const abrirEscolherPasta = () => {
+    setModalPastaAberto(true);
+  };
+  const abrirNovaPasta = () => {
+    setNomeNovaPasta('');
+    setModalNovaPastaAberto(true);
+  };
+  // Arraste lateral na linha de pastas com o mouse (web): o ScrollView
+  // horizontal do react-native-web NÃO rola com arraste do mouse (só com
+  // trackpad/roda), enquanto o swipe das notas funciona por usar Gesture
+  // Handler. Aqui replicamos o mesmo gesto para as pastas.
+  const pastasScrollRef = useRef<any>(null);
+  const dragPastas = useRef({ ativo: false, inicioX: 0, inicioScroll: 0, arrastou: false });
 
   useEffect(() => {
     const checarUsuario = async () => {
@@ -155,15 +178,17 @@ export default function HomeScreen() {
     perigo: paleta.danger,
   };
 
+  // Lista principal: notas SEM pasta (as pastas guardam as suas) + listas
   const notasFiltradas = useMemo(() => {
     const termoBusca = busca.toLowerCase();
     const nF = notas.filter((n: any) => {
+      if (n.pastaId) return false;
       const titulo = (n.titulo || "").toLowerCase();
       const conteudoLimpo = limparHTML(n.conteudo).toLowerCase();
       return titulo.includes(termoBusca) || conteudoLimpo.includes(termoBusca);
     }).map((n: any) => ({ ...n, tipoItem: 'nota' }));
 
-    const lF = listas.filter((l: any) => (l.titulo || "").toLowerCase().includes(termoBusca))
+    const lF = listas.filter((l: any) => !l.pastaId && (l.titulo || "").toLowerCase().includes(termoBusca))
     .map((l: any) => ({ ...l, tipoItem: 'lista' }));
 
     return [...nF, ...lF].sort((a, b) => {
@@ -173,10 +198,109 @@ export default function HomeScreen() {
     });
   }, [notas, listas, busca]);
 
+  // Pastas com a contagem de itens (notas + listas) de cada uma
+  const pastasComContagem = useMemo(() =>
+    pastas.map((p: any) => ({
+      ...p,
+      contagem:
+        notas.filter((n: any) => n.pastaId === p.id).length +
+        listas.filter((l: any) => l.pastaId === p.id).length,
+    })),
+    [pastas, notas, listas]
+  );
+
+  // --- Ações de seleção ---
+  const entrarSelecao = (id: string) => {
+    setSelecionando(true);
+    setIdsSelecionados([id]);
+  };
+  const alternarSelecao = (id: string) => {
+    setIdsSelecionados(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  };
+  const sairSelecao = () => {
+    setSelecionando(false);
+    setIdsSelecionados([]);
+  };
+  // Divide os ids selecionados em notas e listas (têm ids separados)
+  const selecionadosSplit = () => {
+    const itens = notasFiltradas.filter(i => idsSelecionados.includes(i.id));
+    return {
+      notas: itens.filter(i => i.tipoItem === 'nota').map(i => i.id),
+      listas: itens.filter(i => i.tipoItem === 'lista').map(i => i.id),
+    };
+  };
+
+  const aplicarPasta = (pastaId: string | null) => {
+    const { notas: nIds, listas: lIds } = selecionadosSplit();
+    if (nIds.length > 0) moverNotasParaPasta(nIds, pastaId);
+    if (lIds.length > 0) moverListasParaPasta(lIds, pastaId);
+    setModalPastaAberto(false);
+    sairSelecao();
+  };
+  const confirmarCriarPasta = () => {
+    const id = criarPasta(nomeNovaPasta);
+    // Se havia itens selecionados, coloca direto na pasta recém-criada
+    const { notas: nIds, listas: lIds } = selecionadosSplit();
+    if (nIds.length > 0) moverNotasParaPasta(nIds, id);
+    if (lIds.length > 0) moverListasParaPasta(lIds, id);
+    setNomeNovaPasta('');
+    setModalNovaPastaAberto(false);
+    sairSelecao();
+  };
+
+  const excluirSelecionadas = () => {
+    if (idsSelecionados.length === 0) return;
+    const qtd = idsSelecionados.length;
+    Alert.alert(
+      'Excluir itens',
+      `Apagar ${qtd} ${qtd !== 1 ? 'itens' : 'item'} selecionado${qtd !== 1 ? 's' : ''}?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Excluir',
+          style: 'destructive',
+          onPress: () => {
+            LayoutAnimation.configureNext(LayoutAnimation.Presets.spring);
+            const { notas: nIds, listas: lIds } = selecionadosSplit();
+            nIds.forEach(id => excluirNota(id));
+            lIds.forEach(id => excluirLista(id));
+            sairSelecao();
+          },
+        },
+      ]
+    );
+  };
+
   const toggleMenu = () => {
     const toValue = menuAberto ? 0 : 1;
     Animated.spring(animaMenu, { toValue, useNativeDriver: true, friction: 5, tension: 40 }).start();
     setMenuAberto(!menuAberto);
+  };
+
+  // --- Arraste das pastas (web): ---
+  const pastaMouseDown = (e: any) => {
+    const node = pastasScrollRef.current;
+    if (!node) return;
+    dragPastas.current = { ativo: true, inicioX: e.pageX, inicioScroll: node.scrollLeft, arrastou: false };
+  };
+  const pastaMouseMove = (e: any) => {
+    const d = dragPastas.current;
+    const node = pastasScrollRef.current;
+    if (!d.ativo || !node) return;
+    const dx = e.pageX - d.inicioX;
+    if (Math.abs(dx) > 6) d.arrastou = true;
+    e.preventDefault?.();
+    node.scrollLeft = d.inicioScroll - dx;
+  };
+  const pastaMouseUp = () => {
+    dragPastas.current.ativo = false;
+    // Reseta o flag logo após o clique: o onPress dos chips lê `arrastou` no
+    // instante do mouseup (para ignorar o clique que segue um arraste) e o
+    // flag volta a false pouco depois, para o próximo clique simples funcionar
+    // mesmo sem mousedown.
+    setTimeout(() => { dragPastas.current.arrastou = false; }, 150);
   };
 
   useEffect(() => {
@@ -349,9 +473,57 @@ export default function HomeScreen() {
               </TouchableOpacity>
             )}
           </Animated.View>
+
         </View>
 
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} scrollEnabled={!estaAbrindo}>
+        {/* Pastas: chips horizontais — toque abre a pasta; "+" Nova pasta sempre
+        visível no início da linha (não precisa rolar para criar) */}
+        <ScrollView
+          horizontal
+          ref={pastasScrollRef}
+          showsHorizontalScrollIndicator={false}
+          style={styles.pastasRow}
+          contentContainerStyle={styles.pastasRowContent}
+          {...(Platform.OS === 'web'
+            ? {
+                onMouseDown: pastaMouseDown,
+                onMouseMove: pastaMouseMove,
+                onMouseUp: pastaMouseUp,
+                onMouseLeave: pastaMouseUp,
+              }
+            : {})}
+        >
+          <TouchableOpacity
+            style={[styles.chipPasta, { backgroundColor: paleta.primarySoft, borderColor: cores.botaoAdd }]}
+            onPress={() => { if (dragPastas.current.arrastou) { dragPastas.current.arrastou = false; return; } abrirNovaPasta(); }}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="add" size={17} color={cores.botaoAdd} />
+            <Text style={[styles.chipPastaNome, { color: cores.botaoAdd }]}>Nova pasta</Text>
+          </TouchableOpacity>
+          {pastasComContagem.map((p: any, i: number) => (
+            <MotiView
+              key={p.id}
+              from={{ opacity: 0, scale: 0.8, translateX: -8 }}
+              animate={{ opacity: 1, scale: 1, translateX: 0 }}
+              transition={{ type: 'spring', damping: 15, stiffness: 170, delay: Math.min((i + 1) * 55, 220) }}
+            >
+              <TouchableOpacity
+                style={[styles.chipPasta, { backgroundColor: cores.card, borderColor: cores.borda }]}
+                onPress={() => { if (dragPastas.current.arrastou) { dragPastas.current.arrastou = false; return; } router.push({ pathname: '/pasta/[id]', params: { id: p.id } }); }}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="folder" size={17} color={cores.botaoAdd} />
+                <Text style={[styles.chipPastaNome, { color: cores.textoPrincipal }]} numberOfLines={1}>{p.nome}</Text>
+                <View style={[styles.chipPastaContagem, { backgroundColor: paleta.primarySoft }]}>
+                  <Text style={[styles.chipPastaContagemTexto, { color: cores.botaoAdd }]}>{p.contagem}</Text>
+                </View>
+              </TouchableOpacity>
+            </MotiView>
+          ))}
+        </ScrollView>
+
+        <ScrollView style={styles.listaScroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} scrollEnabled={!estaAbrindo}>
           {notasFiltradas.length === 0 ? (
             <MotiView
               from={{ opacity: 0, scale: 0.9, translateY: 12 }}
@@ -368,7 +540,7 @@ export default function HomeScreen() {
           ) : (
             notasFiltradas.map((item: any) => {
               const anexos = extrairAnexos(item.conteudo);
-              const audios = extrairAudios(item.conteudo || '', DIR_AUDIOS.uri);
+              const audios = extrairAudios(item.conteudo || '', DIR_AUDIOS?.uri);
               return (
               <MotiView
                 key={item.id}
@@ -382,9 +554,25 @@ export default function HomeScreen() {
                   onSwipeableWillOpen={() => aoAbrirSwipe(item.id)}
                   renderRightActions={() => renderRightActions(item)}
                   renderLeftActions={() => renderLeftActions(item)}
-                  enabled={!estaAbrindo}
+                  enabled={!estaAbrindo && !selecionando}
                 >
-                  <TouchableOpacity style={[styles.cardNota, { backgroundColor: cores.card }]} activeOpacity={0.9} onPress={() => navegarParaItem(item)}>
+                  <TouchableOpacity
+                    style={[
+                      styles.cardNota,
+                      { backgroundColor: cores.card },
+                      selecionando && idsSelecionados.includes(item.id) && { borderWidth: 2, borderColor: cores.botaoAdd },
+                    ]}
+                    onPress={() => {
+                      if (selecionando) {
+                        alternarSelecao(item.id);
+                      } else {
+                        navegarParaItem(item);
+                      }
+                    }}
+                    onLongPress={() => { if (!selecionando) entrarSelecao(item.id); }}
+                    delayLongPress={260}
+                    activeOpacity={0.9}
+                  >
                     <View style={[styles.corLateral, { backgroundColor: item.tipoItem === 'lista' ? cores.corLista : cores.botaoAdd }]} />
                     <View style={styles.textosCard}>
                       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -422,12 +610,33 @@ export default function HomeScreen() {
                         </View>
                       )}
                     </View>
-                    <Ionicons name={item.tipoItem === 'lista' ? "list" : "chevron-forward"} size={20} color={cores.textoSecundario} />
+                    {selecionando ? (
+                      <View
+                        style={[
+                          styles.checkSelecao,
+                          {
+                            backgroundColor: idsSelecionados.includes(item.id) ? cores.botaoAdd : 'transparent',
+                            borderColor: idsSelecionados.includes(item.id) ? cores.botaoAdd : cores.borda,
+                          },
+                        ]}
+                      >
+                        {idsSelecionados.includes(item.id) && <Ionicons name="checkmark" size={15} color={cores.onPrimary} />}
+                      </View>
+                    ) : (
+                      <Ionicons name={item.tipoItem === 'lista' ? "list" : "chevron-forward"} size={20} color={cores.textoSecundario} />
+                    )}
                   </TouchableOpacity>
                 </Swipeable>
               </MotiView>
               );
             })
+          )}
+          {notasFiltradas.length > 0 && !selecionando && (
+            <View style={styles.footer}>
+              <Text style={[styles.footerText, { color: cores.textoSecundario }]}>
+                {notasFiltradas.length} {notasFiltradas.length !== 1 ? 'itens salvos' : 'item salvo'}
+              </Text>
+            </View>
           )}
         </ScrollView>
 
@@ -509,8 +718,150 @@ export default function HomeScreen() {
           </View>
         </Modal>
 
-        {/* FAB Menu */}
-        <Animated.View pointerEvents="none" style={[styles.fabBackdrop, { opacity: animaMenu }]} />
+        {/* Barra de seleção múltipla */}
+        {selecionando && (
+          <MotiView
+            from={{ opacity: 0, translateY: 46 }}
+            animate={{ opacity: 1, translateY: 0 }}
+            transition={{ type: 'spring', damping: 15, stiffness: 190 }}
+            style={[styles.barraSelecao, { backgroundColor: cores.card, borderColor: cores.borda }]}
+          >
+            <View style={styles.barraSelecaoTopo}>
+              <Text style={[styles.barraSelecaoContagem, { color: cores.textoPrincipal }]}>
+                {idsSelecionados.length} selecionada{idsSelecionados.length !== 1 ? 's' : ''}
+              </Text>
+              <TouchableOpacity onPress={sairSelecao} style={styles.barraSelecaoFechar} hitSlop={8} activeOpacity={0.7}>
+                <Ionicons name="close" size={20} color={cores.textoSecundario} />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.barraSelecaoBotoes}>
+              <TouchableOpacity
+                style={[styles.barraSelecaoBotao, { backgroundColor: paleta.primarySoft }]}
+                onPress={abrirEscolherPasta}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="folder-open-outline" size={17} color={cores.botaoAdd} />
+                <Text style={[styles.barraSelecaoBotaoTexto, { color: cores.botaoAdd }]}>Pasta</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.barraSelecaoBotao, { backgroundColor: paleta.primarySoft }]}
+                onPress={abrirNovaPasta}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="create-outline" size={17} color={cores.botaoAdd} />
+                <Text style={[styles.barraSelecaoBotaoTexto, { color: cores.botaoAdd }]}>Criar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.barraSelecaoBotao, { backgroundColor: paleta.dangerSoft }]}
+                onPress={excluirSelecionadas}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="trash-outline" size={17} color={cores.perigo} />
+                <Text style={[styles.barraSelecaoBotaoTexto, { color: cores.perigo }]}>Excluir</Text>
+              </TouchableOpacity>
+            </View>
+          </MotiView>
+        )}
+
+        {/* Modal: escolher pasta (mesma subida/slide da aba da IA nas notas) */}
+        <Modal visible={modalPastaAberto} transparent animationType="slide" onRequestClose={() => setModalPastaAberto(false)}>
+          <View style={styles.modalFundo}>
+            <TouchableOpacity style={styles.modalDismiss} activeOpacity={1} onPress={() => setModalPastaAberto(false)} />
+            <View style={[styles.sheet, { backgroundColor: cores.fundo, borderColor: cores.borda }]}>
+              <View style={[styles.sheetHandle, { backgroundColor: cores.borda }]} />
+              <View style={styles.sheetHeader}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.sheetTitulo, { color: cores.textoPrincipal }]}>Mover para pasta</Text>
+                  <Text style={[styles.sheetSub, { color: cores.textoSecundario }]}>
+                    {idsSelecionados.length} {idsSelecionados.length !== 1 ? 'itens selecionados' : 'item selecionado'}
+                  </Text>
+                </View>
+                <TouchableOpacity onPress={() => setModalPastaAberto(false)} style={[styles.botaoFechar, { backgroundColor: paleta.surfaceElevated }]} activeOpacity={0.7}>
+                  <Ionicons name="close" size={20} color={cores.textoPrincipal} />
+                </TouchableOpacity>
+              </View>
+              <TouchableOpacity
+                style={[styles.pastaRow, { backgroundColor: paleta.surface, borderColor: cores.borda }]}
+                onPress={() => { setModalPastaAberto(false); abrirNovaPasta(); }}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.pastaRowIcone, { backgroundColor: paleta.primarySoft }]}>
+                  <Ionicons name="add" size={20} color={cores.botaoAdd} />
+                </View>
+                <Text style={[styles.pastaRowNome, { color: cores.textoPrincipal }]}>Criar nova pasta...</Text>
+              </TouchableOpacity>
+              {pastasComContagem.length === 0 ? (
+                <Text style={[styles.sheetSub, { color: cores.textoSecundario, textAlign: 'center', marginVertical: 10 }]}>
+                  Nenhuma pasta ainda — crie a primeira!
+                </Text>
+              ) : (
+                pastasComContagem.map((p: any) => (
+                  <TouchableOpacity
+                    key={p.id}
+                    style={[styles.pastaRow, { backgroundColor: paleta.surface, borderColor: cores.borda }]}
+                    onPress={() => aplicarPasta(p.id)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={[styles.pastaRowIcone, { backgroundColor: paleta.primarySoft }]}>
+                      <Ionicons name="folder" size={20} color={cores.botaoAdd} />
+                    </View>
+                    <Text style={[styles.pastaRowNome, { color: cores.textoPrincipal, flex: 1 }]} numberOfLines={1}>
+                      {p.nome}
+                    </Text>
+                    <Text style={{ color: cores.textoSecundario, fontSize: 13, fontWeight: '700' }}>{p.contagem}</Text>
+                  </TouchableOpacity>
+                ))
+              )}
+            </View>
+          </View>
+        </Modal>
+
+        {/* Modal: criar pasta (mesma subida/slide da aba da IA nas notas) */}
+        <Modal visible={modalNovaPastaAberto} transparent animationType="slide" onRequestClose={() => setModalNovaPastaAberto(false)}>
+          <View style={styles.modalFundo}>
+            <TouchableOpacity style={styles.modalDismiss} activeOpacity={1} onPress={() => setModalNovaPastaAberto(false)} />
+            <View style={[styles.sheet, { backgroundColor: cores.fundo, borderColor: cores.borda }]}>
+              <View style={[styles.sheetHandle, { backgroundColor: cores.borda }]} />
+              <View style={styles.sheetHeader}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.sheetTitulo, { color: cores.textoPrincipal }]}>Nova pasta</Text>
+                  <Text style={[styles.sheetSub, { color: cores.textoSecundario }]}>
+                    {idsSelecionados.length > 0
+                      ? `Leva os ${idsSelecionados.length} ${idsSelecionados.length !== 1 ? 'itens selecionados' : 'item selecionado'} para dentro`
+                      : 'Organize suas notas e listas em pastas'}
+                  </Text>
+                </View>
+                <TouchableOpacity onPress={() => setModalNovaPastaAberto(false)} style={[styles.botaoFechar, { backgroundColor: paleta.surfaceElevated }]} activeOpacity={0.7}>
+                  <Ionicons name="close" size={20} color={cores.textoPrincipal} />
+                </TouchableOpacity>
+              </View>
+              <TextInput
+                style={[
+                  styles.inputNovaPasta,
+                  { backgroundColor: paleta.surface, borderColor: cores.borda, color: cores.textoPrincipal },
+                ]}
+                placeholder="Nome da pasta"
+                placeholderTextColor={cores.placeholder}
+                value={nomeNovaPasta}
+                onChangeText={setNomeNovaPasta}
+                autoFocus
+                returnKeyType="done"
+                onSubmitEditing={confirmarCriarPasta}
+              />
+              <TouchableOpacity
+                style={[styles.botaoEntendi, { backgroundColor: cores.botaoAdd }]}
+                onPress={confirmarCriarPasta}
+                activeOpacity={0.85}
+              >
+                <Text style={{ color: cores.onPrimary, fontWeight: 'bold', fontSize: 16 }}>Criar pasta</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+
+        {/* FAB Menu (escondido no modo de seleção para não sobrepor a barra) */}
+        {!selecionando && <Animated.View pointerEvents="none" style={[styles.fabBackdrop, { opacity: animaMenu }]} />}
+        {!selecionando && (
         <View style={styles.fabWrapper}>
           {/* AJUSTE: Botão de ajuda condicional à configuração */}
           {(config.exibirAjudaFAB !== false) && (
@@ -537,10 +888,8 @@ export default function HomeScreen() {
             </Animated.View>
           </TouchableOpacity>
         </View>
+        )}
 
-        <View style={styles.footer}>
-          <Text style={[styles.footerText, { color: cores.textoSecundario }]}>{notasFiltradas.length} itens salvos</Text>
-        </View>
       </View>
     </GestureHandlerRootView>
   );
@@ -592,10 +941,106 @@ const styles = StyleSheet.create({
   separator: { height: 1, width: '100%', marginVertical: 15 },
   modalOption: { flexDirection: 'row', alignItems: 'center', paddingVertical: 15 },
   modalOptionText: { fontSize: 16, marginLeft: 15, fontWeight: '600' },
-  footer: { position: 'absolute', bottom: 15, width: '100%', height: 30, justifyContent: 'center', alignItems: 'center' },
+  footer: { paddingVertical: 22, alignItems: 'center', justifyContent: 'center' },
   footerText: { fontSize: 12, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1.5, opacity: 0.7 },
   helpTrigger: { position: 'absolute', top: 20, right: 20, padding: 5 },
   helpItem: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
   helpIconCircle: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginRight: 15 },
-  botaoEntendi: { width: '100%', height: 50, marginTop: 20, borderRadius: 15, justifyContent: 'center', alignItems: 'center' }
+  botaoEntendi: { width: '100%', height: 50, marginTop: 20, borderRadius: 15, justifyContent: 'center', alignItems: 'center' },
+  // Pastas — linha própria entre o cabeçalho e a lista. Altura fixa e SEM
+  // encolher no flex (flexGrow/flexShrink 0): sem isso o ScrollView das notas
+  // encolhia a linha para ~28px e cortava os chips verticalmente.
+  pastasRow: { height: 48, marginTop: 2, marginBottom: 12, flexGrow: 0, flexShrink: 0 },
+  // Lista de notas: ocupa exatamente o espaço restante (flexBasis 0) para não
+  // estourar o flex e nem cortar as notas.
+  listaScroll: { flex: 1 },
+  pastasRowContent: { paddingHorizontal: 20, gap: 10, alignItems: 'center' },
+  chipPasta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingVertical: 9,
+    paddingHorizontal: 13,
+    gap: 7,
+    maxWidth: 190,
+  },
+  chipPastaNome: { fontSize: 14, fontWeight: '700', flexShrink: 1 },
+  chipPastaContagem: { minWidth: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
+  chipPastaContagemTexto: { fontSize: 12, fontWeight: '900' },
+  // Seleção múltipla
+  checkSelecao: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 8,
+  },
+  barraSelecao: {
+    position: 'absolute',
+    bottom: 20,
+    left: 16,
+    right: 16,
+    borderRadius: 22,
+    borderWidth: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    elevation: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.32,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 5 },
+    zIndex: 8,
+  },
+  barraSelecaoTopo: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, paddingHorizontal: 2 },
+  barraSelecaoContagem: { fontSize: 13, fontWeight: '800' },
+  barraSelecaoBotoes: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  barraSelecaoBotao: { flex: 1, height: 40, borderRadius: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
+  barraSelecaoBotaoTexto: { fontSize: 13, fontWeight: '800' },
+  barraSelecaoFechar: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  inputNovaPasta: {
+    height: 50,
+    borderRadius: 15,
+    borderWidth: 1,
+    paddingHorizontal: 15,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  // Modal bottom sheet — mesmo visual dos modais originais do app (settings)
+  modalFundo: { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'flex-end' },
+  modalDismiss: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
+  sheet: {
+    borderTopLeftRadius: 26,
+    borderTopRightRadius: 26,
+    paddingHorizontal: 18,
+    paddingBottom: 40,
+    paddingTop: 10,
+    borderWidth: 1,
+    borderBottomWidth: 0,
+  },
+  sheetHandle: { alignSelf: 'center', width: 42, height: 5, borderRadius: 3, marginBottom: 16 },
+  sheetHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
+  sheetTitulo: { fontSize: 21, fontWeight: '800' },
+  sheetSub: { fontSize: 12.5, marginTop: 4 },
+  botaoFechar: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 12,
+  },
+  pastaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingVertical: 13,
+    paddingHorizontal: 14,
+    marginBottom: 10,
+  },
+  pastaRowIcone: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  pastaRowNome: { fontSize: 16, fontWeight: '700', marginLeft: 12 },
 });
