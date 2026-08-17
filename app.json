@@ -2,7 +2,7 @@
   "expo": {
     "name": "Simple Notes",
     "slug": "MinhasNotas",
-    "version": "1.0.9",
+    "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "simplesnotes",
@@ -12,7 +12,7 @@
     },
     "android": {
       "package": "com.seuusuario.simplesnotes",
-      "versionCode": 9,
+      "versionCode": 10,
       "softwareKeyboardLayoutMode": "resize",
       "googleServicesFile": "./google-services.json",
       "predictiveBackGestureEnabled": true,
