@@ -423,8 +423,8 @@ const buildDoc = (
       if (r && r.height > 0) {
         // Dedo na metade inferior da linha → a imagem entra DEPOIS dela
         // (linha indicadora na base); na metade superior → entra ANTES.
-        var yLinha = y > r.top + r.height / 2 ? r.bottom : r.top;
-        return { range: range, y: yLinha };
+        var depois = y > r.top + r.height / 2;
+        return { range: range, y: depois ? r.bottom : r.top, depois: depois };
       }
     }
     // Fallback (iOS/WKWebView): usa o bloco de texto mais próximo.
@@ -432,7 +432,8 @@ const buildDoc = (
     var bloco = subirBloco(alvo);
     if (bloco) {
       var br = bloco.getBoundingClientRect();
-      return { bloco: bloco, y: y > br.top + br.height / 2 ? br.bottom : br.top };
+      var depois2 = y > br.top + br.height / 2;
+      return { bloco: bloco, y: depois2 ? br.bottom : br.top, depois: depois2 };
     }
     return null;
   }
@@ -503,7 +504,6 @@ const buildDoc = (
     var dist = Math.sqrt((x - dragX0) * (x - dragX0) + (y - dragY0) * (y - dragY0));
     if (!img || !img.parentNode || dist < 8) return;
     var p = posicaoDaLinha(x, y);
-    if (!p) return;
     var nova = img.cloneNode(true);
     nova.removeAttribute('width');
     nova.removeAttribute('height');
@@ -525,26 +525,35 @@ const buildDoc = (
       else pai.insertBefore(nova, bloco);
       inserida = nova;
     };
-    if (p.range) {
-      // Insere EXATAMENTE no caret da linha onde o dedo está — funciona também
-      // quando o texto está direto no #editor (sem <div>): o navegador divide
-      // o nó de texto e a imagem entra como bloco naquela linha exata.
-      var ok = false;
-      try {
-        p.range.insertNode(nova);
-        inserida = nova;
-        ok = true;
-      } catch (e) { ok = false; }
-      if (!ok) {
-        var bloco = subirBloco(p.range.startContainer);
-        if (bloco) {
-          var br = bloco.getBoundingClientRect();
-          inserirPerto(bloco, (y - br.top) > (br.height / 2));
-        }
+    if (p && p.range) {
+      // Preferência: inserir antes/depois do BLOCO de texto (nunca divide uma
+      // palavra ao meio — soltar logo abaixo de uma linha não corta o texto).
+      var bloco = subirBloco(p.range.startContainer);
+      if (bloco) {
+        inserirPerto(bloco, p.depois);
+      } else {
+        // Texto direto no #editor (sem <div>): usa o caret, mas ajustado para
+        // o INÍCIO ou o FIM do nó de texto conforme a direção — sem dividir
+        // palavra também neste caso.
+        try {
+          var node = p.range.startContainer;
+          var off;
+          if (node && node.nodeType === 3) off = p.depois ? node.length : 0;
+          else if (node && node.nodeType === 1) off = p.depois ? node.childNodes.length : 0;
+          else off = 0;
+          p.range.setStart(node, off);
+          p.range.setEnd(node, off);
+          p.range.insertNode(nova);
+          inserida = nova;
+        } catch (e) {}
       }
-    } else if (p.bloco) {
-      var br2 = p.bloco.getBoundingClientRect();
-      inserirPerto(p.bloco, (y - br2.top) > (br2.height / 2));
+    } else if (p && p.bloco) {
+      inserirPerto(p.bloco, p.depois);
+    }
+    // Soltou numa área vazia do editor (abaixo do último texto): coloca no fim.
+    if (!inserida) {
+      el.appendChild(nova);
+      inserida = nova;
     }
     // Só remove a original se a cópia foi realmente inserida. Se por algum
     // motivo a inserção falhou (ex.: range inválido), a imagem fica onde estava
