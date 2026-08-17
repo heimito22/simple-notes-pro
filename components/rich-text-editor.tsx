@@ -150,6 +150,15 @@ const buildDoc = (
      acesso ao texto abaixo delas) — mantém a proporção com width/height auto. */
   img { max-width: 100%; max-height: 60vh; width: auto; height: auto; }
   img.anexo-img { border-radius: 14px; margin: 8px 0; display: block; }
+  /* Imagens da nota: sem arraste nativo nem menu de contexto/toque longo do
+     navegador — o reposicionamento é controlado pelo JS (fantasma + linha). */
+  img.anexo-img {
+    -webkit-user-drag: none;
+    -webkit-touch-callout: none;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  body.editando img.anexo-img { touch-action: none; }
   /* Player original: controle nativo do Android/WebView, sem card, nome ou
      player customizado. O wrapper existe apenas para manter a exclusão. */
   .anexo-audio-inline {
@@ -375,6 +384,233 @@ const buildDoc = (
     scrollT = setTimeout(function() { scrollT = null; notifyScroll(); }, 80);
   }, { passive: true });
   notifyScroll();
+
+  /* ============ ARRASTE DE IMAGENS ============
+     Segura numa foto e arrasta: um fantasma segue o dedo e uma linha
+     indicadora mostra ENTRE quais linhas de texto ela vai entrar. Ao soltar,
+     a imagem é movida para aquela posição do conteúdo (e o app salva). */
+  var COR_LINHA = '${accentColor}';
+  var imgArrastada = null;  // <img> original
+  var fantasma = null;      // clone que segue o dedo
+  var linhaDrop = null;     // linha indicadora
+  var dragAtivo = false;
+  var dragX0 = 0, dragY0 = 0; // ponto onde o toque começou
+
+  function eImagem(t) {
+    return t && t.tagName === 'IMG' && t.classList && t.classList.contains('anexo-img');
+  }
+  function subirBloco(node) {
+    if (!node) return null;
+    if (node.nodeType === 3) node = node.parentNode;
+    while (node && node !== el && !/^(DIV|P|LI|H[1-6]|BLOCKQUOTE|UL|OL)$/.test(node.nodeName)) {
+      node = node.parentNode;
+    }
+    return node && node !== el ? node : null;
+  }
+  function rangeEmPonto(x, y) {
+    try {
+      if (document.caretRangeFromPoint) return document.caretRangeFromPoint(x, y);
+    } catch (e) {}
+    return null;
+  }
+  function posicaoDaLinha(x, y) {
+    // Chrome/WebView Android: caretRangeFromPoint dá a linha de texto exata.
+    var range = rangeEmPonto(x, y);
+    if (range) {
+      var r = range.getBoundingClientRect();
+      // Range de caret colapsado tem largura 0 (Chrome/WebView Android) mas
+      // ALTURA = altura da linha — é isso que usamos para achar a linha exata.
+      if (r && r.height > 0) {
+        // Dedo na metade inferior da linha → a imagem entra DEPOIS dela
+        // (linha indicadora na base); na metade superior → entra ANTES.
+        var yLinha = y > r.top + r.height / 2 ? r.bottom : r.top;
+        return { range: range, y: yLinha };
+      }
+    }
+    // Fallback (iOS/WKWebView): usa o bloco de texto mais próximo.
+    var alvo = document.elementFromPoint(x, y);
+    var bloco = subirBloco(alvo);
+    if (bloco) {
+      var br = bloco.getBoundingClientRect();
+      return { bloco: bloco, y: y > br.top + br.height / 2 ? br.bottom : br.top };
+    }
+    return null;
+  }
+
+  function iniciarArraste(img, x, y) {
+    if (!document.body.classList.contains('editando')) return;
+    imgArrastada = img;
+    dragAtivo = true;
+    fantasma = img.cloneNode(true);
+    fantasma.removeAttribute('width');
+    fantasma.removeAttribute('height');
+    fantasma.style.cssText = 'position:fixed;left:0;top:0;max-width:130px;max-height:130px;opacity:0.9;pointer-events:none;z-index:99999;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,0.35);transform:translate(-50%,-50%);';
+    document.body.appendChild(fantasma);
+    linhaDrop = document.createElement('div');
+    linhaDrop.style.cssText = 'position:fixed;left:25px;right:25px;height:3px;background:' + COR_LINHA + ';pointer-events:none;z-index:99998;opacity:0;box-shadow:0 0 8px ' + COR_LINHA + ';border-radius:2px;';
+    document.body.appendChild(linhaDrop);
+    img.style.opacity = '0.25';
+    dragX0 = x; dragY0 = y;
+    moverArraste(x, y);
+  }
+
+  function moverArraste(x, y) {
+    if (!dragAtivo || !fantasma) return;
+    fantasma.style.left = x + 'px';
+    fantasma.style.top = y + 'px';
+    // A linha só aparece depois de um deslocamento real (o toque inicial na
+    // imagem não deve sugerir que ela já vai se mover).
+    var dist = Math.sqrt((x - dragX0) * (x - dragX0) + (y - dragY0) * (y - dragY0));
+    if (dist < 8) {
+      linhaDrop.style.opacity = '0';
+      return;
+    }
+    var p = posicaoDaLinha(x, y);
+    if (p) {
+      linhaDrop.style.top = Math.max(0, p.y) + 'px';
+      linhaDrop.style.opacity = '0.95';
+    } else {
+      linhaDrop.style.opacity = '0';
+    }
+  }
+
+  function removerImgComBrsVizinhos(img) {
+    var pai = img.parentNode;
+    if (!pai) return;
+    // Remove até um <br> imediatamente antes e um imediatamente depois da imagem.
+    var anterior = img.previousSibling;
+    if (anterior && anterior.nodeName === 'BR') pai.removeChild(anterior);
+    var proximo = img.nextSibling;
+    if (proximo && proximo.nodeName === 'BR') pai.removeChild(proximo);
+    pai.removeChild(img);
+  }
+
+  function limparArraste() {
+    dragAtivo = false;
+    if (fantasma && fantasma.parentNode) fantasma.parentNode.removeChild(fantasma);
+    if (linhaDrop && linhaDrop.parentNode) linhaDrop.parentNode.removeChild(linhaDrop);
+    fantasma = null;
+    linhaDrop = null;
+    if (imgArrastada) { imgArrastada.style.opacity = ''; imgArrastada = null; }
+  }
+
+  function soltarArraste(x, y) {
+    if (!dragAtivo) return;
+    dragAtivo = false;
+    var img = imgArrastada;
+    limparArraste();
+    // Toque simples (sem arrastar): não mexe em nada.
+    var dist = Math.sqrt((x - dragX0) * (x - dragX0) + (y - dragY0) * (y - dragY0));
+    if (!img || !img.parentNode || dist < 8) return;
+    var p = posicaoDaLinha(x, y);
+    if (!p) return;
+    var nova = img.cloneNode(true);
+    nova.removeAttribute('width');
+    nova.removeAttribute('height');
+    // A classe da animação de chegada NUNCA vai para o conteúdo salvo: ela é
+    // aplicada no nó vivo após a inserção e removida ao terminar (ver abaixo).
+    nova.classList.remove('chegou');
+    // A imagem é um bloco próprio (display:block + margens) — entra sem <br>
+    // extras. Remove da origem os <br> vizinhos para não sobrar linha vazia.
+    // Insere via insertBefore (nó vivo) para poder animar e limpar a classe.
+    var inserida = null;
+    var inserirPerto = function(bloco, depois) {
+      // Dentro de lista (li), sobe para a <ul>/<ol>: imagem dentro de <ul>
+      // fora de <li> é HTML inválido — a foto entra antes/depois da lista.
+      if (bloco && /^(LI)$/.test(bloco.nodeName)) bloco = bloco.parentNode;
+      if (!bloco) return;
+      var pai = bloco.parentNode;
+      if (!pai) return;
+      if (depois) pai.insertBefore(nova, bloco.nextSibling);
+      else pai.insertBefore(nova, bloco);
+      inserida = nova;
+    };
+    if (p.range) {
+      // Insere EXATAMENTE no caret da linha onde o dedo está — funciona também
+      // quando o texto está direto no #editor (sem <div>): o navegador divide
+      // o nó de texto e a imagem entra como bloco naquela linha exata.
+      var ok = false;
+      try {
+        p.range.insertNode(nova);
+        inserida = nova;
+        ok = true;
+      } catch (e) { ok = false; }
+      if (!ok) {
+        var bloco = subirBloco(p.range.startContainer);
+        if (bloco) {
+          var br = bloco.getBoundingClientRect();
+          inserirPerto(bloco, (y - br.top) > (br.height / 2));
+        }
+      }
+    } else if (p.bloco) {
+      var br2 = p.bloco.getBoundingClientRect();
+      inserirPerto(p.bloco, (y - br2.top) > (br2.height / 2));
+    }
+    // Só remove a original se a cópia foi realmente inserida. Se por algum
+    // motivo a inserção falhou (ex.: range inválido), a imagem fica onde estava
+    // — nunca há perda de dado no arraste.
+    if (!inserida) return;
+    removerImgComBrsVizinhos(img);
+    // Animação de chegada via Web Animations API: roda no nó vivo SEM tocar no
+    // DOM (nenhuma classe/style entra no innerHTML) — o conteúdo salvo fica
+    // sempre limpo, mesmo se o usuário digitar logo em seguida.
+    notify();
+    scheduleFormats();
+    if (inserida && typeof inserida.animate === 'function') {
+      try {
+        inserida.animate(
+          [{ transform: 'scale(0.92)', opacity: 0.4 }, { transform: 'scale(1)', opacity: 1 }],
+          { duration: 350, easing: 'ease' }
+        );
+      } catch (e) {}
+    }
+  }
+
+  // Pointer Events (WebView Android moderno) com fallback para touch.
+  if (window.PointerEvent) {
+    el.addEventListener('pointerdown', function(e) {
+      var t = e.target;
+      if (!eImagem(t)) return;
+      if (!document.body.classList.contains('editando')) return;
+      e.preventDefault();
+      iniciarArraste(t, e.clientX, e.clientY);
+    });
+    document.addEventListener('pointermove', function(e) {
+      if (dragAtivo) { e.preventDefault(); moverArraste(e.clientX, e.clientY); }
+    }, { passive: false });
+    document.addEventListener('pointerup', function(e) {
+      if (dragAtivo) soltarArraste(e.clientX, e.clientY);
+    });
+    document.addEventListener('pointercancel', limparArraste);
+  } else {
+    el.addEventListener('touchstart', function(e) {
+      var t = e.target;
+      if (!eImagem(t)) return;
+      if (!document.body.classList.contains('editando')) return;
+      e.preventDefault();
+      var touch = e.touches && e.touches[0];
+      if (touch) iniciarArraste(t, touch.clientX, touch.clientY);
+    }, { passive: false });
+    document.addEventListener('touchmove', function(e) {
+      if (dragAtivo) {
+        e.preventDefault();
+        var touch = e.touches && e.touches[0];
+        if (touch) moverArraste(touch.clientX, touch.clientY);
+      }
+    }, { passive: false });
+    document.addEventListener('touchend', function(e) {
+      if (dragAtivo) {
+        var touch = e.changedTouches && e.changedTouches[0];
+        if (touch) soltarArraste(touch.clientX, touch.clientY);
+        else limparArraste();
+      }
+    });
+    document.addEventListener('touchcancel', limparArraste);
+  }
+  // Impede o menu de contexto (long-press) sobre a imagem no Android.
+  el.addEventListener('contextmenu', function(e) {
+    if (eImagem(e.target)) e.preventDefault();
+  });
 
   notify();
   notifyFormats();
