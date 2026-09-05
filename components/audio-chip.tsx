@@ -4,6 +4,7 @@ import { setAudioModeAsync, useAudioPlayer, useAudioPlayerStatus } from 'expo-au
 import React, { useEffect, useRef, useState } from 'react';
 import { Alert, LayoutChangeEvent, Pressable, StyleSheet, Text, View } from 'react-native';
 import { appColors } from '../constants/theme';
+import { idiomaAtual, tIdioma } from '../context/idiomas';
 import { useTheme } from '../context/ThemeContext';
 
 export interface AudioAttachment {
@@ -28,12 +29,16 @@ const formatarTempo = (segundos: number, vazio = '0:00') => {
   return `${minutos}:${segundosRestantes.toString().padStart(2, '0')}`;
 };
 
-const nomeDoArquivo = (nome: string) => {
+const nomeDoArquivo = (nome: string, fallback?: string) => {
   const semCaminho = nome.split(/[\\/]/).pop() || nome;
-  return semCaminho
-    .replace(/^audio_/, '')
-    .replace(/\.m4a$/i, '')
-    .replace(/_/g, ' ') || 'Gravação de áudio';
+  return (
+    semCaminho
+      .replace(/^audio_/, '')
+      .replace(/\.m4a$/i, '')
+      .replace(/_/g, ' ') ||
+    fallback ||
+    tIdioma(idiomaAtual, 'Gravação de áudio')
+  );
 };
 
 const escaparRegExp = (valor: string) => valor.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -112,7 +117,7 @@ export const excluirArquivoAudio = async (uri: string) => {
 };
 
 export default function AudioPlayer({ uri, nome, compact = false, textual = false, onDelete }: Props) {
-  const { isDark } = useTheme();
+  const { isDark, t } = useTheme();
   const paleta = appColors(isDark);
   const player = useAudioPlayer(uri, { updateInterval: compact || textual ? 500 : 250 });
   const status = useAudioPlayerStatus(player);
@@ -138,7 +143,7 @@ export default function AudioPlayer({ uri, nome, compact = false, textual = fals
     try { player.remove(); } catch { /* o hook pode já ter iniciado a liberação */ }
   };
 
-  const nomeExibido = nomeDoArquivo(nome || uri);
+  const nomeExibido = nomeDoArquivo(nome || uri, t('Gravação de áudio'));
   const duracao = status.duration || 0;
   const progresso = duracao > 0 ? Math.min(status.currentTime / duracao, 1) : 0;
 
@@ -175,12 +180,12 @@ export default function AudioPlayer({ uri, nome, compact = false, textual = fals
   const solicitarExclusao = () => {
     if (!onDelete || removendo) return;
     Alert.alert(
-      'Apagar áudio',
-      'Deseja remover este áudio da nota?',
+      t('Apagar áudio'),
+      t('Deseja remover este áudio da nota?'),
       [
-        { text: 'Cancelar', style: 'cancel' },
+        { text: t('Cancelar'), style: 'cancel' },
         {
-          text: 'Apagar',
+          text: t('Apagar'),
           style: 'destructive',
           onPress: async () => {
             setRemovendo(true);
@@ -213,7 +218,7 @@ export default function AudioPlayer({ uri, nome, compact = false, textual = fals
         style={[styles.playButton, compact && styles.playButtonCompact, textual && styles.playButtonTextual, { backgroundColor: paleta.primary }]}
         hitSlop={6}
         accessibilityRole="button"
-        accessibilityLabel={status.playing ? 'Pausar áudio' : 'Reproduzir áudio'}
+        accessibilityLabel={status.playing ? t('Pausar áudio') : t('Reproduzir áudio')}
       >
         <Ionicons name={status.playing ? 'pause' : 'play'} size={compact ? 17 : 20} color={paleta.onPrimary} style={!status.playing ? { marginLeft: 2 } : undefined} />
       </Pressable>

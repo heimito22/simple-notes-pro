@@ -4,6 +4,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { MotiView } from 'moti';
 import React, { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
 import { appColors } from '../constants/theme';
 import {
@@ -39,7 +40,8 @@ const ICONES_STATUS: Record<Status, { icone: any; cor: string }> = {
 };
 
 export default function PermissoesScreen() {
-  const { isDark } = useTheme();
+  const { isDark, t } = useTheme();
+  const insets = useSafeAreaInsets();
   const [itens, setItens] = useState<ItemPermissao[] | null>(null);
   const [ehXiaomi, setEhXiaomi] = useState(false);
   const [verificando, setVerificando] = useState(true);
@@ -80,8 +82,8 @@ export default function PermissoesScreen() {
       }
       lista.push({
         chave: 'notificacoes',
-        titulo: 'Notificações ativadas',
-        descricao: notif ? 'O app pode tocar o som do alarme' : 'O app precisa da permissão para tocar o alarme',
+        titulo: t('Notificações ativadas'),
+        descricao: notif ? t('O app pode tocar o som do alarme') : t('O app precisa da permissão para tocar o alarme'),
         status: notif ? 'ok' : 'falta',
         abrir: abrirConfigNotificacoes,
       });
@@ -91,8 +93,8 @@ export default function PermissoesScreen() {
         const exato = await podeAgendarAlarmeExato();
         lista.push({
           chave: 'alarmeExato',
-          titulo: 'Alarme exato',
-          descricao: exato ? 'O alarme dispara na hora certa' : 'Sem isso, o alarme pode atrasar alguns minutos',
+          titulo: t('Alarme exato'),
+          descricao: exato ? t('O alarme dispara na hora certa') : t('Sem isso, o alarme pode atrasar alguns minutos'),
           status: exato ? 'ok' : 'falta',
           abrir: abrirConfigAlarmeExato,
         });
@@ -103,10 +105,10 @@ export default function PermissoesScreen() {
         const popup = await podeExibirSobreposicao();
         lista.push({
           chave: 'popupMiui',
-          titulo: 'Exibir pop-ups em segundo plano (MIUI)',
+          titulo: t('Exibir pop-ups em segundo plano (MIUI)'),
           descricao: popup
-            ? 'Popup liberado para abrir fora do app'
-            : 'Essencial no Xiaomi para o alarme abrir como popup (não só notificação)',
+            ? t('Popup liberado para abrir fora do app')
+            : t('Essencial no Xiaomi para o alarme abrir como popup (não só notificação)'),
           status: popup ? 'ok' : 'falta',
           abrir: abrirPermissoesMiui,
         });
@@ -114,10 +116,10 @@ export default function PermissoesScreen() {
         const popup = await podeExibirSobreposicao();
         lista.push({
           chave: 'popup',
-          titulo: 'Popup sobre outros apps',
+          titulo: t('Popup sobre outros apps'),
           descricao: popup
-            ? 'O alarme abre por cima de tudo, mesmo com a tela ligada'
-            : 'Permite o alarme abrir por cima de outros apps',
+            ? t('O alarme abre por cima de tudo, mesmo com a tela ligada')
+            : t('Permite o alarme abrir por cima de outros apps'),
           status: popup ? 'ok' : 'falta',
           abrir: abrirConfigSobreposicao,
         });
@@ -128,10 +130,10 @@ export default function PermissoesScreen() {
         const telaCheia = await podeUsarTelaCheia();
         lista.push({
           chave: 'telaCheia',
-          titulo: 'Tela cheia (Android 14+)',
+          titulo: t('Tela cheia (Android 14+)'),
           descricao: telaCheia
-            ? 'Pode abrir por cima de tudo, mesmo bloqueado'
-            : 'Ative em Ajustes → Acesso especial → Tela cheia',
+            ? t('Pode abrir por cima de tudo, mesmo bloqueado')
+            : t('Ative em Ajustes → Acesso especial → Tela cheia'),
           status: telaCheia ? 'ok' : 'falta',
           abrir: abrirConfigTelaCheia,
         });
@@ -141,10 +143,10 @@ export default function PermissoesScreen() {
       const bateria = await estaIgnorandoOtimizacaoBateria();
       lista.push({
         chave: 'bateria',
-        titulo: 'Otimização de bateria',
+        titulo: t('Otimização de bateria'),
         descricao: bateria
-          ? 'Sem restrições — alarme toca com o app fechado'
-          : 'Defina "Sem restrições" para o alarme tocar com o app fechado',
+          ? t('Sem restrições — alarme toca com o app fechado')
+          : t('Defina "Sem restrições" para o alarme tocar com o app fechado'),
         status: bateria ? 'ok' : 'falta',
         abrir: abrirConfigBateria,
       });
@@ -153,17 +155,17 @@ export default function PermissoesScreen() {
       if (xiaomi) {
         lista.push({
           chave: 'autostart',
-          titulo: 'Iniciar automaticamente (Autostart)',
-          descricao: 'Garante que o alarme dispare com o app fechado',
-          guia: 'Ajustes → Apps → Gerenciar apps → Simple Notes → Iniciar automaticamente',
+          titulo: t('Iniciar automaticamente (Autostart)'),
+          descricao: t('Garante que o alarme dispare com o app fechado'),
+          guia: t('Ajustes → Apps → Gerenciar apps → Simple Notes → Iniciar automaticamente'),
           status: 'desconhecido',
           abrir: abrirConfigAutostart,
         });
         lista.push({
           chave: 'telaBloqueio',
-          titulo: 'Notificações na tela de bloqueio',
-          descricao: 'Mostra o alarme com o celular bloqueado',
-          guia: 'Ajustes → Notificações → Na tela de bloqueio → Mostrar tudo',
+          titulo: t('Notificações na tela de bloqueio'),
+          descricao: t('Mostra o alarme com o celular bloqueado'),
+          guia: t('Ajustes → Notificações → Na tela de bloqueio → Mostrar tudo'),
           status: 'desconhecido',
           abrir: abrirConfigNotificacoes,
         });
@@ -197,7 +199,7 @@ export default function PermissoesScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: cores.fundo }]}>
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: 40 + insets.bottom }]} showsVerticalScrollIndicator={false}>
         {/* CABEÇALHO: voltar + título + atualizar */}
         <MotiView
           from={{ opacity: 0, translateY: -12 }}
@@ -212,7 +214,7 @@ export default function PermissoesScreen() {
           >
             <Ionicons name="chevron-back" size={22} color={cores.accentForte} />
           </TouchableOpacity>
-          <Text style={[styles.title, { color: cores.texto }]}>Permissões do alarme</Text>
+          <Text style={[styles.title, { color: cores.texto }]}>{t('Permissões do alarme')}</Text>
           <TouchableOpacity
             style={[styles.roundBtn, { backgroundColor: cores.card, borderColor: cores.cardBorda }]}
             onPress={verificar}
@@ -228,16 +230,13 @@ export default function PermissoesScreen() {
           transition={{ type: 'timing', duration: 400, delay: 80 }}
         >
           <Text style={[styles.subtitle, { color: cores.subtexto } ]}>
-            No Android, o alarme só abre em POPUP (por cima de outros apps) se o app tiver as
-            permissões abaixo. Em aparelhos Xiaomi (MIUI/HyperOS) são necessários alguns passos extras.
+            {t('No Android, o alarme só abre em POPUP (por cima de outros apps) se o app tiver as permissões abaixo. Em aparelhos Xiaomi (MIUI/HyperOS) são necessários alguns passos extras.')}
           </Text>
 
           <View style={[styles.avisoBox, { backgroundColor: cores.avisoFundo, borderColor: cores.cardBorda }]}>
             <Ionicons name="bulb" size={18} color={cores.accentForte} />
             <Text style={[styles.avisoBoxTexto, { color: cores.subtexto }]}>
-              Com a permissão de popup (sobreposição) ativada, o alarme abre por cima de tudo — mesmo
-              com a tela ligada. Sem ela: com a tela bloqueada/desligada abre em tela cheia; com a tela
-              ligada mostra apenas um aviso no topo (toque nele para abrir o alarme).
+              {t('Com a permissão de popup (sobreposição) ativada, o alarme abre por cima de tudo — mesmo com a tela ligada. Sem ela: com a tela bloqueada/desligada abre em tela cheia; com a tela ligada mostra apenas um aviso no topo (toque nele para abrir o alarme).')}
             </Text>
           </View>
 
@@ -250,7 +249,7 @@ export default function PermissoesScreen() {
             >
               <Ionicons name="phone-portrait" size={18} color="#FFB300" />
               <Text style={[styles.chipText, { color: isDark ? '#FFD60A' : '#9A6B00' }]}>
-                Dispositivo Xiaomi / MIUI detectado — ative os itens abaixo para o popup funcionar
+                {t('Dispositivo Xiaomi / MIUI detectado — ative os itens abaixo para o popup funcionar')}
               </Text>
             </MotiView>
           )}
@@ -260,7 +259,7 @@ export default function PermissoesScreen() {
         {itens === null || verificando ? (
           <View style={styles.carregando}>
             <ActivityIndicator color={cores.accent} size="large" />
-            <Text style={[styles.carregandoTexto, { color: cores.subtexto } ]}>Verificando permissões...</Text>
+            <Text style={[styles.carregandoTexto, { color: cores.subtexto } ]}>{t('Verificando permissões...')}</Text>
           </View>
         ) : (
           <View style={styles.lista}>
@@ -296,7 +295,7 @@ export default function PermissoesScreen() {
                         onPress={item.abrir}
                         activeOpacity={0.8}
                       >
-                        <Text style={styles.acionarBtnTexto}>Abrir</Text>
+                        <Text style={styles.acionarBtnTexto}>{t('Abrir')}</Text>
                       </TouchableOpacity>
                     )}
                   </View>
@@ -307,9 +306,7 @@ export default function PermissoesScreen() {
         )}
 
         <Text style={[styles.nota, { color: cores.subtexto } ]}>
-          Dica: se ainda assim o popup não abrir, verifique também em Ajustes → Bateria →
-          Gerenciar bateria do aparelho se o app está como “Sem restrições” (o nome varia por
-          fabricante: Samsung, Xiaomi, Motorola, etc.).
+          {t('Dica: se ainda assim o popup não abrir, verifique também em Ajustes → Bateria → Gerenciar bateria do aparelho se o app está como “Sem restrições” (o nome varia por fabricante: Samsung, Xiaomi, Motorola, etc.).')}
         </Text>
       </ScrollView>
     </View>

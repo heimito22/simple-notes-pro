@@ -48,6 +48,7 @@ const limparAnexos = (html: string) =>
 
 const decodeEntities = (s: string) =>
   s
+    .replace(/&#10;|&#xA;|&#x0A;/gi, '\n')
     .replace(/&nbsp;/g, ' ')
     .replace(/&amp;/g, '&')
     .replace(/&lt;/g, '<')

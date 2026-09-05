@@ -6,11 +6,12 @@ import * as Notifications from 'expo-notifications';
 import { MotiView } from 'moti';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, BackHandler, Modal, Platform, StyleSheet, Text, TouchableOpacity, View, Vibration } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { alarmeEstado } from '../context/alarme-estado';
 import { assetDoSom, SOM_PADRAO } from '../context/sons-alarme';
 import { ACAO_DEIXAR_DEPOIS, ACAO_SONECA_10, ACAO_VOU_FAZER, useTarefas } from '../context/TarefasContext';
 import { useTheme } from '../context/ThemeContext';
-import { alarmeNativoDisponivel, buscarAlarmeInicial, ouvirAlarmeDisparado, pararSomAlarme, tocarSomAlarme } from '../modules/minhasnotas-alarm';
+import { alarmeNativoDisponivel, buscarAlarmeInicial, ouvirAlarmeDisparado, pararSomAlarme, tocarSomAlarme , isKeyguardLocked, finishActivity } from '../modules/minhasnotas-alarm';
 import { sonecaLembrete } from '../context/lembrete-notas';
 
 interface AlarmeInfo {
@@ -36,7 +37,8 @@ interface AlarmeInfo {
  */
 export default function AlarmeOverlay() {
   const { alternarTarefa, sonecaAlarme } = useTarefas();
-  const { isDark, config } = useTheme();
+  const { isDark, config, t } = useTheme();
+  const insets = useSafeAreaInsets();
   const nomeSom = config?.somAlarme ?? SOM_PADRAO;
   const tempoSoneca = config?.tempoSoneca ?? 10;
   const [alarme, setAlarme] = useState<AlarmeInfo | null>(null);
@@ -91,6 +93,11 @@ export default function AlarmeOverlay() {
     alarmeRef.current = null;
     Vibration.cancel();
     pararSom();
+    // Se o app foi aberto pela tela de bloqueio (alarme), fecha a activity
+    // para voltar para a tela de bloqueio do celular — sem deixar o app aberto por trás.
+    isKeyguardLocked().then(locked => {
+      if (locked) finishActivity();
+    }).catch(() => {});
   }, [pararSom]);
 
   const ativar = useCallback((info: AlarmeInfo) => {
@@ -218,7 +225,12 @@ export default function AlarmeOverlay() {
   // como modal nativo (editores de nota/lista) e de qualquer rota do app.
   return (
     <Modal visible transparent statusBarTranslucent animationType="fade" onRequestClose={() => {}}>
-      <View style={[styles.overlay, { backgroundColor: tema.fundo }]}>
+      <View
+        style={[
+          styles.overlay,
+          { backgroundColor: tema.fundo, paddingBottom: 96 + insets.bottom, paddingTop: 96 + insets.top },
+        ]}
+      >
         {/* Anéis pulsantes (efeito radar) ao redor do ícone */}
         <View style={styles.ringsArea} pointerEvents="none">
           <MotiView
@@ -271,7 +283,7 @@ export default function AlarmeOverlay() {
             <Ionicons name="alarm" size={46} color={tema.iconeCor} />
           </MotiView>
           <Text style={[styles.cardTitulo, { color: tema.titulo }]} numberOfLines={3}>{alarme.titulo}</Text>
-          <Text style={[styles.cardSub, { color: tema.sub }]}>{ehLembrete ? 'Está na hora de revisar esta nota!' : 'Está na hora de fazer isso!'}</Text>
+          <Text style={[styles.cardSub, { color: tema.sub }]}>{ehLembrete ? t('Está na hora de revisar esta nota!') : t('Está na hora de fazer isso!')}</Text>
         </MotiView>
 
         {/* Botões em cascata */}
@@ -287,7 +299,7 @@ export default function AlarmeOverlay() {
               onPress={() => { if (!ehLembrete) alternarTarefa(alarme.id); fechar(); }}
             >
               <Ionicons name="checkmark-circle" size={26} color={tema.botaoTexto} />
-              <Text style={[styles.botaoTexto, { color: tema.botaoTexto }]}>{ehLembrete ? 'Revisado' : 'Vou fazer'}</Text>
+              <Text style={[styles.botaoTexto, { color: tema.botaoTexto }]}>{ehLembrete ? t('Revisado') : t('Vou fazer')}</Text>
             </TouchableOpacity>
           </MotiView>
 
@@ -309,7 +321,7 @@ export default function AlarmeOverlay() {
               }}
             >
               <Ionicons name="time" size={26} color={tema.botaoTexto} />
-              <Text style={[styles.botaoTexto, { color: tema.botaoTexto }]}>Daqui a {tempoSoneca} min</Text>
+              <Text style={[styles.botaoTexto, { color: tema.botaoTexto }]}>{t('Daqui a {n} min', { n: tempoSoneca })}</Text>
             </TouchableOpacity>
           </MotiView>
 
@@ -324,7 +336,7 @@ export default function AlarmeOverlay() {
               onPress={fechar}
             >
               <Ionicons name="calendar-clear" size={26} color={tema.botaoNeutroTexto} />
-              <Text style={[styles.botaoTexto, { color: tema.botaoNeutroTexto }]}>Deixar para depois</Text>
+              <Text style={[styles.botaoTexto, { color: tema.botaoNeutroTexto }]}>{t('Deixar para depois')}</Text>
             </TouchableOpacity>
           </MotiView>
         </View>

@@ -1,11 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { MotiView } from 'moti';
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Animated,
+  BackHandler,
+  Keyboard,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -14,6 +18,7 @@ import {
   View,
 } from 'react-native';
 import { GestureHandlerRootView, Swipeable } from 'react-native-gesture-handler';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNotas } from '../../context/NotasContext';
 import { useListas } from '../../context/ListaContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -24,7 +29,14 @@ const limparHTML = (html: string) => {
   return html
     .replace(/<img[^>]*>/g, ' [Foto] ')
     .replace(/<[^>]*>?/gm, ' ')
+    // Decodifica entidades HTML para o preview não mostrar "&#10;" etc.
+    .replace(/&#10;|&#xA;|\n/gi, ' ')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
     .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/gi, '&')
     .replace(/\s+/g, ' ')
     .trim();
 };
@@ -35,7 +47,8 @@ export default function PastaScreen() {
   const pastaId = String(id || '');
   const { notas, pastas, renomearPasta, excluirPasta, moverNotasParaPasta, excluirNota, alternarFixarNota } = useNotas();
   const { listas, excluirLista, moverListasParaPasta, alternarFixarLista } = useListas();
-  const { isDark } = useTheme();
+  const { isDark, t } = useTheme();
+  const insets = useSafeAreaInsets();
 
   const [renomeando, setRenomeando] = useState(false);
   const [nomeEditado, setNomeEditado] = useState('');
@@ -43,6 +56,31 @@ export default function PastaScreen() {
   const [idsSelecionados, setIdsSelecionados] = useState<string[]>([]);
   // FAB menu (Nova nota / Nova lista)
   const [fabAberto, setFabAberto] = useState(false);
+  // Busca
+  const [busca, setBusca] = useState('');
+  const [buscaAtiva, setBuscaAtiva] = useState(false);
+  const animaBusca = useMemo(() => new Animated.Value(0), []);
+  // Altura real do teclado (Android) — para o modal subir junto
+  const [alturaTeclado, setAlturaTeclado] = useState(0);
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    const ALTURA_MAX = 500;
+    const show = Keyboard.addListener('keyboardDidShow', (e) => {
+      const h = e.endCoordinates.height;
+      if (h > 0 && h <= ALTURA_MAX) setAlturaTeclado(h);
+    });
+    const hide = Keyboard.addListener('keyboardDidHide', () => setAlturaTeclado(0));
+    return () => { show.remove(); hide.remove(); };
+  }, []);
+
+  useEffect(() => {
+    Animated.spring(animaBusca, {
+      toValue: buscaAtiva ? 1 : 0,
+      useNativeDriver: true,
+      friction: 9,
+      tension: 80,
+    }).start();
+  }, [buscaAtiva, animaBusca]);
 
   const swipeableRefs = useRef<Map<string, Swipeable>>(new Map());
   const [idAberto, setIdAberto] = useState<string | null>(null);
@@ -55,6 +93,7 @@ export default function PastaScreen() {
     textoPrincipal: paleta.text,
     textoSecundario: paleta.muted,
     card: paleta.surface,
+    searchBar: paleta.surface,
     borda: paleta.border,
     botaoAdd: paleta.primary,
     onPrimary: paleta.onPrimary,
@@ -65,7 +104,7 @@ export default function PastaScreen() {
 
   const pasta = pastas.find((p: any) => p.id === pastaId);
 
-  const notasDaPasta = useMemo(
+  const notasDaPastaAll = useMemo(
     () =>
       notas
         .filter((n: any) => n.pastaId === pastaId)
@@ -77,12 +116,37 @@ export default function PastaScreen() {
     [notas, pastaId]
   );
 
-  const listasDaPasta = useMemo(
-    () => listas.filter((l: any) => l.pastaId === pastaId),
+  const listasDaPastaAll = useMemo(
+    () => listas.filter((l: any) => l.pastaId === pastaId)
+      .sort((a: any, b: any) => {
+        if (a.fixada && !b.fixada) return -1;
+        if (!a.fixada && b.fixada) return 1;
+        return b.id.localeCompare(a.id);
+      }),
     [listas, pastaId]
   );
 
-  const totalItens = notasDaPasta.length + listasDaPasta.length;
+  const termoBusca = busca.toLowerCase();
+  const notasDaPasta = useMemo(
+    () =>
+      termoBusca
+        ? notasDaPastaAll.filter((n: any) => {
+            const titulo = (n.titulo || '').toLowerCase();
+            const conteudoLimpo = limparHTML(n.conteudo || '').toLowerCase();
+            return titulo.includes(termoBusca) || conteudoLimpo.includes(termoBusca);
+          })
+        : notasDaPastaAll,
+    [notasDaPastaAll, termoBusca]
+  );
+  const listasDaPasta = useMemo(
+    () =>
+      termoBusca
+        ? listasDaPastaAll.filter((l: any) => (l.titulo || '').toLowerCase().includes(termoBusca))
+        : listasDaPastaAll,
+    [listasDaPastaAll, termoBusca]
+  );
+
+  const totalItens = notasDaPastaAll.length + listasDaPastaAll.length;
 
   // --- Pasta: renomear / excluir ---
   const abrirRename = () => {
@@ -96,20 +160,22 @@ export default function PastaScreen() {
   };
 
   const confirmarExcluir = () => {
-    Alert.alert('Excluir pasta', `Excluir a pasta "${pasta?.nome}"? As notas e listas dela voltam para a lista principal.`, [
-      { text: 'Cancelar', style: 'cancel' },
-      {
-        text: 'Excluir',
-        style: 'destructive',
-        onPress: () => {
-          // Listas da pasta voltam para a lista principal (as notas já voltam
-          // automaticamente no excluirPasta)
-          if (listasDaPasta.length > 0) moverListasParaPasta(listasDaPasta.map((l: any) => l.id), null);
-          excluirPasta(pastaId);
-          router.back();
+    Alert.alert(
+      t('Excluir pasta'),
+      t('Excluir a pasta &quot;{nome}&quot;? As notas e listas dela voltam para a lista principal.', { nome: pasta?.nome }),
+      [
+        { text: t('Cancelar'), style: 'cancel' },
+        {
+          text: t('Excluir'),
+          style: 'destructive',
+          onPress: () => {
+            if (listasDaPasta.length > 0) moverListasParaPasta(listasDaPasta.map((l: any) => l.id), null);
+            excluirPasta(pastaId);
+            router.back();
+          },
         },
-      },
-    ]);
+      ]
+    );
   };
 
   // --- Seleção múltipla (entra apenas segurando numa nota ou lista) ---
@@ -124,6 +190,15 @@ export default function PastaScreen() {
     setSelecionando(false);
     setIdsSelecionados([]);
   };
+  // Back do celular (Android) sai do modo de seleção — em vez de voltar de tela.
+  useEffect(() => {
+    if (!selecionando) return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      sairSelecao();
+      return true;
+    });
+    return () => sub.remove();
+  }, [selecionando]);
   // Separa os ids selecionados em notas e listas (têm ids separados)
   const selecionadosSplit = () => {
     const notasSel = idsSelecionados.filter(id => notasDaPasta.some((n: any) => n.id === id));
@@ -147,12 +222,14 @@ export default function PastaScreen() {
     if (idsSelecionados.length === 0) return;
     const qtd = idsSelecionados.length;
     Alert.alert(
-      'Excluir itens',
-      `Apagar ${qtd} ${qtd !== 1 ? 'itens' : 'item'} selecionado${qtd !== 1 ? 's' : ''}?`,
+      t('Excluir itens'),
+      qtd !== 1
+        ? t('Apagar {n} itens selecionados?', { n: qtd })
+        : t('Apagar {n} item selecionado?', { n: qtd }),
       [
-        { text: 'Cancelar', style: 'cancel' },
+        { text: t('Cancelar'), style: 'cancel' },
         {
-          text: 'Excluir',
+          text: t('Excluir'),
           style: 'destructive',
           onPress: () => {
             const { notas: nIds, listas: lIds } = selecionadosSplit();
@@ -183,9 +260,9 @@ export default function PastaScreen() {
     <TouchableOpacity
       style={[styles.botaoSwipe, { backgroundColor: cores.perigo }]}
       onPress={() => {
-        Alert.alert('Excluir', `Apagar a nota "${nota.titulo || 'sem título'}"?`, [
-          { text: 'Cancelar', style: 'cancel', onPress: () => swipeableRefs.current.get(nota.id)?.close() },
-          { text: 'Excluir', style: 'destructive', onPress: () => excluirNota(nota.id) },
+        Alert.alert(t('Excluir'), t('Apagar a nota &quot;{titulo}&quot;?', { titulo: nota.titulo || t('sem título') }), [
+          { text: t('Cancelar'), style: 'cancel', onPress: () => swipeableRefs.current.get(nota.id)?.close() },
+          { text: t('Excluir'), style: 'destructive', onPress: () => excluirNota(nota.id) },
         ]);
       }}
       activeOpacity={0.8}
@@ -207,9 +284,9 @@ export default function PastaScreen() {
     <TouchableOpacity
       style={[styles.botaoSwipe, { backgroundColor: cores.perigo }]}
       onPress={() => {
-        Alert.alert('Excluir', `Apagar a lista "${l.titulo || 'sem título'}"?`, [
-          { text: 'Cancelar', style: 'cancel', onPress: () => swipeableRefs.current.get(l.id)?.close() },
-          { text: 'Excluir', style: 'destructive', onPress: () => excluirLista(l.id) },
+        Alert.alert(t('Excluir'), t('Apagar a lista &quot;{titulo}&quot;?', { titulo: l.titulo || t('sem título') }), [
+          { text: t('Cancelar'), style: 'cancel', onPress: () => swipeableRefs.current.get(l.id)?.close() },
+          { text: t('Excluir'), style: 'destructive', onPress: () => excluirLista(l.id) },
         ]);
       }}
       activeOpacity={0.8}
@@ -225,6 +302,9 @@ export default function PastaScreen() {
     setFabAberto(!fabAberto);
   };
 
+  const exibirNotas = busca ? notasDaPasta : notasDaPasta;
+  const exibirListas = busca ? listasDaPasta : listasDaPasta;
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <View style={[styles.container, { backgroundColor: cores.fundo }]}>
@@ -236,12 +316,14 @@ export default function PastaScreen() {
             </TouchableOpacity>
             <View style={{ flex: 1, marginHorizontal: 10 }}>
               <Text style={[styles.titulo, { color: cores.textoPrincipal }]} numberOfLines={1}>
-                {pasta?.nome || 'Pasta'}
+                {pasta?.nome || t('Pasta')}
               </Text>
               <Text style={[styles.subtitulo, { color: cores.textoSecundario }]}>
                 {totalItens === 0
-                  ? 'Pasta vazia'
-                  : `${notasDaPasta.length} nota${notasDaPasta.length !== 1 ? 's' : ''} · ${listasDaPasta.length} lista${listasDaPasta.length !== 1 ? 's' : ''}`}
+                  ? t('Pasta vazia')
+                  : totalItens !== 1
+                    ? t('{n} itens na pasta', { n: totalItens })
+                    : t('{n} item na pasta', { n: totalItens })}
               </Text>
             </View>
             <TouchableOpacity onPress={abrirRename} style={styles.iconeAcao} hitSlop={8} activeOpacity={0.7}>
@@ -251,6 +333,34 @@ export default function PastaScreen() {
               <Ionicons name="trash-outline" size={21} color={cores.perigo} />
             </TouchableOpacity>
           </View>
+
+          {/* Barra de busca — idêntica à aba principal */}
+          {totalItens > 0 && (
+            <Animated.View
+              style={[
+                styles.searchBar,
+                { backgroundColor: cores.searchBar },
+                buscaAtiva && { borderColor: cores.botaoAdd, borderWidth: 1.5 },
+                { transform: [{ scale: animaBusca.interpolate({ inputRange: [0, 1], outputRange: [1, 1.008] }) }] },
+              ]}
+            >
+              <Ionicons name="search" size={20} color={buscaAtiva ? cores.botaoAdd : cores.placeholder} style={{ marginLeft: 15 }} />
+              <TextInput
+                placeholder={t('Procurar nesta pasta...')}
+                placeholderTextColor={cores.placeholder}
+                style={[styles.searchInput, { color: cores.textoPrincipal }]}
+                value={busca}
+                onFocus={() => setBuscaAtiva(true)}
+                onBlur={() => setBuscaAtiva(false)}
+                onChangeText={setBusca}
+              />
+              {busca.length > 0 && (
+                <TouchableOpacity onPress={() => setBusca('')} style={styles.clearSearchButton} hitSlop={8}>
+                  <Ionicons name="close-circle" size={19} color={cores.placeholder} />
+                </TouchableOpacity>
+              )}
+            </Animated.View>
+          )}
         </View>
 
         {/* Conteúdo */}
@@ -265,17 +375,17 @@ export default function PastaScreen() {
               <View style={[styles.emptyIconCircle, { backgroundColor: paleta.primarySoft }]}>
                 <Ionicons name="folder-open-outline" size={40} color={cores.botaoAdd} />
               </View>
-              <Text style={[styles.emptyText, { color: cores.textoPrincipal }]}>Pasta vazia</Text>
+              <Text style={[styles.emptyText, { color: cores.textoPrincipal }]}>{t('Pasta vazia')}</Text>
               <Text style={[styles.emptyHint, { color: cores.textoSecundario }]}>
-                Toque no + para criar uma nota ou lista aqui dentro
+                {t('Toque no + para criar uma nota ou lista aqui dentro')}
               </Text>
             </MotiView>
           ) : (
             <>
-              {notasDaPasta.length > 0 && (
+              {exibirNotas.length > 0 && (
                 <>
-                  <Text style={[styles.secaoTitulo, { color: cores.textoSecundario }]}>NOTAS</Text>
-                  {notasDaPasta.map((nota: any, i: number) => {
+                  <Text style={[styles.secaoTitulo, { color: cores.textoSecundario }]}>{t('NOTAS')}</Text>
+                  {exibirNotas.map((nota: any, i: number) => {
                     const selecionada = selecionando && idsSelecionados.includes(nota.id);
                     return (
                       <MotiView
@@ -296,7 +406,11 @@ export default function PastaScreen() {
                             style={[
                               styles.cardNota,
                               { backgroundColor: cores.card },
-                              selecionada && { borderWidth: 2, borderColor: cores.botaoAdd },
+                              selecionando && {
+    borderWidth: selecionada ? 2 : 0,
+    borderColor: selecionada ? cores.botaoAdd : 'transparent',
+    borderRadius: 22,
+  },
                             ]}
                             onPress={() =>
                               selecionando
@@ -313,11 +427,11 @@ export default function PastaScreen() {
                                 {nota.fixada && <Ionicons name="pin" size={14} color={paleta.warning} style={{ marginRight: 6 }} />}
                                 {nota.lembrete && <Ionicons name="notifications" size={14} color={cores.botaoAdd} style={{ marginRight: 6 }} />}
                                 <Text style={[styles.cardTitulo, { color: cores.textoPrincipal, flex: 1 }]} numberOfLines={1}>
-                                  {nota.titulo || 'Nota sem título'}
+                                  {nota.titulo || t('Nota sem título')}
                                 </Text>
                               </View>
                               <Text style={[styles.cardConteudo, { color: cores.textoSecundario }]} numberOfLines={2}>
-                                {nota.conteudo ? limparHTML(nota.conteudo) : 'Toque para editar...'}
+                                {nota.conteudo ? limparHTML(nota.conteudo) : t('Toque para editar...')}
                               </Text>
                             </View>
                             {selecionando ? (
@@ -343,12 +457,12 @@ export default function PastaScreen() {
                 </>
               )}
 
-              {listasDaPasta.length > 0 && (
+              {exibirListas.length > 0 && (
                 <>
-                  <Text style={[styles.secaoTitulo, { color: cores.textoSecundario, marginTop: notasDaPasta.length > 0 ? 22 : 0 }]}>
-                    LISTAS
+                  <Text style={[styles.secaoTitulo, { color: cores.textoSecundario, marginTop: exibirNotas.length > 0 ? 22 : 0 }]}>
+                    {t('LISTAS')}
                   </Text>
-                  {listasDaPasta.map((l: any, i: number) => {
+                  {exibirListas.map((l: any, i: number) => {
                     const selecionada = selecionando && idsSelecionados.includes(l.id);
                     return (
                       <MotiView
@@ -369,7 +483,11 @@ export default function PastaScreen() {
                             style={[
                               styles.cardNota,
                               { backgroundColor: cores.card },
-                              selecionada && { borderWidth: 2, borderColor: cores.botaoAdd },
+                              selecionando && {
+    borderWidth: selecionada ? 2 : 0,
+    borderColor: selecionada ? cores.botaoAdd : 'transparent',
+    borderRadius: 22,
+  },
                             ]}
                             onPress={() =>
                               selecionando
@@ -382,11 +500,14 @@ export default function PastaScreen() {
                           >
                             <View style={[styles.corLateral, { backgroundColor: cores.corLista }]} />
                             <View style={styles.textosCard}>
-                              <Text style={[styles.cardTitulo, { color: cores.textoPrincipal }]} numberOfLines={1}>
-                                {l.titulo || 'Lista sem título'}
-                              </Text>
+                              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                {l.fixada && <Ionicons name="pin" size={14} color={paleta.warning} style={{ marginRight: 6 }} />}
+                                <Text style={[styles.cardTitulo, { color: cores.textoPrincipal, flex: 1 }]} numberOfLines={1}>
+                                  {l.titulo || t('Lista sem título')}
+                                </Text>
+                              </View>
                               <Text style={[styles.cardConteudo, { color: cores.textoSecundario }]} numberOfLines={2}>
-                                {`${l.itens?.length || 0} itens na lista`}
+                                {t('{n} itens na lista', { n: l.itens?.length || 0 })}
                               </Text>
                             </View>
                             {selecionando ? (
@@ -411,6 +532,24 @@ export default function PastaScreen() {
                   })}
                 </>
               )}
+
+              {/* Nenhum resultado para a busca */}
+              {busca && exibirNotas.length === 0 && exibirListas.length === 0 && (
+                <MotiView
+                  from={{ opacity: 0, scale: 0.9, translateY: 12 }}
+                  animate={{ opacity: 1, scale: 1, translateY: 0 }}
+                  transition={{ type: 'spring', damping: 16, stiffness: 120 }}
+                  style={styles.emptyState}
+                >
+                  <View style={[styles.emptyIconCircle, { backgroundColor: paleta.primarySoft }]}>
+                    <Ionicons name="search-outline" size={36} color={cores.botaoAdd} />
+                  </View>
+                  <Text style={[styles.emptyText, { color: cores.textoPrincipal }]}>{t('Nenhum resultado')}</Text>
+                  <Text style={[styles.emptyHint, { color: cores.textoSecundario }]}>
+                    {t('Nenhum item encontrado para &quot;{busca}&quot;', { busca })}
+                  </Text>
+                </MotiView>
+              )}
             </>
           )}
         </ScrollView>
@@ -425,7 +564,9 @@ export default function PastaScreen() {
           >
             <View style={styles.barraSelecaoTopo}>
               <Text style={[styles.barraSelecaoContagem, { color: cores.textoPrincipal }]}>
-                {idsSelecionados.length} selecionada{idsSelecionados.length !== 1 ? 's' : ''}
+                {idsSelecionados.length !== 1
+                  ? t('{n} selecionadas', { n: idsSelecionados.length })
+                  : t('{n} selecionada', { n: idsSelecionados.length })}
               </Text>
               <TouchableOpacity onPress={sairSelecao} style={styles.barraSelecaoFechar} hitSlop={8} activeOpacity={0.7}>
                 <Ionicons name="close" size={20} color={cores.textoSecundario} />
@@ -434,15 +575,15 @@ export default function PastaScreen() {
             <View style={styles.barraSelecaoBotoes}>
               <TouchableOpacity style={[styles.barraSelecaoBotao, { backgroundColor: paleta.primarySoft }]} onPress={fixarSelecionadas} activeOpacity={0.8}>
                 <Ionicons name="pin-outline" size={17} color={paleta.warning} />
-                <Text style={[styles.barraSelecaoBotaoTexto, { color: paleta.warning }]}>Fixar</Text>
+                <Text style={[styles.barraSelecaoBotaoTexto, { color: paleta.warning }]}>{t('Fixar')}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={[styles.barraSelecaoBotao, { backgroundColor: paleta.primarySoft }]} onPress={removerDaPasta} activeOpacity={0.8}>
                 <Ionicons name="folder-open-outline" size={17} color={cores.botaoAdd} />
-                <Text style={[styles.barraSelecaoBotaoTexto, { color: cores.botaoAdd }]}>Pasta</Text>
+                <Text style={[styles.barraSelecaoBotaoTexto, { color: cores.botaoAdd }]}>{t('Pasta')}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={[styles.barraSelecaoBotao, { backgroundColor: paleta.dangerSoft }]} onPress={excluirSelecionadas} activeOpacity={0.8}>
                 <Ionicons name="trash-outline" size={17} color={cores.perigo} />
-                <Text style={[styles.barraSelecaoBotaoTexto, { color: cores.perigo }]}>Excluir</Text>
+                <Text style={[styles.barraSelecaoBotaoTexto, { color: cores.perigo }]}>{t('Excluir')}</Text>
               </TouchableOpacity>
             </View>
           </MotiView>
@@ -452,7 +593,7 @@ export default function PastaScreen() {
         com o backdrop escuro deslizando junto (fade suave) */}
         {!selecionando && <Animated.View pointerEvents="none" style={[styles.fabBackdrop, { opacity: animaFab }]} />}
         {!selecionando && (
-          <View style={styles.fabWrapper}>
+          <View style={[styles.fabWrapper, { bottom: 30 + insets.bottom }]}>
             <Animated.View style={[styles.fabMiniWrap, { opacity: animaFab, transform: [{ scale: animaFab }, { translateY: animaFab.interpolate({ inputRange: [0, 1], outputRange: [0, -150] }) }] }]}>
               <TouchableOpacity
                 style={[styles.fabMini, { backgroundColor: paleta.primarySoft }]}
@@ -480,15 +621,21 @@ export default function PastaScreen() {
         )}
 
         {/* Modal: renomear pasta (mesma subida/slide da aba da IA nas notas) */}
-        <Modal visible={renomeando} transparent animationType="slide" onRequestClose={() => setRenomeando(false)}>
-          <View style={styles.modalFundo}>
+        <Modal visible={renomeando} transparent animationType="fade" onRequestClose={() => setRenomeando(false)}>
+          <KeyboardAvoidingView style={styles.modalFundo} behavior="padding" enabled={Platform.OS === 'ios' ? true : alturaTeclado > 0}>
             <TouchableOpacity style={styles.modalDismiss} activeOpacity={1} onPress={() => setRenomeando(false)} />
-            <View style={[styles.sheet, { backgroundColor: cores.fundo, borderColor: cores.borda }]}>
+            {/* Fundo escuro faz fade (Modal fade); o painel sobe sozinho com mola. */}
+            <MotiView
+              from={{ opacity: 0, translateY: 520 }}
+              animate={{ opacity: 1, translateY: 0 }}
+              transition={{ type: 'spring', damping: 24, stiffness: 230 }}
+            >
+            <View style={[styles.sheet, { backgroundColor: cores.fundo, borderColor: cores.borda, paddingBottom: 40 + insets.bottom }]}>
               <View style={[styles.sheetHandle, { backgroundColor: cores.borda }]} />
               <View style={styles.sheetHeader}>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.sheetTitulo, { color: cores.textoPrincipal }]}>Renomear pasta</Text>
-                  <Text style={[styles.sheetSub, { color: cores.textoSecundario }]}>Dê um novo nome para esta pasta</Text>
+                  <Text style={[styles.sheetTitulo, { color: cores.textoPrincipal }]}>{t('Renomear pasta')}</Text>
+                  <Text style={[styles.sheetSub, { color: cores.textoSecundario }]}>{t('Dê um novo nome para esta pasta')}</Text>
                 </View>
                 <TouchableOpacity onPress={() => setRenomeando(false)} style={[styles.botaoFechar, { backgroundColor: paleta.surfaceElevated }]} activeOpacity={0.7}>
                   <Ionicons name="close" size={20} color={cores.textoPrincipal} />
@@ -496,7 +643,7 @@ export default function PastaScreen() {
               </View>
               <TextInput
                 style={[styles.input, { backgroundColor: paleta.surface, borderColor: cores.borda, color: cores.textoPrincipal }]}
-                placeholder="Nome da pasta"
+                placeholder={t('Nome da pasta')}
                 placeholderTextColor={cores.placeholder}
                 value={nomeEditado}
                 onChangeText={setNomeEditado}
@@ -509,10 +656,11 @@ export default function PastaScreen() {
                 onPress={confirmarRename}
                 activeOpacity={0.85}
               >
-                <Text style={{ color: cores.onPrimary, fontWeight: 'bold', fontSize: 16 }}>Salvar</Text>
+                <Text style={{ color: cores.onPrimary, fontWeight: 'bold', fontSize: 16 }}>{t('Salvar')}</Text>
               </TouchableOpacity>
             </View>
-          </View>
+            </MotiView>
+          </KeyboardAvoidingView>
         </Modal>
       </View>
     </GestureHandlerRootView>
@@ -527,14 +675,15 @@ const styles = StyleSheet.create({
   iconeAcao: { padding: 6, marginLeft: 6 },
   titulo: { fontSize: 30, fontWeight: '900', letterSpacing: -0.8 },
   subtitulo: { fontSize: 13, fontWeight: '600', marginTop: 2 },
+  searchBar: { height: 55, borderRadius: 18, flexDirection: 'row', alignItems: 'center', borderWidth: 1.5, borderColor: 'transparent', marginTop: 12 },
+  searchInput: { flex: 1, fontSize: 17, paddingHorizontal: 15 },
+  clearSearchButton: { paddingRight: 14 },
   scrollContent: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 150 },
   secaoTitulo: { fontSize: 12, fontWeight: '800', letterSpacing: 1, marginBottom: 10, marginLeft: 4 },
   emptyState: { alignItems: 'center', marginTop: 100, paddingHorizontal: 24 },
   emptyIconCircle: { width: 84, height: 84, borderRadius: 42, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
   emptyText: { fontSize: 19, fontWeight: '800' },
   emptyHint: { fontSize: 14, marginTop: 8, textAlign: 'center' },
-  // Cards de nota — MESMOS estilos da aba Notas (o recorte do swipe vem do
-  // container com overflow hidden; o card NÃO tem borda arredondada própria)
   cardContainer: { marginBottom: 15, borderRadius: 22, overflow: 'hidden' },
   cardNota: { padding: 20, flexDirection: 'row', alignItems: 'center', minHeight: 100 },
   corLateral: { width: 6, height: '100%', borderRadius: 10, marginRight: 15 },
@@ -551,7 +700,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginLeft: 8,
   },
-  // Barra de seleção
   barraSelecao: {
     position: 'absolute',
     bottom: 20,
@@ -574,7 +722,6 @@ const styles = StyleSheet.create({
   barraSelecaoBotao: { flex: 1, height: 40, borderRadius: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
   barraSelecaoBotaoTexto: { fontSize: 13, fontWeight: '800' },
   barraSelecaoFechar: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  // FAB — menu só com ícones, igual ao principal
   fabBackdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.42)', zIndex: 6 },
   fabWrapper: { position: 'absolute', bottom: 30, right: 28, alignItems: 'center', zIndex: 7 },
   fab: {
@@ -601,7 +748,6 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 3 },
   },
-  // Modal bottom sheet — mesmo visual dos modais originais do app (settings)
   modalFundo: { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'flex-end' },
   modalDismiss: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
   sheet: {

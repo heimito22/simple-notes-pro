@@ -1,12 +1,14 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { RecordingPresets, requestRecordingPermissionsAsync, setAudioModeAsync, useAudioRecorder } from 'expo-audio';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Directory, File, Paths } from 'expo-file-system';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import * as Notifications from 'expo-notifications';
+import { MotiView } from 'moti';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator, Alert,
@@ -17,6 +19,7 @@ import {
 } from 'react-native';
 import { responderPergunta, resumirNotaComIA, type MensagemChat } from '../context/ia-service';
 import { useNotas } from '../context/NotasContext';
+import { useTarefas } from '../context/TarefasContext';
 import { useTheme } from '../context/ThemeContext';
 import { bloqueioEstado } from '../context/bloqueio-estado';
 import { DIAS_SEMANA, resumoLembrete, type LembreteNota, type TipoLembrete } from '../context/lembrete-notas';
@@ -136,7 +139,9 @@ export default function EditorScreen() {
     const router = useRouter();
     const params = useLocalSearchParams();
     const { notas, salvarNota, salvarLembreteNota } = useNotas();
-    const { isDark, config } = useTheme();
+    const { tarefas } = useTarefas();
+    const { isDark, config, t } = useTheme();
+    const insets = useSafeAreaInsets();
     const { mostrarAnuncio } = useMonetizacao();
 
     // Impede salvamento duplo (ex.: toque duplo em "Pronto" ou Pronto + botão voltar)
@@ -144,6 +149,20 @@ export default function EditorScreen() {
     // HTML mais recente do editor rico (garante salvar a última digitação)
     const conteudoRef = useRef('');
     const editorRef = useRef<RichTextEditorHandle>(null);
+    // --- Rastreio de ALTERAÇÃO REAL (anúncio ao Pronto/voltar) ---
+    // A marca só acende quando o html MUDOU em relação à última mensagem do
+    // WebView DURANTE a edição (digitação, formatação, anexos). Recarregamentos
+    // do editor (troca leitura/edição, re-aplicação pós-salvar) reentregam o
+    // MESMO html e NÃO contam como alteração.
+    const mudouRef = useRef(false);
+    // Último html recebido do WebView (base de comparação da marca)
+    const ultimoHtmlRef = useRef<string | null>(null);
+    // true quando o usuário JÁ entrou no modo edição (para o título/proteção
+    // valerem como alteração só depois de uma edição de verdade — nunca ao abrir)
+    const editouRef = useRef(!params.id);
+    // Estado SALVO por último (carga inicial ou commit): comparado com o estado
+    // atual para saber se título/proteção mudaram de verdade (net, não por toque).
+    const estadoSalvoRef = useRef<{ titulo: string; conteudo: string; protegida: boolean } | null>(null);
 
     // Id resolvido da nota: o da rota (nota existente) ou, para nota NOVA, o
     // id criado na hora em que o sino é usado pela primeira vez.
@@ -160,6 +179,10 @@ export default function EditorScreen() {
     // Notas EXISTENTES abrem em modo de VISUALIZAÇÃO (leitura); notas novas abrem
     // direto no editor. O usuário toca em "Editar" para entrar no editor padrão.
     const [editando, setEditando] = useState<boolean>(() => !params.id);
+    // Espelho de `editando` para o callback estável de conteúdo enxergar o modo
+    // (precisa vir DEPOIS do useState de `editando`).
+    const editandoRef = useRef(editando);
+    editandoRef.current = editando;
     const [carregandoImagem, setCarregandoImagem] = useState(false);
     const [gravando, setGravando] = useState(false);
     const [audios, setAudios] = useState<AudioAttachment[]>([]);
@@ -251,6 +274,7 @@ export default function EditorScreen() {
     const temChaveIA = !!config?.chaveIA;
     // Gravador gerenciado pelo hook (liberado automaticamente ao desmontar o editor)
     const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+    const audiosRef = useRef<AudioAttachment[]>([]);
 
     const paleta = appColors(isDark);
     const tema = {
@@ -290,29 +314,47 @@ export default function EditorScreen() {
     // behavior 'padding' cuida do recuo.
 
     // Carregamento inicial seguro da nota
+    const notaCarregadaIdRef = useRef<string | null>(null);
     useEffect(() => {
-        // Nota: NÃO resetar salvandoRef aqui — após salvar, notaExistente troca de
-        // referência e re-rodaria este efeito, reabrindo a janela de salvamento duplo.
         const timer = setTimeout(() => {
             if (notaExistente) {
-                setTitulo(notaExistente.titulo || '');
-                const conteudo = notaExistente.conteudo || '';
-                if (conteudoRef.current !== conteudo) {
+                if (notaCarregadaIdRef.current !== notaExistente.id) {
+                    // O baseline da ALTERAÇÃO acompanha a primeira carga da nota:
+                    // se a nota nasceu NESTA visita (sino numa nota nova), mantém
+                    // o baseline vazio da sessão para tudo o que foi digitado
+                    // contar como alteração no Pronto/voltar.
+                    const primeiraCarga = notaCarregadaIdRef.current === null;
+                    notaCarregadaIdRef.current = notaExistente.id;
+                    setTitulo(notaExistente.titulo || '');
+                    const conteudo = notaExistente.conteudo || '';
                     conteudoRef.current = conteudo;
-                    // Apenas se o conteúdo mudou por fora (evita re-injeção ao abrir)
                     editorRef.current?.setContent(conteudo);
+                    setProtegida(!!notaExistente.protegida);
+                    const tem = TEM_ANEXO.test(conteudo);
+                    setTemAnexo(tem);
+                    setAudios(extrairAudios(conteudo, DIR_AUDIOS?.uri));
+                    if (primeiraCarga) {
+                        estadoSalvoRef.current = {
+                            titulo: notaExistente.titulo || '',
+                            conteudo,
+                            protegida: !!notaExistente.protegida,
+                        };
+                        mudouRef.current = false;
+                    }
                 }
-                setProtegida(!!notaExistente.protegida);
-                const tem = TEM_ANEXO.test(conteudo);
-                setTemAnexo(prev => (prev === tem ? prev : tem));
-                setAudios(extrairAudios(conteudo, DIR_AUDIOS?.uri));
-            } else {
-                setTitulo('');
-                conteudoRef.current = '';
-                setProtegida(false);
-                setEditando(true);
-                setTemAnexo(false);
-                setAudios([]);
+            } else if (!params.id) {
+                if (notaCarregadaIdRef.current !== 'nova') {
+                    notaCarregadaIdRef.current = 'nova';
+                    setTitulo('');
+                    conteudoRef.current = '';
+                    editorRef.current?.setContent('');
+                    setProtegida(false);
+                    setEditando(true);
+                    setTemAnexo(false);
+                    setAudios([]);
+                    estadoSalvoRef.current = { titulo: '', conteudo: '', protegida: false };
+                    mudouRef.current = false;
+                }
             }
         }, 0);
         return () => clearTimeout(timer);
@@ -345,6 +387,14 @@ export default function EditorScreen() {
     // NÃO há estado aqui: digitar não re-renderiza a tela (o WebView é não-controlado).
     const handleConteudoChange = useCallback((html: string) => {
         conteudoRef.current = html;
+        // Marca "alteração" só se o html MUDOU em relação à última mensagem E
+        // estamos editando — recarregamentos do WebView reentregam o mesmo html
+        // (troca de modo, re-aplicação automática) e não podem contar como edição.
+        if (editandoRef.current) {
+            const anterior = ultimoHtmlRef.current;
+            if (anterior !== null && html !== anterior) mudouRef.current = true;
+        }
+        ultimoHtmlRef.current = html;
         const tem = TEM_ANEXO.test(html);
         setTemAnexo(prev => (prev === tem ? prev : tem));
         setAudios(extrairAudios(html, DIR_AUDIOS?.uri));
@@ -382,7 +432,7 @@ export default function EditorScreen() {
             .replace(/>/g, '&gt;');
         const nomeHtml = escaparHtml(nome);
         const uriHtml = escaparHtml(uri);
-        const html = `<br><span class="anexo-audio-inline" data-audio-uri="${uriHtml}" data-audio-name="${nomeHtml}"><audio controls src="${uriHtml}" class="anexo-audio"></audio><button type="button" class="anexo-audio-remove" data-audio-delete="${uriHtml}" aria-label="Apagar áudio">×</button></span><br>`;
+        const html = `<br><span class="anexo-audio-inline" data-audio-uri="${uriHtml}" data-audio-name="${nomeHtml}"><span class="anexo-audio-grip" contenteditable="false" aria-label="Mover áudio">⋮</span><audio controls src="${uriHtml}" class="anexo-audio"></audio></span><br>`;
         conteudoRef.current += html;
         setAudios(prev => [...prev, { uri, nome }]);
         // O áudio já nasce dentro do fluxo textual do WebView e não devolve o
@@ -405,7 +455,7 @@ export default function EditorScreen() {
         bloqueioEstado.ativar();
         try {
             const { granted } = await requestRecordingPermissionsAsync();
-            if (!granted) return Alert.alert("Erro", "Permissão negada.");
+            if (!granted) return Alert.alert(t('Erro'), t('Permissão negada.'));
 
             // O modo de áudio pode falhar em casos específicos — não impede a gravação
             try {
@@ -419,7 +469,7 @@ export default function EditorScreen() {
             setGravando(true);
         } catch (err) {
             console.error("[Audio] Erro ao iniciar a gravação:", err);
-            Alert.alert("Erro", "Não foi possível iniciar a gravação.");
+            Alert.alert(t('Erro'), t('Não foi possível iniciar a gravação.'));
         } finally {
             bloqueioEstado.liberar();
         }
@@ -433,22 +483,6 @@ export default function EditorScreen() {
         await excluirArquivoAudio(audio.uri);
     };
 
-    const solicitarRemocaoAudio = useCallback((uri: string) => {
-        const audio = audios.find(item => item.uri === uri);
-        if (!audio) return;
-        Alert.alert(
-            'Apagar áudio',
-            'Deseja remover este áudio da nota?',
-            [
-                { text: 'Cancelar', style: 'cancel' },
-                {
-                    text: 'Apagar',
-                    style: 'destructive',
-                    onPress: () => { removerAudio(audio).catch(() => {}); },
-                },
-            ]
-        );
-    }, [audios]);
 
     const pararGravacao = async () => {
         if (!gravando) return;
@@ -474,7 +508,7 @@ export default function EditorScreen() {
                 // Só mostra erro se realmente não conseguiu salvar o arquivo
                 console.error("[Audio] Erro ao salvar o arquivo:", error);
                 if (audioRecorder.isRecording) setGravando(true);
-                Alert.alert("Erro", "Falha ao salvar o áudio.");
+                Alert.alert(t('Erro'), t('Falha ao salvar o áudio.'));
             }
         } else {
             if (audioRecorder.isRecording) setGravando(true);
@@ -520,11 +554,11 @@ export default function EditorScreen() {
         setMensagensIA(prev => [...prev, novaPergunta]);
         setPerguntaIA('');
         setChatPensando(true);
-        try {
-            const resposta = await responderPergunta(texto, notas || [], config?.chaveIA || '', mensagensIA);
-            setMensagensIA(prev => [...prev, { papel: 'ia', texto: resposta.texto }]);
+            try {
+                const resposta = await responderPergunta(texto, notas || [], config?.chaveIA || '', mensagensIA, tarefas || [], config?.idioma ?? 'pt');
+                setMensagensIA(prev => [...prev, { papel: 'ia', texto: resposta.texto }]);
         } catch (e) {
-            setMensagensIA(prev => [...prev, { papel: 'ia', texto: 'Desculpe, não consegui responder agora. Tente de novo.', erro: true }]);
+            setMensagensIA(prev => [...prev, { papel: 'ia', texto: t('Desculpe, não consegui responder agora. Tente de novo.'), erro: true }]);
         } finally {
             setChatPensando(false);
         }
@@ -538,10 +572,10 @@ export default function EditorScreen() {
             const nota = notaExistente
                 ? notaExistente
                 : { titulo, conteudo: conteudoRef.current };
-            const resposta = await resumirNotaComIA(nota, config?.chaveIA || '');
+            const resposta = await resumirNotaComIA(nota, config?.chaveIA || '', config?.idioma ?? 'pt');
             setResumoIA(resposta.texto);
         } catch (e) {
-            setResumoIA('Não consegui gerar o resumo agora. Tente de novo.');
+            setResumoIA(t('Não consegui gerar o resumo agora. Tente de novo.'));
         } finally {
             setResumoPensando(false);
         }
@@ -556,8 +590,8 @@ export default function EditorScreen() {
             const pedido = await Notifications.requestPermissionsAsync();
             if (!pedido.granted) {
                 Alert.alert(
-                    "Notificações desativadas",
-                    "Permita as notificações nas configurações do aparelho para receber os lembretes das notas."
+                    t('Notificações desativadas'),
+                    t('Permita as notificações nas configurações do aparelho para receber os lembretes das tarefas.')
                 );
             }
         } catch (e) {
@@ -698,13 +732,13 @@ export default function EditorScreen() {
     };
 
     const salvarLembrete = async () => {
-        if (rTipo === 'data' && !rData) return Alert.alert('Falta o dia', 'Escolha a data do lembrete.');
-        if (rTipo === 'semana' && rDiasSemana.length === 0) return Alert.alert('Faltam os dias', 'Escolha pelo menos um dia da semana.');
+        if (rTipo === 'data' && !rData) return Alert.alert(t('Falta o dia'), t('Escolha a data do lembrete.'));
+        if (rTipo === 'semana' && rDiasSemana.length === 0) return Alert.alert(t('Faltam os dias'), t('Escolha pelo menos um dia da semana.'));
         if (rTipo === 'data') {
             // Data no passado (ou hoje com o horário já passado) nunca dispararia — avisa em vez de salvar mudo.
             const alvo = new Date(rData + 'T' + rHorario + ':00');
             if (alvo.getTime() <= Date.now()) {
-                return Alert.alert('Horário no passado', 'Escolha uma data e horário futuros para o lembrete.');
+                return Alert.alert(t('Horário no passado'), t('Escolha uma data e horário futuros para o lembrete.'));
             }
         }
         const lembrete: LembreteNota = {
@@ -735,7 +769,7 @@ export default function EditorScreen() {
         try {
             if (protegida) {
                 const autenticado = await LocalAuthentication.authenticateAsync({
-                    promptMessage: 'Confirme para remover a proteção desta nota',
+                    promptMessage: t('Confirme para remover a proteção desta nota'),
                     fallbackLabel: 'Usar senha',
                 });
                 if (autenticado.success) setProtegida(false);
@@ -747,6 +781,33 @@ export default function EditorScreen() {
         }
     };
 
+    // true quando a nota saiu do estado em que foi carregada/salva por último:
+    // o conteúdo mudou durante a edição (marca do WebView) OU título/proteção
+    // diferem do baseline (só depois de o usuário ter entrado no modo edição ao
+    // menos uma vez — abrir sem editar nunca vale como alteração).
+    const houveAlteracaoReal = () => {
+        if (mudouRef.current) return true;
+        if (!editouRef.current) return false;
+        const base = estadoSalvoRef.current;
+        if (!base) return false;
+        return titulo !== base.titulo || protegida !== base.protegida;
+    };
+
+    const salvarEVoltar = useCallback(async () => {
+        if (salvandoRef.current) return;
+        salvandoRef.current = true;
+        if (salvarNota) {
+            const idFinal = params.id ? String(params.id) : idNotaCriada;
+            salvarNota(titulo, conteudoRef.current, idFinal, protegida, pastaId);
+        }
+        // Anúncio ao VOLTAR para as notas (botão "Notas" ou back do celular) —
+        // só quando houve alteração real nesta visita; premium nunca recebe.
+        if (houveAlteracaoReal()) mostrarAnuncio();
+        mudouRef.current = false;
+        estadoSalvoRef.current = { titulo, conteudo: conteudoRef.current, protegida };
+        router.back();
+    }, [titulo, params.id, idNotaCriada, salvarNota, router, protegida, pastaId, mostrarAnuncio]);
+
     const finalizarESalvar = useCallback(async () => {
         if (salvandoRef.current) return; // já está salvando/navegando
         salvandoRef.current = true;
@@ -755,22 +816,38 @@ export default function EditorScreen() {
             // Nota criada pelo sino / nota existente: passa o id → atualiza
             // (evita criar nota duplicada ao finalizar).
             const idFinal = params.id ? String(params.id) : idNotaCriada;
-            salvarNota(titulo, conteudoRef.current, idFinal, protegida, pastaId);
+            const novoId = salvarNota(titulo, conteudoRef.current, idFinal, protegida, pastaId);
+            // Nota NOVA: fixa o id gerado pelo contexto para que o editor
+            // permaneça vinculado à MESMA nota nas próximas edições — sem
+            // isso, cada "Pronto"/Voltar criava uma nota duplicada e o modo
+            // leitura não achava a nota de onde buscar o conteúdo.
+            if (!params.id && !idNotaCriada) setIdNotaCriada(novoId);
+            // Anúncio ao clicar em PRONTO — só quando houve alteração real
+            // nesta edição (a marca é limpa para o voltar não repetir).
+            if (houveAlteracaoReal()) mostrarAnuncio();
+            mudouRef.current = false;
+            // Baseline atualizado para o que acabou de salvar: o próximo voltar
+            // sem novas edições não repete o anúncio.
+            estadoSalvoRef.current = { titulo, conteudo: conteudoRef.current, protegida };
+            // Injeta o conteúdo atualizado no editor ANTES de trocar para modo
+            // leitura — garante que o WebView recarregue com o conteúdo certo.
+            editorRef.current?.setContent(conteudoRef.current);
             setEditando(false);
+            salvandoRef.current = false;
+            return; // Volta para leitura, NÃO sai da nota
         }
         router.back();
-    }, [titulo, params.id, salvarNota, router, editando, protegida, pastaId]);
+    }, [titulo, params.id, idNotaCriada, salvarNota, router, editando, protegida, pastaId, mostrarAnuncio]);
 
     useFocusEffect(
         useCallback(() => {
             const onBackPress = () => {
-                // Salva (se ainda não salvou) e volta — tanto para notas novas quanto existentes
-                finalizarESalvar();
+                salvarEVoltar();
                 return true;
             };
             const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
             return () => subscription.remove();
-        }, [finalizarESalvar, editando, params.id, router])
+        }, [salvarEVoltar])
     );
 
     const selecionarImagem = async () => {
@@ -779,7 +856,7 @@ export default function EditorScreen() {
         bloqueioEstado.ativar();
         try {
             const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-            if (status !== 'granted') return Alert.alert("Erro", "Permissão necessária.");
+            if (status !== 'granted') return Alert.alert(t('Erro'), t('Permissão necessária.'));
 
             const resultado = await ImagePicker.launchImageLibraryAsync({
                 mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -803,7 +880,7 @@ export default function EditorScreen() {
                         anexarImagem(destino.uri, nomeImagem);
                     }
                 } catch (e) {
-                    Alert.alert("Erro", "Não foi possível carregar a imagem.");
+                    Alert.alert(t('Erro'), t('Não foi possível carregar a imagem.'));
                 } finally {
                     setCarregandoImagem(false);
                 }
@@ -813,43 +890,62 @@ export default function EditorScreen() {
         }
     };
 
-    const aplicarFormato = (cmd: string) => editorRef.current?.execCommand(cmd);
+    // Aplica o comando de formatação e re-sincroniza o estado dos botões logo em
+    // seguida (o WebView também reenvia o estado ~40ms depois do comando). O
+    // toque na toolbar NÃO fecha o teclado nem move o cursor — só executa.
+    const aplicarFormato = (cmd: string) => {
+        try { Haptics.selectionAsync(); } catch (e) {}
+        editorRef.current?.execCommand(cmd);
+        editorRef.current?.atualizarFormato();
+    };
 
     const corAtiva = tema.primarySoft;
     const estiloAtivo = (ativo: boolean) => (ativo ? { backgroundColor: corAtiva, borderColor: tema.accent } : null);
     const corBotao = (ativo: boolean) => (ativo ? tema.accent : tema.texto);
+    const BOTAO_FMT: { cmd: string; rotulo: string; icone: string; ativo: boolean }[] = [
+        { cmd: 'bold', rotulo: 'Negrito', icone: 'format-bold', ativo: fmt.bold },
+        { cmd: 'italic', rotulo: 'Itálico', icone: 'format-italic', ativo: fmt.italic },
+        { cmd: 'underline', rotulo: 'Sublinhado', icone: 'format-underline', ativo: fmt.underline },
+        { cmd: 'strikeThrough', rotulo: 'Tachado', icone: 'format-strikethrough-variant', ativo: fmt.strikeThrough },
+        { cmd: 'insertUnorderedList', rotulo: 'Lista com marcadores', icone: 'format-list-bulleted', ativo: fmt.unorderedList },
+        { cmd: 'insertOrderedList', rotulo: 'Lista numerada', icone: 'format-list-numbered', ativo: fmt.orderedList },
+    ] as const;
 
     const renderToolbar = () => (
         <View style={[styles.toolbarWrapper, { backgroundColor: tema.toolbar, borderColor: tema.sheetBorda }]}>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.toolbarScroll}>
-                <TouchableOpacity onPress={() => aplicarFormato('bold')} style={[styles.btnToolbarExtra, estiloAtivo(fmt.bold)]}>
-                    <MaterialCommunityIcons name="format-bold" size={22} color={corBotao(fmt.bold)} />
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => aplicarFormato('italic')} style={[styles.btnToolbarExtra, estiloAtivo(fmt.italic)]}>
-                    <MaterialCommunityIcons name="format-italic" size={22} color={corBotao(fmt.italic)} />
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => aplicarFormato('underline')} style={[styles.btnToolbarExtra, estiloAtivo(fmt.underline)]}>
-                    <MaterialCommunityIcons name="format-underline" size={22} color={corBotao(fmt.underline)} />
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => aplicarFormato('strikeThrough')} style={[styles.btnToolbarExtra, estiloAtivo(fmt.strikeThrough)]}>
-                    <MaterialCommunityIcons name="format-strikethrough-variant" size={22} color={corBotao(fmt.strikeThrough)} />
-                </TouchableOpacity>
+                {BOTAO_FMT.map(({ cmd, rotulo, icone, ativo }) => (
+                    <TouchableOpacity
+                        key={cmd}
+                        onPress={() => aplicarFormato(cmd)}
+                        style={[styles.btnToolbarExtra, estiloAtivo(ativo)]}
+                        accessibilityRole="button"
+                        accessibilityState={ativo ? { selected: true } : {}}
+                        accessibilityLabel={t(rotulo)}
+                        activeOpacity={0.55}
+                    >
+                        <MaterialCommunityIcons name={icone as any} size={22} color={corBotao(ativo)} />
+                    </TouchableOpacity>
+                ))}
 
                 <View style={styles.divisorToolbar} />
 
-                <TouchableOpacity onPress={() => aplicarFormato('insertUnorderedList')} style={[styles.btnToolbarExtra, estiloAtivo(fmt.unorderedList)]}>
-                    <MaterialCommunityIcons name="format-list-bulleted" size={22} color={corBotao(fmt.unorderedList)} />
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => aplicarFormato('insertOrderedList')} style={[styles.btnToolbarExtra, estiloAtivo(fmt.orderedList)]}>
-                    <MaterialCommunityIcons name="format-list-numbered" size={22} color={corBotao(fmt.orderedList)} />
-                </TouchableOpacity>
-
-                <View style={styles.divisorToolbar} />
-
-                <TouchableOpacity onPress={gravando ? pararGravacao : iniciarGravacao} style={styles.btnToolbarExtra}>
+                <TouchableOpacity
+                    onPress={gravando ? pararGravacao : iniciarGravacao}
+                    style={styles.btnToolbarExtra}
+                    accessibilityRole="button"
+                    accessibilityLabel={gravando ? t('Parar gravação') : t('Gravar áudio')}
+                    activeOpacity={0.55}
+                >
                     <Ionicons name={gravando ? "stop-circle" : "mic"} size={22} color={gravando ? "#FF3B30" : tema.accent} />
                 </TouchableOpacity>
-                <TouchableOpacity onPress={selecionarImagem} style={styles.btnToolbarExtra}>
+                <TouchableOpacity
+                    onPress={selecionarImagem}
+                    style={styles.btnToolbarExtra}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('Inserir imagem')}
+                    activeOpacity={0.55}
+                >
                     <Ionicons name="image" size={22} color={tema.accent} />
                 </TouchableOpacity>
             </ScrollView>
@@ -862,9 +958,13 @@ export default function EditorScreen() {
                 styles.container,
                 { backgroundColor: tema.fundo },
                 // Folga de 12px entre a toolbar e o topo do teclado (só com o
-                // teclado aberto — fechado mantém a posição padrão no rodapé).
+                // teclado aberto). Fechado: usa o inset de navegação do sistema
+                // (botões na tela / gesto) para a toolbar nunca ficar atrás deles.
                 Platform.OS === 'android' && {
-                    paddingBottom: alturaTeclado > 0 ? alturaTeclado + 12 : 0,
+                    paddingBottom:
+                        alturaTeclado > 0
+                            ? alturaTeclado + 12
+                            : Math.max(insets.bottom, 12),
                 },
             ]}
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -873,17 +973,17 @@ export default function EditorScreen() {
             {gravando && (
                 <View style={[styles.statusGravando, { backgroundColor: tema.danger }]}>
                     <ActivityIndicator size="small" color={tema.onPrimary} />
-                    <Text style={styles.txtGravando}>Gravando...</Text>
+                    <Text style={styles.txtGravando}>{t('Gravando...')}</Text>
                 </View>
             )}
 
             <View style={styles.navBar}>
                 <TouchableOpacity
                     style={[styles.btnVoltar, { backgroundColor: tema.toolbar }]}
-                    onPress={() => editando ? finalizarESalvar() : router.back()}
+                    onPress={salvarEVoltar}
                 >
                     <Ionicons name="chevron-back" size={32} color={tema.accent} />
-                    <Text style={[styles.txtVoltar, { color: tema.accent }]}>Notas</Text>
+                    <Text style={[styles.txtVoltar, { color: tema.accent }]}>{t('Notas')}</Text>
                 </TouchableOpacity>
 
                 <View style={styles.navActions}>
@@ -910,16 +1010,19 @@ export default function EditorScreen() {
                     )}
                     {editando ? (
                         <TouchableOpacity onPress={finalizarESalvar} style={[styles.btnProntoSuperior, { backgroundColor: tema.accent }]} activeOpacity={0.8}>
-                            <Text style={[styles.txtProntoSuperior, { color: tema.onPrimary }]}>Pronto</Text>
+                            <Text style={[styles.txtProntoSuperior, { color: tema.onPrimary }]}>{t('Pronto')}</Text>
                         </TouchableOpacity>
                     ) : (
                         <TouchableOpacity
-                            onPress={() => setEditando(true)}
+                            onPress={() => {
+                                editouRef.current = true;
+                                setEditando(true);
+                            }}
                             style={[styles.btnProntoSuperior, { backgroundColor: tema.accent, flexDirection: 'row', alignItems: 'center' }]}
                             activeOpacity={0.8}
                         >
                             <Ionicons name="pencil" size={17} color={tema.onPrimary} />
-                            <Text style={[styles.txtProntoSuperior, { color: tema.onPrimary, marginLeft: 5 }]}>Editar</Text>
+                            <Text style={[styles.txtProntoSuperior, { color: tema.onPrimary, marginLeft: 5 }]}>{t('Editar')}</Text>
                         </TouchableOpacity>
                     )}
                 </View>
@@ -930,7 +1033,7 @@ export default function EditorScreen() {
                     style={[styles.inputTitulo, { color: tema.texto }]}
                     value={titulo}
                     onChangeText={setTitulo}
-                    placeholder="Título"
+                    placeholder={t('Título')}
                     placeholderTextColor={tema.placeholder}
                     editable={editando}
                 />
@@ -963,7 +1066,6 @@ export default function EditorScreen() {
                     imagensDirUri={DIR_IMAGENS?.uri ?? ''}
                     audiosDirUri={DIR_AUDIOS?.uri ?? ''}
                     onScrollPos={aoRolarEditor}
-                    onAudioDelete={solicitarRemocaoAudio}
                     style={styles.inputConteudo}
                 />
 
@@ -1008,7 +1110,7 @@ export default function EditorScreen() {
                     />
                     <Animated.View style={{ transform: [{ scale: animaEscala }] }}>
                         <TouchableOpacity
-                            style={[styles.botaoFimCirculo, { backgroundColor: tema.accent }]}
+                            style={[styles.botaoFimCirculo, { backgroundColor: tema.accent, borderColor: tema.sheetBorda }]}
                             onPress={irParaOFim}
                             activeOpacity={0.85}
                         >
@@ -1030,10 +1132,10 @@ export default function EditorScreen() {
             )}
 
             {/* MODAL DO LEMBRETE DE REVISÃO */}
-            <Modal visible={modalLembreteAberto} transparent animationType="slide" onRequestClose={() => setModalLembreteAberto(false)}>
+            <Modal visible={modalLembreteAberto} transparent animationType="fade" onRequestClose={() => setModalLembreteAberto(false)}>
                 <View style={styles.modalFundo}>
                     <TouchableOpacity style={styles.modalDismiss} activeOpacity={1} onPress={() => setModalLembreteAberto(false)} />
-                    <View style={[styles.sheet, { backgroundColor: tema.sheetFundo, borderColor: tema.sheetBorda }]}>
+                    <View style={[styles.sheet, { backgroundColor: tema.sheetFundo, borderColor: tema.sheetBorda, paddingBottom: 40 + insets.bottom }]}>
                         <View style={[styles.sheetHandle, { backgroundColor: tema.sheetHandle }]} />
                         <Animated.View style={{
                             opacity: animaSheetLembrete,
@@ -1044,8 +1146,8 @@ export default function EditorScreen() {
                         }}>
                         <View style={styles.sheetHeader}>
                             <View style={{ flex: 1 }}>
-                                <Text style={[styles.sheetTitulo, { color: tema.sheetTitulo }]}>Lembrete de revisão</Text>
-                                <Text style={[styles.sheetSub, { color: tema.sheetSub }]}>Me lembre de ver esta nota</Text>
+                                <Text style={[styles.sheetTitulo, { color: tema.sheetTitulo }]}>{t('Lembrete de revisão')}</Text>
+                                <Text style={[styles.sheetSub, { color: tema.sheetSub }]}>{t('Me lembre de ver esta nota')}</Text>
                             </View>
                             <TouchableOpacity onPress={() => setModalLembreteAberto(false)} style={[styles.botaoFechar, { backgroundColor: tema.botaoFecharFundo }]} activeOpacity={0.7}>
                                 <Ionicons name="close" size={22} color={tema.botaoFecharIcone} />
@@ -1065,7 +1167,7 @@ export default function EditorScreen() {
                                     activeOpacity={0.7}
                                 >
                                     <Text style={[styles.modoChipTexto, { color: rTipo === m ? tema.onPrimary : tema.chipTextoInativo }]}>
-                                        {m === 'data' ? 'Data' : m === 'dias' ? 'A cada X dias' : 'Dias da semana'}
+                                        {m === 'data' ? t('Data') : m === 'dias' ? t('A cada X dias') : t('Dias da semana')}
                                     </Text>
                                 </TouchableOpacity>
                             ))}
@@ -1077,7 +1179,7 @@ export default function EditorScreen() {
                             activeOpacity={0.7}
                         >
                             <Ionicons name="time-outline" size={20} color={tema.accent} />
-                            <Text style={[styles.opcaoLabel, { color: tema.opcaoLabel }]}>Horário</Text>
+                            <Text style={[styles.opcaoLabel, { color: tema.opcaoLabel }]}>{t('Horário')}</Text>
                             <Text style={[styles.opcaoValor, { color: tema.accent }]}>{rHorario}</Text>
                         </TouchableOpacity>
                         {Platform.OS === 'android' && mostrarHora && (
@@ -1108,9 +1210,9 @@ export default function EditorScreen() {
                                     activeOpacity={0.7}
                                 >
                                     <Ionicons name="calendar-outline" size={20} color={tema.accent} />
-                                    <Text style={[styles.opcaoLabel, { color: tema.opcaoLabel }]}>Data</Text>
+                                    <Text style={[styles.opcaoLabel, { color: tema.opcaoLabel }]}>{t('Data')}</Text>
                                     <Text style={[styles.opcaoValor, { color: tema.accent }]}>
-                                        {rData ? new Date(rData + 'T00:00:00').toLocaleDateString('pt-BR') : 'Escolher'}
+                                        {rData ? new Date(rData + 'T00:00:00').toLocaleDateString('pt-BR') : t('Escolher')}
                                     </Text>
                                 </TouchableOpacity>
                                 {Platform.OS === 'android' && mostrarData && (
@@ -1169,7 +1271,7 @@ export default function EditorScreen() {
                                             onPress={() => alternarDia(dia)}
                                             activeOpacity={0.7}
                                         >
-                                            <Text style={[styles.chipTexto, { color: ativo ? tema.onPrimary : tema.chipTextoInativo }]}>{dia}</Text>
+                                            <Text style={[styles.chipTexto, { color: ativo ? tema.onPrimary : tema.chipTextoInativo }]}>{t(dia)}</Text>
                                         </TouchableOpacity>
                                     );
                                 })}
@@ -1184,7 +1286,7 @@ export default function EditorScreen() {
                                     activeOpacity={0.8}
                                 >
                                     <Ionicons name="trash" size={18} color="#FF6B6B" />
-                                    <Text style={[styles.botaoSalvarTexto, { color: '#FF6B6B' }]}>Remover</Text>
+                                    <Text style={[styles.botaoSalvarTexto, { color: '#FF6B6B' }]}>{t('Remover')}</Text>
                                 </TouchableOpacity>
                             )}
                             <TouchableOpacity
@@ -1193,7 +1295,7 @@ export default function EditorScreen() {
                                 activeOpacity={0.8}
                             >
                                 <Ionicons name="checkmark" size={18} color={tema.onPrimary} />
-                                <Text style={styles.botaoSalvarTexto}>Salvar</Text>
+                                <Text style={styles.botaoSalvarTexto}>{t('Salvar')}</Text>
                             </TouchableOpacity>
                         </View>
                     </Animated.View>
@@ -1202,18 +1304,24 @@ export default function EditorScreen() {
             </Modal>
 
             {/* MODAL DA IA */}
-            <Modal visible={modalIAAberto} transparent animationType="slide" onRequestClose={() => setModalIAAberto(false)}>
+            <Modal visible={modalIAAberto} transparent animationType="fade" onRequestClose={() => setModalIAAberto(false)}>
                 <KeyboardAvoidingView style={styles.modalFundo} behavior="padding" enabled={Platform.OS === 'ios' ? true : alturaTeclado > 0}>
                     <TouchableOpacity style={styles.modalDismiss} activeOpacity={1} onPress={() => setModalIAAberto(false)} />
-                    <Animated.View style={[styles.sheet, { backgroundColor: tema.sheetFundo, borderColor: tema.sheetBorda }]}>
+                    {/* Fundo escuro faz fade (Modal fade); o painel sobe sozinho com mola. */}
+                    <MotiView
+                        style={[styles.sheet, { backgroundColor: tema.sheetFundo, borderColor: tema.sheetBorda, paddingBottom: 40 + insets.bottom }]}
+                        from={{ opacity: 0, translateY: 520 }}
+                        animate={{ opacity: 1, translateY: 0 }}
+                        transition={{ type: 'spring', damping: 24, stiffness: 230 }}
+                    >
                         <View style={[styles.sheetHandle, { backgroundColor: tema.sheetHandle }]} />
                         <View style={styles.sheetHeader}>
                             <View style={{ flex: 1 }}>
                                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                                     <Ionicons name="sparkles" size={20} color={tema.accent} style={{ marginRight: 8 }} />
-                                    <Text style={[styles.sheetTitulo, { color: tema.sheetTitulo }]}>Assistente IA</Text>
+                                    <Text style={[styles.sheetTitulo, { color: tema.sheetTitulo }]}>{t('NotaIA')}</Text>
                                 </View>
-                                <Text style={[styles.sheetSub, { color: tema.sheetSub }]}>Pergunte sobre suas notas</Text>
+                                <Text style={[styles.sheetSub, { color: tema.sheetSub }]}>{t('Pergunte sobre suas notas')}</Text>
                             </View>
                             <TouchableOpacity onPress={() => setModalIAAberto(false)} style={[styles.botaoFechar, { backgroundColor: tema.botaoFecharFundo }]} activeOpacity={0.7}>
                                 <Ionicons name="close" size={22} color={tema.botaoFecharIcone} />
@@ -1234,7 +1342,7 @@ export default function EditorScreen() {
                                     activeOpacity={0.7}
                                 >
                                     <Text style={[styles.modoChipTexto, { color: abaIA === m ? '#FFF' : tema.chipTextoInativo }]}>
-                                        {m === 'perguntar' ? 'Perguntar' : 'Resumo'}
+                                        {m === 'perguntar' ? t('Perguntar') : t('Resumo')}
                                     </Text>
                                 </TouchableOpacity>
                             ))}
@@ -1245,10 +1353,10 @@ export default function EditorScreen() {
                             <View style={{ alignItems: 'center', paddingVertical: 26, paddingHorizontal: 10 }}>
                                 <Ionicons name="key-outline" size={40} color={tema.accent} />
                                 <Text style={[styles.resumoAvia, { color: tema.sheetTitulo, marginTop: 14 }]}>
-                                    A conversa com IA precisa de chave
+                                    {t('A conversa com IA precisa de chave')}
                                 </Text>
                                 <Text style={[styles.sheetSub, { color: tema.sheetSub, textAlign: 'center', marginTop: 8, lineHeight: 19 }]}>
-                                    Adicione sua chave gratuita em{'\n'}Ajustes → IA para conversar com a IA de verdade.
+                                    {t('Adicione sua chave gratuita em\nAjustes → IA para conversar com a IA de verdade.')}
                                 </Text>
                                 <TouchableOpacity
                                     style={[styles.botaoSalvar, { backgroundColor: tema.accent, marginTop: 18, alignSelf: 'stretch' }]}
@@ -1256,15 +1364,14 @@ export default function EditorScreen() {
                                     activeOpacity={0.8}
                                 >
                                     <Ionicons name="settings-outline" size={18} color={tema.onPrimary} />
-                                    <Text style={styles.botaoSalvarTexto}>Ir para Ajustes</Text>
+                                    <Text style={styles.botaoSalvarTexto}>{t('Ir para Ajustes')}</Text>
                                 </TouchableOpacity>
                             </View>
                         ) : abaIA === 'perguntar' ? (
                             <View>
                                 {mensagensIA.length === 0 && !chatPensando && (
                                     <Text style={[styles.sheetSub, { color: tema.sheetSub, textAlign: 'center', marginTop: 18, marginBottom: 6, lineHeight: 20 }]}>
-                                        Pergunte qualquer coisa sobre suas notas. ✨
-                                        {'\n'}Ex.: «Quanto custa o arroz?» ou «Qual a data da festa?»
+                                        {t('Pergunte qualquer coisa sobre suas notas. ✨\nEx.: «Quanto custa o arroz?» ou «Qual a data da festa?»')}
                                     </Text>
                                 )}
 
@@ -1287,7 +1394,7 @@ export default function EditorScreen() {
                                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 }}>
                                     <TextInput
                                         style={[styles.perguntaInput, { backgroundColor: tema.chipFundo, color: tema.sheetTitulo, borderColor: tema.chipBorda }]}
-                                        placeholder="Pergunte sobre suas notas..."
+                                        placeholder={t('Pergunte sobre suas notas...')}
                                         placeholderTextColor={tema.placeholder}
                                         value={perguntaIA}
                                         onChangeText={setPerguntaIA}
@@ -1306,7 +1413,7 @@ export default function EditorScreen() {
                             <View>
                                 <TouchableOpacity style={[styles.botaoSalvar, { backgroundColor: tema.accent, marginBottom: 16 }]} onPress={gerarResumoIA} activeOpacity={0.8} disabled={resumoPensando}>
                                     <Ionicons name="document-text-outline" size={18} color={tema.onPrimary} />
-                                    <Text style={styles.botaoSalvarTexto}>{resumoPensando ? 'Resumindo…' : 'Gerar resumo com IA'}</Text>
+                                    <Text style={styles.botaoSalvarTexto}>{resumoPensando ? t('Resumindo…') : t('Gerar resumo com IA')}</Text>
                                 </TouchableOpacity>
                                 {resumoIA && (
                                     <View style={[styles.resumoCard, { backgroundColor: tema.chipFundo, borderColor: tema.chipBorda }]}>
@@ -1316,7 +1423,7 @@ export default function EditorScreen() {
                             </View>
                         )}
                         </ScrollView>
-                    </Animated.View>
+                    </MotiView>
                 </KeyboardAvoidingView>
             </Modal>
         </KeyboardAvoidingView>
@@ -1440,7 +1547,6 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.3)',
     },
     botaoFimAnel: {
         position: 'absolute',

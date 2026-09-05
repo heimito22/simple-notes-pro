@@ -1,212 +1,228 @@
 import { Ionicons } from '@expo/vector-icons';
-import * as LocalAuthentication from 'expo-local-authentication';
 import { Tabs } from 'expo-router';
+import type { BottomTabBarProps } from 'expo-router/build/react-navigation/bottom-tabs';
 import React, { useEffect, useRef, useState } from 'react';
-import { AppState, AppStateStatus, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { alarmeEstado } from '../../context/alarme-estado';
-import { bloqueioEstado } from '../../context/bloqueio-estado';
+import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../../context/ThemeContext';
 import { appColors } from '../../constants/theme';
 
-export default function TabLayout() {
-  const { isDark, config } = useTheme();
+/**
+ * BARRA DE ABAS PERSONALIZADA — visual premium:
+ * - Uma "chip" de acento translúcida DESLIZA com mola entre as abas, sempre
+ *   centralizada por geometria exata (flex 1/3 + largura medida), nunca flutua;
+ * - O ícone da aba ativa dá um POP de mola (cresce e assenta com bounce) e
+ *   troca de contorno → preenchido;
+ * - Abas inativas ficam discretas (ícone menor + cinza), a ativa em destaque.
+ * Tudo com Animated nativo — o chip e os ícones rodam na thread nativa.
+ */
 
-  // --- LÓGICA DE BLOQUEIO ---
-  // "autenticado" = o usuário desbloqueou nesta sessão. A tela de bloqueio é DERIVADA:
-  // aparece sempre que a biometria está ativa e o usuário ainda não autenticou.
-  const appState = useRef(AppState.currentState);
-  const [autenticado, setAutenticado] = useState(false);
-  const tempoSaida = useRef<number | null>(null);
-  const autenticadoRef = useRef(false);
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+type NomeIcone = React.ComponentProps<typeof Ionicons>['name'];
 
-  useEffect(() => {
-    autenticadoRef.current = autenticado;
-  }, [autenticado]);
+// Ícones: par contorno (inativo) → preenchido (ativo) de cada aba.
+const DADOS_ABAS: { rota: string; rotulo: string; inativo: NomeIcone; ativo: NomeIcone }[] = [
+  { rota: 'index', rotulo: 'Notas', inativo: 'document-text-outline', ativo: 'document-text' },
+  { rota: 'tarefas', rotulo: 'Tarefas', inativo: 'list-outline', ativo: 'list' },
+  { rota: 'settings', rotulo: 'Ajustes', inativo: 'settings-outline', ativo: 'settings' },
+];
 
-  const paleta = appColors(isDark);
-  const cores = {
-    fundo: paleta.background,
-    texto: paleta.text,
-    accent: paleta.primary,
-    itemFundo: paleta.surface,
-  };
-
-  const autenticar = async () => {
-    const compativel = await LocalAuthentication.hasHardwareAsync();
-    const cadastrado = await LocalAuthentication.isEnrolledAsync();
-
-    if (!compativel || !cadastrado) {
-      setAutenticado(true);
-      return;
-    }
-
-    const res = await LocalAuthentication.authenticateAsync({
-      promptMessage: 'Acesse suas informações',
-      fallbackLabel: 'Usar senha do dispositivo',
-      disableDeviceFallback: false,
-    });
-
-    if (res.success) {
-      setAutenticado(true);
-      tempoSaida.current = null;
-    }
-  };
+/**
+ * Ícone de aba com POP de mola: ao ATIVAR, cresce de 0.82 → 1.16 com bounce
+ * (overshoot da spring) e troca o glifo contorno → preenchido. Ao desativar,
+ * encolhe suavemente de volta. Todas as abas repousam com o mesmo alinhamento
+ * (escala é sobre o centro, sem deslocamento) — nada fica torto.
+ */
+const IconeAbaAnimado = ({
+  focado,
+  tamanho,
+  corAtiva,
+  corInativa,
+  inativo,
+  ativo,
+}: {
+  focado: boolean;
+  tamanho: number;
+  corAtiva: string;
+  corInativa: string;
+  inativo: NomeIcone;
+  ativo: NomeIcone;
+}) => {
+  const pop = useRef(new Animated.Value(focado ? 1 : 0)).current;
+  const focadoAntes = useRef(focado);
 
   useEffect(() => {
-    // Com biometria ativa o app abre BLOQUEADO (autenticado=false → tela de bloqueio
-    // derivada). Só pede biometria se NENHUM alarme estiver na frente — o alarme é
-    // visível sem desbloquear; ao fechar, o subscribe abaixo pede a biometria.
-    if (config?.exigirBiometriaApp) {
-      timeoutRef.current = setTimeout(() => {
-        if (!alarmeEstado.ativo && !autenticadoRef.current) autenticar();
-      }, 600);
+    if (focado === focadoAntes.current) return;
+    if (focado) {
+      pop.setValue(0);
+      Animated.spring(pop, {
+        toValue: 1,
+        friction: 5,
+        tension: 280,
+        useNativeDriver: true,
+      }).start();
+    } else {
+      Animated.timing(pop, { toValue: 0, duration: 170, useNativeDriver: true }).start();
     }
+    focadoAntes.current = focado;
+  }, [focado, pop]);
 
-    const subscription = AppState.addEventListener('change', (nextState: AppStateStatus) => {
-      if (!config?.exigirBiometriaApp) return;
-
-      if (appState.current.match(/active/) && nextState.match(/inactive|background/)) {
-        // Sair para UIs do SISTEMA (seletor de fotos, diálogo de permissão de áudio)
-        // também derruba o app para background — não deve contar como saída do usuário.
-        tempoSaida.current = bloqueioEstado.suspender ? null : Date.now();
-      }
-
-      if (appState.current.match(/inactive|background/) && nextState === 'active') {
-        // Alarme na frente OU voltando de seletor de fotos/permissão → não bloqueia
-        if (alarmeEstado.ativo || bloqueioEstado.suspender) {
-          tempoSaida.current = null;
-          appState.current = nextState;
-          return;
-        }
-        if (tempoSaida.current) {
-          const agora = Date.now();
-          const diferencaMinutos = (agora - tempoSaida.current) / 1000 / 60;
-
-          if (diferencaMinutos >= (config.tempoBloqueio || 0)) {
-            setAutenticado(false);
-            autenticar();
-          }
-        } else {
-          setAutenticado(false);
-          autenticar();
-        }
-      }
-      appState.current = nextState;
-    });
-
-    // Quando um alarme ativo encerra e o usuário ainda não desbloqueou NESTA sessão
-    // (ex.: app abriu pelo alarme), pede biometria — as anotações só abrem desbloqueando.
-    // Se o usuário já estava usando o app desbloqueado quando o alarme tocou, não incomoda.
-    const unsubAlarme = alarmeEstado.ouvir(ativo => {
-      if (!config?.exigirBiometriaApp) return;
-      if (ativo) return;
-      if (!autenticadoRef.current && AppState.currentState === 'active') {
-        autenticar();
-      }
-    });
-
-    return () => {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-      subscription.remove();
-      unsubAlarme();
-    };
-  }, [config?.exigirBiometriaApp, config?.tempoBloqueio]);
-
-  // --- TELA DE BLOQUEIO PERSONALIZADA ---
-  // Derivada: com biometria ativa, o conteúdo só aparece depois de autenticar.
-  if (!autenticado && config?.exigirBiometriaApp) {
-    return (
-      <View style={[styles.lockContainer, { backgroundColor: cores.fundo }]}>
-        <View style={[styles.iconCircle, { backgroundColor: cores.itemFundo }]}>
-          <Ionicons name="lock-closed" size={60} color={cores.accent} />
-        </View>
-        
-        <Text style={[styles.lockTitle, { color: cores.texto }]}>App Bloqueado</Text>
-        <Text style={[styles.lockSubTitle, { color: paleta.muted }]}>Toque no botão abaixo para acessar suas notas e tarefas.</Text>
-
-        <TouchableOpacity 
-          style={[styles.btnAutenticar, { backgroundColor: cores.accent }]} 
-          onPress={autenticar}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="finger-print" size={24} color={paleta.onPrimary} style={{ marginRight: 10 }} />
-          <Text style={styles.btnText}>Desbloquear</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
+  const escala = pop.interpolate({ inputRange: [0, 1], outputRange: [0.82, 1.16] });
 
   return (
-    <Tabs screenOptions={{
-      headerShown: false,
-      tabBarStyle: {
-        backgroundColor: paleta.tabBackground,
-        borderTopWidth: 1,
-        borderTopColor: paleta.border,
-        height: 78,
-        paddingBottom: 14,
-        paddingTop: 9,
-        elevation: 14,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: -4 },
-        shadowOpacity: isDark ? 0.35 : 0.1,
-        shadowRadius: 12,
-      },
-      tabBarItemStyle: { borderRadius: 18, marginHorizontal: 8 },
-      tabBarLabelStyle: { fontSize: 12, fontWeight: '700', marginTop: 1 },
-      tabBarActiveTintColor: paleta.primaryStrong,
-      tabBarInactiveTintColor: paleta.muted,
-    }}>
-      <Tabs.Screen name="index" options={{ title: 'Notas', tabBarIcon: ({ color, size }) => <Ionicons name="document-text" size={size} color={color} /> }} />
-      <Tabs.Screen name="tarefas" options={{ title: 'Tarefas', tabBarIcon: ({ color, size }) => <Ionicons name="list" size={size} color={color} /> }} />
-      <Tabs.Screen name="settings" options={{ title: 'Ajustes', tabBarIcon: ({ color, size }) => <Ionicons name="settings-sharp" size={size} color={color} /> }} />
+    <Animated.View style={{ transform: [{ scale: escala }] }}>
+      <Ionicons name={focado ? ativo : inativo} size={tamanho} color={focado ? corAtiva : corInativa} />
+    </Animated.View>
+  );
+};
+
+/**
+ * Barra customizada: cada aba é flex:1 (terço exato da largura) com conteúdo
+ * centralizado — o chip de acento nasce na mesma geometria, então o centro do
+ * chip SEMPRE coincide com o centro do item. A chip desliza com spring ao trocar
+ * de aba e a primeira renderização já pousa na posição certa (sem animação).
+ */
+const BarraAbasAnimada = ({ state, navigation, insets }: BottomTabBarProps) => {
+  const { isDark, t } = useTheme();
+  const paleta = appColors(isDark);
+  const abaInset = insets?.bottom ?? 0;
+  const [largura, setLargura] = useState(0);
+  // Valor EM ÍNDICE DE ABA (0..2): a interpolação converte para pixels — assim a
+  // rotação da tela reposiciona o chip sozinha (a largura só muda o outputRange).
+  const deslize = useRef(new Animated.Value(state.index)).current;
+  const idxAnterior = useRef(state.index);
+  const n = state.routes.length;
+  const conteudoAlt = 66; // altura útil acima do inset de navegação do sistema
+
+  useEffect(() => {
+    if (idxAnterior.current !== state.index) {
+      Animated.spring(deslize, {
+        toValue: state.index,
+        friction: 12,
+        tension: 110,
+        useNativeDriver: true,
+      }).start();
+      idxAnterior.current = state.index;
+    }
+  }, [state.index, deslize]);
+
+  const itemLarg = largura / n;
+  const chipLarg = Math.max(itemLarg - 26, 0);
+  // Entrada em índices (0..2) → saída em pixels: 0, centro do item 1, centro do item 2.
+  const tx = deslize.interpolate({
+    inputRange: [0, 1, 2],
+    outputRange: [0, itemLarg, itemLarg * 2],
+  });
+
+  return (
+    <View
+      style={[
+        styles.barra,
+        {
+          backgroundColor: paleta.tabBackground,
+          borderTopColor: paleta.border,
+          height: conteudoAlt + abaInset,
+          paddingBottom: abaInset,
+          shadowOpacity: isDark ? 0.35 : 0.1,
+        },
+      ]}
+      onLayout={e => {
+        const w = e.nativeEvent.layout.width;
+        if (w > 0 && Math.abs(w - largura) > 0.5) setLargura(w);
+      }}
+    >
+      {largura > 0 && (
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            styles.chipAba,
+            {
+              width: chipLarg,
+              top: (conteudoAlt - 52) / 2,
+              height: 52,
+              backgroundColor: paleta.primary,
+              opacity: 0.18,
+              transform: [{ translateX: tx }],
+            },
+          ]}
+        />
+      )}
+      {state.routes.map((rota, i) => {
+        const dados = DADOS_ABAS.find(d => d.rota === rota.name) || DADOS_ABAS[0];
+        const focado = state.index === i;
+        const cor = focado ? paleta.primaryStrong : paleta.muted;
+        return (
+          <Pressable
+            key={rota.key}
+            accessibilityRole="button"
+            accessibilityState={focado ? { selected: true } : {}}
+            accessibilityLabel={t(dados.rotulo)}
+            style={({ pressed }) => [styles.itemAba, { opacity: pressed ? 0.65 : 1 }]}
+            onPress={() => {
+              const evento = navigation.emit({
+                type: 'tabPress',
+                target: rota.key,
+                canPreventDefault: true,
+              } as never) as { defaultPrevented?: boolean } | undefined;
+              if (!focado && !evento?.defaultPrevented) {
+                navigation.navigate(rota.name);
+              }
+            }}
+          >
+            <IconeAbaAnimado
+              focado={focado}
+              tamanho={24}
+              corAtiva={paleta.primaryStrong}
+              corInativa={paleta.muted}
+              inativo={dados.inativo}
+              ativo={dados.ativo}
+            />
+            <Text style={[styles.rotuloAba, { color: cor }]}>{t(dados.rotulo)}</Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+};
+
+export default function TabLayout() {
+  const { t } = useTheme();
+  return (
+    <Tabs
+      screenOptions={{ headerShown: false }}
+      tabBar={props => <BarraAbasAnimada {...props} />}
+    >
+      <Tabs.Screen name="index" options={{ title: t('Notas') }} />
+      <Tabs.Screen name="tarefas" options={{ title: t('Tarefas') }} />
+      <Tabs.Screen name="settings" options={{ title: t('Ajustes') }} />
     </Tabs>
   );
 }
 
 const styles = StyleSheet.create({
-  lockContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 40,
-  },
-  iconCircle: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 20,
-    // Sombra leve para destacar o círculo
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
-    elevation: 5,
-  },
-  lockTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 10,
-  },
-  lockSubTitle: {
-    fontSize: 16,
-    textAlign: 'center',
-    marginBottom: 40,
-    lineHeight: 22,
-  },
-  btnAutenticar: {
+  // Container da barra: fileira de abas com o chip absoluto por trás.
+  barra: {
     flexDirection: 'row',
-    paddingVertical: 15,
-    paddingHorizontal: 30,
-    borderRadius: 30,
-    alignItems: 'center',
+    position: 'relative',
+    borderTopWidth: 1,
+    elevation: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowRadius: 12,
   },
-  btnText: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '600',
+  // Chip de acento: pílula arredondada que desliza atrás da aba ativa.
+  chipAba: {
+    position: 'absolute',
+    left: 13,
+    borderRadius: 22,
+  },
+  // Cada aba ocupa exatamente 1/3 — conteúdo centralizado por flex.
+  itemAba: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rotuloAba: {
+    fontSize: 12,
+    fontWeight: '700',
+    marginTop: 3,
   },
 });

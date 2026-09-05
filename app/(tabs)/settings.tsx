@@ -1,23 +1,28 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { useRouter } from 'expo-router';
+import { MotiView } from 'moti';
 import React, { useEffect, useRef, useState } from 'react';
 import { Alert, Linking, Modal, Platform, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import PreviewSom from '../../components/preview-som';
 import { useMonetizacao } from '../../context/monetizacao';
 import { useTheme } from '../../context/ThemeContext';
 import { appColors } from '../../constants/theme';
 import { infoDoSom, SONS_ALARME } from '../../context/sons-alarme';
+import { IDIOMAS } from '../../context/idiomas';
 import { alarmeNativoDisponivel, obterPrecoRemoverAnuncios, pararSomAlarme, previewSomAlarme } from '../../modules/minhasnotas-alarm';
 
 export default function SettingsScreen() {
-  const { isDark, toggleTheme, config, atualizarConfig } = useTheme();
+  const { isDark, toggleTheme, config, atualizarConfig, t } = useTheme();
+  const insets = useSafeAreaInsets();
   const { anunciosRemovidos, premiumPorEmail, comprando, comprarRemoverAnuncios } = useMonetizacao();
   const router = useRouter();
   // Preço exibido: lido do Play Console (fallback enquanto o produto não é publicado)
   const [precoAnuncios, setPrecoAnuncios] = useState('R$ 5,99');
 
   const [somModalAberto, setSomModalAberto] = useState(false);
+  const [idiomaModalAberto, setIdiomaModalAberto] = useState(false);
   const [somEmPreview, setSomEmPreview] = useState<string | null>(null);
   const previewTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Chave da IA (campo de texto local, salva ao digitar)
@@ -98,17 +103,17 @@ export default function SettingsScreen() {
       const temBiometriaSalva = await LocalAuthentication.isEnrolledAsync();
 
       if (!temHardware) {
-        Alert.alert("Erro", "Este dispositivo não possui suporte a biometria.");
+        Alert.alert(t('Erro'), t('Este dispositivo não possui suporte a biometria.'));
         return;
       }
 
       if (!temBiometriaSalva) {
-        Alert.alert("Erro", "Nenhuma biometria (digital ou rosto) cadastrada no sistema.");
+        Alert.alert(t('Erro'), t('Nenhuma biometria (digital ou rosto) cadastrada no sistema.'));
         return;
       }
 
       const autenticou = await LocalAuthentication.authenticateAsync({
-        promptMessage: 'Confirme sua identidade para ativar'
+        promptMessage: t('Confirme sua identidade para ativar')
       });
 
       if (!autenticou.success) return;
@@ -120,11 +125,11 @@ export default function SettingsScreen() {
   const selecionarTempo = () => {
     const tempos = [0, 1, 5, 10, 30];
     Alert.alert(
-      "Tempo para Bloqueio",
-      "Após quanto tempo fora do app devemos exigir a biometria?",
-      tempos.map(t => ({
-        text: t === 0 ? "Imediatamente" : `${t} minutos`,
-        onPress: () => atualizarConfig('tempoBloqueio', t)
+      t('Tempo para Bloqueio'),
+      t('Após quanto tempo fora do app devemos exigir a biometria?'),
+      tempos.map(m => ({
+        text: m === 0 ? t('Imediatamente') : t('{n} minutos', { n: m }),
+        onPress: () => atualizarConfig('tempoBloqueio', m)
       })),
       { cancelable: true }
     );
@@ -133,11 +138,11 @@ export default function SettingsScreen() {
   const selecionarSoneca = () => {
     const opcoes = [5, 10, 15, 20, 30, 45, 60];
     Alert.alert(
-      "Soneca do alarme",
-      "Quanto tempo o alarme adia ao tocar em \"Daqui a X min\"?",
-      opcoes.map(t => ({
-        text: `${t} minutos`,
-        onPress: () => atualizarConfig('tempoSoneca', t)
+      t('Soneca do alarme'),
+      t('Quanto tempo o alarme adia ao tocar em "Daqui a X min"?'),
+      opcoes.map(m => ({
+        text: t('{n} minutos', { n: m }),
+        onPress: () => atualizarConfig('tempoSoneca', m)
       })),
       { cancelable: true }
     );
@@ -169,31 +174,48 @@ export default function SettingsScreen() {
       contentContainerStyle={styles.contentContainer}
       showsVerticalScrollIndicator={false}
     >
-      <Text style={[styles.title, { color: cores.textoPrincipal }]}>Configurações</Text>
+      <Text style={[styles.title, { color: cores.textoPrincipal }]}>{t('Configurações')}</Text>
       
       {/* SEÇÃO APARÊNCIA */}
       <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: cores.textoSecundario } ]}>Aparência</Text>
-        <View style={[styles.group, { backgroundColor: cores.itemFundo }]}>
-          <View style={[styles.innerItem, { borderBottomWidth: 0 }]}>
-            <Text style={[styles.itemText, { color: cores.textoPrincipal }]}>Modo Escuro</Text>
+        <Text style={[styles.sectionTitle, { color: cores.textoSecundario } ]}>{t('Aparência')}</Text>
+        <View style={[styles.group, { backgroundColor: cores.itemFundo, borderColor: cores.borda, borderWidth: 1 }]}>
+          <View style={[styles.innerItem, { borderBottomColor: cores.borda, borderBottomWidth: 1 }]}>
+            <Text style={[styles.itemText, { color: cores.textoPrincipal }]}>{t('Modo Escuro')}</Text>
             <Switch 
               value={isDark} 
               onValueChange={toggleTheme} 
               trackColor={{ false: '#767577', true: cores.accent }}
             />
           </View>
+          <TouchableOpacity
+            style={[styles.innerItem, { borderBottomWidth: 0 }]}
+            onPress={() => setIdiomaModalAberto(true)}
+            activeOpacity={0.6}
+          >
+            <View style={[styles.iconeItem, { backgroundColor: paleta.primarySoft }]}>
+              <Ionicons name="language" size={20} color={cores.accent} />
+            </View>
+            <View style={{ flex: 1, marginLeft: 12 }}>
+              <Text style={[styles.itemText, { color: cores.textoPrincipal }]}>{t('Idioma')}</Text>
+              <Text style={[styles.subText, { color: cores.textoSecundario } ]}>{t('Idioma do aplicativo e do assistente de IA')}</Text>
+            </View>
+            <Text style={{ color: cores.accent, fontWeight: 'bold', fontSize: 16 }}>
+              {IDIOMAS.find(i => i.cod === config.idioma)?.rotulo ?? 'Português'}
+            </Text>
+            <Ionicons name="chevron-forward" size={20} color="#999" />
+          </TouchableOpacity>
         </View>
       </View>
 
       {/* SEÇÃO INTERFACE - NOVO */}
       <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: cores.textoSecundario } ]}>Interface</Text>
-        <View style={[styles.group, { backgroundColor: cores.itemFundo }]}>
+        <Text style={[styles.sectionTitle, { color: cores.textoSecundario } ]}>{t('Interface')}</Text>
+        <View style={[styles.group, { backgroundColor: cores.itemFundo, borderColor: cores.borda, borderWidth: 1 }]}>
           <View style={styles.innerItem}>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.itemText, { color: cores.textoPrincipal }]}>Ajuda no Menu +</Text>
-              <Text style={[styles.subText, { color: cores.textoSecundario } ]}>Mostrar botão de guia no menu de criação</Text>
+              <Text style={[styles.itemText, { color: cores.textoPrincipal }]}>{t('Ajuda no Menu +')}</Text>
+              <Text style={[styles.subText, { color: cores.textoSecundario } ]}>{t('Mostrar botão de guia no menu de criação')}</Text>
             </View>
             <Switch 
               value={config.exibirAjudaFAB ?? true} 
@@ -206,8 +228,8 @@ export default function SettingsScreen() {
 
       {/* SEÇÃO ALARME */}
       <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: cores.textoSecundario } ]}>Alarme</Text>
-        <View style={[styles.group, { backgroundColor: cores.itemFundo }]}>
+        <Text style={[styles.sectionTitle, { color: cores.textoSecundario } ]}>{t('Alarme')}</Text>
+        <View style={[styles.group, { backgroundColor: cores.itemFundo, borderColor: cores.borda, borderWidth: 1 }]}>
           <TouchableOpacity
             style={[styles.innerItem, { borderBottomColor: cores.borda, borderBottomWidth: 1 }]}
             onPress={() => setSomModalAberto(true)}
@@ -217,14 +239,14 @@ export default function SettingsScreen() {
               <Ionicons name="musical-notes" size={20} color={cores.accent} />
             </View>
             <View style={{ flex: 1, marginLeft: 12 }}>
-              <Text style={[styles.itemText, { color: cores.textoPrincipal }]}>Som do alarme</Text>
-              <Text style={[styles.subText, { color: cores.textoSecundario } ]}>Toca no volume de alarme, no máximo</Text>
+              <Text style={[styles.itemText, { color: cores.textoPrincipal }]}>{t('Som do alarme')}</Text>
+              <Text style={[styles.subText, { color: cores.textoSecundario } ]}>{t('Toca no volume de alarme, no máximo')}</Text>
             </View>
             <Text
               style={{ color: cores.accent, fontWeight: 'bold', fontSize: 16, maxWidth: 110 }}
               numberOfLines={1}
             >
-              {infoDoSom(config.somAlarme).nome}
+              {t(infoDoSom(config.somAlarme).nome)}
             </Text>
             <Ionicons name="chevron-forward" size={20} color="#999" style={{ marginLeft: 6 }} />
           </TouchableOpacity>
@@ -238,11 +260,11 @@ export default function SettingsScreen() {
               <Ionicons name="alarm" size={20} color={paleta.warning} />
             </View>
             <View style={{ flex: 1, marginLeft: 12 }}>
-              <Text style={[styles.itemText, { color: cores.textoPrincipal }]}>Soneca do alarme</Text>
-              <Text style={[styles.subText, { color: cores.textoSecundario } ]}>Tempo ao tocar em “Daqui a X min”</Text>
+              <Text style={[styles.itemText, { color: cores.textoPrincipal }]}>{t('Soneca do alarme')}</Text>
+              <Text style={[styles.subText, { color: cores.textoSecundario } ]}>{t('Tempo ao tocar em “Daqui a X min”')}</Text>
             </View>
             <Text style={{ color: cores.accent, fontWeight: 'bold', fontSize: 16 }}>
-              {config.tempoSoneca} min
+              {t('{n} min', { n: config.tempoSoneca })}
             </Text>
           </TouchableOpacity>
 
@@ -255,8 +277,8 @@ export default function SettingsScreen() {
               <Ionicons name="shield-checkmark" size={20} color={cores.accent} />
             </View>
             <View style={{ flex: 1, marginLeft: 12 }}>
-              <Text style={[styles.itemText, { color: cores.textoPrincipal }]}>Permissões do alarme</Text>
-              <Text style={[styles.subText, { color: cores.textoSecundario } ]}>Popup em tela cheia · Xiaomi · bateria</Text>
+              <Text style={[styles.itemText, { color: cores.textoPrincipal }]}>{t('Permissões do alarme')}</Text>
+              <Text style={[styles.subText, { color: cores.textoSecundario } ]}>{t('Popup em tela cheia · Xiaomi · bateria')}</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color="#999" />
           </TouchableOpacity>
@@ -265,25 +287,25 @@ export default function SettingsScreen() {
 
       {/* SEÇÃO ANÚNCIOS / REMOVER ANÚNCIOS */}
       <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: cores.textoSecundario } ]}>Anúncios</Text>
-        <View style={[styles.group, { backgroundColor: cores.itemFundo }]}>
+        <Text style={[styles.sectionTitle, { color: cores.textoSecundario } ]}>{t('Anúncios')}</Text>
+        <View style={[styles.group, { backgroundColor: cores.itemFundo, borderColor: cores.borda, borderWidth: 1 }]}>
           {anunciosRemovidos ? (
             <View style={styles.innerItem}>
               <View style={[styles.iconeItem, { backgroundColor: paleta.primarySoft }]}>
                 <Ionicons name="checkmark-circle" size={20} color={paleta.success} />
               </View>
               <View style={{ flex: 1, marginLeft: 12 }}>
-                <Text style={[styles.itemText, { color: cores.textoPrincipal }]}>Anúncios removidos</Text>
+                <Text style={[styles.itemText, { color: cores.textoPrincipal }]}>{t('Anúncios removidos')}</Text>
                 <Text style={[styles.subText, { color: cores.textoSecundario } ]}>
                   {premiumPorEmail
-                    ? 'Premium liberado por convite do desenvolvedor'
-                    : 'Obrigado pelo apoio! Sem anúncios para sempre'}
+                    ? t('Premium liberado por convite do desenvolvedor')
+                    : t('Obrigado pelo apoio! Sem anúncios para sempre')}
                 </Text>
               </View>
               {premiumPorEmail ? (
                 <View style={[styles.seloPremium, { backgroundColor: paleta.primarySoft }]}>
                   <Ionicons name="gift" size={12} color={paleta.warning} />
-                  <Text style={styles.seloPremiumTexto} numberOfLines={1}>Premium por convite</Text>
+                  <Text style={styles.seloPremiumTexto} numberOfLines={1}>{t('Premium por convite')}</Text>
                 </View>
               ) : (
                 <Ionicons name="sparkles" size={20} color={paleta.warning} />
@@ -301,9 +323,9 @@ export default function SettingsScreen() {
               </View>
               <View style={{ flex: 1, marginLeft: 12 }}>
                 <Text style={[styles.itemText, { color: cores.textoPrincipal }]}>
-                  Remover anúncios para sempre
+                  {t('Remover anúncios para sempre')}
                 </Text>
-                <Text style={[styles.subText, { color: cores.textoSecundario } ]}>Pagamento único pela Play Store</Text>
+                <Text style={[styles.subText, { color: cores.textoSecundario } ]}>{t('Pagamento único pela Play Store')}</Text>
               </View>
               <View
                 style={{
@@ -324,13 +346,13 @@ export default function SettingsScreen() {
 
       {/* SEÇÃO IA */}
       <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: cores.textoSecundario } ]}>IA</Text>
-        <View style={[styles.group, { backgroundColor: cores.itemFundo }]}>
+        <Text style={[styles.sectionTitle, { color: cores.textoSecundario } ]}>{t('IA')}</Text>
+        <View style={[styles.group, { backgroundColor: cores.itemFundo, borderColor: cores.borda, borderWidth: 1 }]}>
           <View style={styles.innerItem}>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.itemText, { color: cores.textoPrincipal }]}>Chave da IA (gratuita)</Text>
+              <Text style={[styles.itemText, { color: cores.textoPrincipal }]}>{t('Chave da IA (gratuita)')}</Text>
               <Text style={[styles.subText, { color: cores.textoSecundario } ]}>
-                Respostas como ChatGPT usando modelos grátis do OpenRouter
+                {t('Respostas como ChatGPT usando modelos grátis do OpenRouter')}
               </Text>
             </View>
           </View>
@@ -378,7 +400,7 @@ export default function SettingsScreen() {
                 activeOpacity={0.8}
               >
                 <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '800' }}>
-                  Como criar a chave
+                  {t('Como criar a chave')}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -395,7 +417,7 @@ export default function SettingsScreen() {
                 activeOpacity={0.8}
               >
                 <Text style={{ color: cores.accent, fontSize: 13, fontWeight: '800' }}>
-                  Abrir site
+                  {t('Abrir site')}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -405,13 +427,13 @@ export default function SettingsScreen() {
 
       {/* SEÇÃO SEGURANÇA */}
       <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: cores.textoSecundario } ]}>Segurança</Text>
-        <View style={[styles.group, { backgroundColor: cores.itemFundo }]}>
+        <Text style={[styles.sectionTitle, { color: cores.textoSecundario } ]}>{t('Segurança')}</Text>
+        <View style={[styles.group, { backgroundColor: cores.itemFundo, borderColor: cores.borda, borderWidth: 1 }]}>
           
           <View style={[styles.innerItem, { borderBottomColor: cores.borda, borderBottomWidth: config.exigirBiometriaApp ? 1 : 0 }]}>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.itemText, { color: cores.textoPrincipal }]}>Bloquear App</Text>
-              <Text style={[styles.subText, { color: cores.textoSecundario } ]}>Exigir biometria ao abrir o aplicativo</Text>
+              <Text style={[styles.itemText, { color: cores.textoPrincipal }]}>{t('Bloquear App')}</Text>
+              <Text style={[styles.subText, { color: cores.textoSecundario } ]}>{t('Exigir biometria ao abrir o aplicativo')}</Text>
             </View>
             <Switch 
               value={config.exigirBiometriaApp} 
@@ -423,11 +445,11 @@ export default function SettingsScreen() {
           {config.exigirBiometriaApp && (
             <TouchableOpacity style={[styles.innerItem, { borderBottomWidth: 0 }]} onPress={selecionarTempo}>
               <View style={{ flex: 1 }}>
-                <Text style={[styles.itemText, { color: cores.textoPrincipal }]}>Tempo de Bloqueio</Text>
-                <Text style={[styles.subText, { color: cores.textoSecundario } ]}>Janela de carência antes de bloquear</Text>
+                <Text style={[styles.itemText, { color: cores.textoPrincipal }]}>{t('Tempo de Bloqueio')}</Text>
+                <Text style={[styles.subText, { color: cores.textoSecundario } ]}>{t('Janela de carência antes de bloquear')}</Text>
               </View>
               <Text style={{ color: cores.accent, fontWeight: 'bold', fontSize: 16 }}>
-                {config.tempoBloqueio === 0 ? "Imediato" : `${config.tempoBloqueio} min`}
+                {config.tempoBloqueio === 0 ? t('Imediato') : t('{n} min', { n: config.tempoBloqueio })}
               </Text>
             </TouchableOpacity>
           )}
@@ -438,18 +460,24 @@ export default function SettingsScreen() {
       <Modal
         visible={tutorialIA}
         transparent
-        animationType="slide"
+        animationType="fade"
         onRequestClose={() => setTutorialIA(false)}
       >
         <View style={styles.modalFundo}>
           <TouchableOpacity style={styles.modalDismiss} activeOpacity={1} onPress={() => setTutorialIA(false)} />
-          <View style={[styles.sheet, { backgroundColor: cores.sheetFundo, borderColor: cores.sheetBorda }]}>
+          {/* Fundo escuro faz fade (Modal fade); o painel sobe sozinho com mola. */}
+          <MotiView
+            from={{ opacity: 0, translateY: 520 }}
+            animate={{ opacity: 1, translateY: 0 }}
+            transition={{ type: 'spring', damping: 24, stiffness: 230 }}
+          >
+          <View style={[styles.sheet, { backgroundColor: cores.sheetFundo, borderColor: cores.sheetBorda, paddingBottom: 40 + insets.bottom }]}>
             <View style={[styles.sheetHandle, { backgroundColor: cores.sheetHandle }]} />
             <View style={styles.sheetHeader}>
               <View style={{ flex: 1 }}>
-                <Text style={[styles.sheetTitulo, { color: cores.sheetTitulo }]}>Criar sua chave grátis</Text>
+                <Text style={[styles.sheetTitulo, { color: cores.sheetTitulo }]}>{t('Criar sua chave grátis')}</Text>
                 <Text style={[styles.sheetSub, { color: cores.sheetSub }]}>
-                  Leva 1 minuto e não pede cartão
+                  {t('Leva 1 minuto e não pede cartão')}
                 </Text>
               </View>
               <TouchableOpacity onPress={() => setTutorialIA(false)} style={[styles.botaoFechar, { backgroundColor: cores.botaoFecharFundo }]} activeOpacity={0.7}>
@@ -457,67 +485,38 @@ export default function SettingsScreen() {
               </TouchableOpacity>
             </View>
 
-            <View style={[styles.passo, { backgroundColor: cores.somRowFundo, borderColor: cores.somRowBorda }]}>
-              <View style={[styles.passoNumero, { backgroundColor: cores.accent }]}>
-                <Text style={styles.passoNumeroTexto}>1</Text>
+            {[1, 2, 3, 4, 5].map(n => (
+              <View key={n} style={[styles.passo, { backgroundColor: cores.somRowFundo, borderColor: cores.somRowBorda }]}>
+                <View style={[styles.passoNumero, { backgroundColor: cores.accent }]}>
+                  <Text style={styles.passoNumeroTexto}>{n}</Text>
+                </View>
+                <Text style={[styles.passoTexto, { color: cores.somNome }]}>
+                  {t(`tutorial.chave.passo${n}`)}
+                </Text>
               </View>
-              <Text style={[styles.passoTexto, { color: cores.somNome }]}>
-                Toque em <Text style={{ fontWeight: '900', color: cores.accent }}>“Abrir site”</Text> aqui embaixo — vai abrir o navegador no openrouter.ai
-              </Text>
-            </View>
-            <View style={[styles.passo, { backgroundColor: cores.somRowFundo, borderColor: cores.somRowBorda }]}>
-              <View style={[styles.passoNumero, { backgroundColor: cores.accent }]}>
-                <Text style={styles.passoNumeroTexto}>2</Text>
-              </View>
-              <Text style={[styles.passoTexto, { color: cores.somNome }]}>
-                Toque em <Text style={{ fontWeight: '900', color: cores.accent }}>“Continue with Google”</Text> e entre com sua conta (a mesma do app)
-              </Text>
-            </View>
-            <View style={[styles.passo, { backgroundColor: cores.somRowFundo, borderColor: cores.somRowBorda }]}>
-              <View style={[styles.passoNumero, { backgroundColor: cores.accent }]}>
-                <Text style={styles.passoNumeroTexto}>3</Text>
-              </View>
-              <Text style={[styles.passoTexto, { color: cores.somNome }]}>
-                Na página de chaves, toque em <Text style={{ fontWeight: '900', color: cores.accent }}>“+ Create Key”</Text> (deixe marcado “Free models”) e confirme
-              </Text>
-            </View>
-            <View style={[styles.passo, { backgroundColor: cores.somRowFundo, borderColor: cores.somRowBorda }]}>
-              <View style={[styles.passoNumero, { backgroundColor: cores.accent }]}>
-                <Text style={styles.passoNumeroTexto}>4</Text>
-              </View>
-              <Text style={[styles.passoTexto, { color: cores.somNome }]}>
-                O site mostra a chave (começa com <Text style={{ fontWeight: '900', color: cores.accent }}>sk-or-v1-</Text>). Toque e segure nela → <Text style={{ fontWeight: '900', color: cores.accent }}>Copiar</Text>
-              </Text>
-            </View>
-            <View style={[styles.passo, { backgroundColor: cores.somRowFundo, borderColor: cores.somRowBorda }]}>
-              <View style={[styles.passoNumero, { backgroundColor: cores.accent }]}>
-                <Text style={styles.passoNumeroTexto}>5</Text>
-              </View>
-              <Text style={[styles.passoTexto, { color: cores.somNome }]}>
-                Volte ao app e <Text style={{ fontWeight: '900', color: cores.accent }}>cole no campo</Text> acima — segure o dedo no campo e toque em “Colar”
-              </Text>
-            </View>
+            ))}
 
             <TouchableOpacity
               style={[styles.botaoEntendi, { backgroundColor: cores.accent }]}
               onPress={() => setTutorialIA(false)}
               activeOpacity={0.8}
             >
-              <Text style={{ color: '#FFF', fontWeight: 'bold', fontSize: 16 }}>Entendi!</Text>
+              <Text style={{ color: '#FFF', fontWeight: 'bold', fontSize: 16 }}>{t('Entendi!')}</Text>
             </TouchableOpacity>
           </View>
+          </MotiView>
         </View>
       </Modal>
 
       <View style={styles.footer}>
-        <Text style={[styles.footerText, { color: cores.textoSecundario }]}>Versão do App: 1.0.9</Text>
+        <Text style={[styles.footerText, { color: cores.textoSecundario }]}>{t('Versão do App')}: 1.1.0</Text>
       </View>
 
       {/* SELETOR DE SOM DO ALARME (modal OLED) */}
       <Modal
         visible={somModalAberto}
         transparent
-        animationType="slide"
+        animationType="fade"
         onRequestClose={fecharSomModal}
       >
         <View style={styles.modalFundo}>
@@ -526,13 +525,19 @@ export default function SettingsScreen() {
             activeOpacity={1}
             onPress={fecharSomModal}
           />
-          <View style={[styles.sheet, { backgroundColor: cores.sheetFundo, borderColor: cores.sheetBorda }]}>
+          {/* Fundo escuro faz fade (Modal fade); o painel sobe sozinho com mola. */}
+          <MotiView
+            from={{ opacity: 0, translateY: 520 }}
+            animate={{ opacity: 1, translateY: 0 }}
+            transition={{ type: 'spring', damping: 24, stiffness: 230 }}
+          >
+          <View style={[styles.sheet, { backgroundColor: cores.sheetFundo, borderColor: cores.sheetBorda, paddingBottom: 40 + insets.bottom }]}>
             <View style={[styles.sheetHandle, { backgroundColor: cores.sheetHandle }]} />
             <View style={styles.sheetHeader}>
               <View style={{ flex: 1 }}>
-                <Text style={[styles.sheetTitulo, { color: cores.sheetTitulo }]}>Som do alarme</Text>
+                <Text style={[styles.sheetTitulo, { color: cores.sheetTitulo }]}>{t('Som do alarme')}</Text>
                 <Text style={[styles.sheetSub, { color: cores.sheetSub }]}>
-                  Toca no volume de alarme do celular, forçado ao máximo
+                  {t('Toca no volume de alarme do celular, forçado ao máximo')}
                 </Text>
               </View>
               <TouchableOpacity onPress={fecharSomModal} style={[styles.botaoFechar, { backgroundColor: cores.botaoFecharFundo }]} activeOpacity={0.7}>
@@ -557,8 +562,8 @@ export default function SettingsScreen() {
                     <Ionicons name={som.icone} size={20} color={cores.accent} />
                   </View>
                   <View style={{ flex: 1, marginLeft: 12 }}>
-                    <Text style={[styles.somNome, { color: cores.somNome }]}>{som.nome}</Text>
-                    <Text style={[styles.somDesc, { color: cores.sheetSub }]}>{som.descricao}</Text>
+                    <Text style={[styles.somNome, { color: cores.somNome }]}>{t(som.nome)}</Text>
+                    <Text style={[styles.somDesc, { color: cores.sheetSub }]}>{t(som.descricao)}</Text>
                   </View>
                   <TouchableOpacity
                     style={[styles.botaoOuvir, { backgroundColor: cores.botaoOuvirFundo }]}
@@ -581,6 +586,77 @@ export default function SettingsScreen() {
             {/* Prévia via expo-audio (iOS / Expo Go — sem módulo nativo) */}
             {!alarmeNativoDisponivel() && somEmPreview && <PreviewSom chave={somEmPreview} />}
           </View>
+          </MotiView>
+        </View>
+      </Modal>
+
+      {/* SELETOR DE IDIOMA */}
+      <Modal
+        visible={idiomaModalAberto}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setIdiomaModalAberto(false)}
+      >
+        <View style={styles.modalFundo}>
+          <TouchableOpacity
+            style={styles.modalDismiss}
+            activeOpacity={1}
+            onPress={() => setIdiomaModalAberto(false)}
+          />
+          <MotiView
+            from={{ opacity: 0, translateY: 520 }}
+            animate={{ opacity: 1, translateY: 0 }}
+            transition={{ type: 'spring', damping: 24, stiffness: 230 }}
+          >
+          <View style={[styles.sheet, { backgroundColor: cores.sheetFundo, borderColor: cores.sheetBorda, paddingBottom: 40 + insets.bottom }]}>
+            <View style={[styles.sheetHandle, { backgroundColor: cores.sheetHandle }]} />
+            <View style={styles.sheetHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.sheetTitulo, { color: cores.sheetTitulo }]}>{t('Idioma')}</Text>
+                <Text style={[styles.sheetSub, { color: cores.sheetSub }]}>
+                  {t('Escolha o idioma do aplicativo e do assistente de IA')}
+                </Text>
+              </View>
+              <TouchableOpacity onPress={() => setIdiomaModalAberto(false)} style={[styles.botaoFechar, { backgroundColor: cores.botaoFecharFundo }]} activeOpacity={0.7}>
+                <Ionicons name="close" size={22} color={cores.botaoFecharIcone} />
+              </TouchableOpacity>
+            </View>
+
+            {IDIOMAS.map(idioma => {
+              const selecionado = config.idioma === idioma.cod;
+              return (
+                <TouchableOpacity
+                  key={idioma.cod}
+                  style={[
+                    styles.somRow,
+                    { backgroundColor: cores.somRowFundo, borderColor: cores.somRowBorda },
+                    selecionado && { borderColor: cores.accent },
+                  ]}
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    atualizarConfig('idioma', idioma.cod);
+                    setIdiomaModalAberto(false);
+                  }}
+                >
+                  <View style={[styles.somIcone, { backgroundColor: cores.somIconeFundo }]}>
+                    <Ionicons name="language" size={20} color={cores.accent} />
+                  </View>
+                  <View style={{ flex: 1, marginLeft: 12 }}>
+                    <Text style={[styles.somNome, { color: cores.somNome }]}>{idioma.rotulo}</Text>
+                    <Text style={[styles.somDesc, { color: cores.sheetSub }]}>
+                      {idioma.cod === 'pt' && t('Português (padrão)')}
+                      {idioma.cod === 'en' && t('Inglês')}
+                      {idioma.cod === 'es' && t('Espanhol')}
+                    </Text>
+                  </View>
+                  {selecionado && (
+                    <Ionicons name="checkmark-circle" size={24} color={cores.accent} style={{ marginLeft: 12 }} />
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+          </MotiView>
         </View>
       </Modal>
     </ScrollView>

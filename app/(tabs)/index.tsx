@@ -8,7 +8,10 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Animated,
+  BackHandler,
   Image,
+  Keyboard,
+  KeyboardAvoidingView,
   LayoutAnimation,
   Modal,
   Platform,
@@ -21,7 +24,9 @@ import {
   View
 } from 'react-native';
 import { GestureHandlerRootView, Swipeable } from 'react-native-gesture-handler';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useListas } from '../../context/ListaContext';
+import { useMonetizacao } from '../../context/monetizacao';
 import { useNotas } from '../../context/NotasContext';
 import { useTheme } from '../../context/ThemeContext';
 import RichText from '../../components/rich-text';
@@ -37,7 +42,14 @@ const limparHTML = (html: string) => {
   return html
     .replace(/<img[^>]*>/g, ' [Foto] ')
     .replace(/<[^>]*>?/gm, ' ')
+    // Decodifica entidades HTML para o preview não mostrar "&#10;" etc.
+    .replace(/&#10;|&#xA;|\n/gi, ' ')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
     .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/gi, '&')
     .replace(/\s+/g, ' ')
     .trim();
 };
@@ -83,7 +95,9 @@ export default function HomeScreen() {
   } = useNotas(); 
   
   const { listas, excluirLista, alternarFixarLista, moverListasParaPasta } = useListas(); 
-  const { isDark, config } = useTheme(); // AJUSTE: config adicionado
+  const { isDark, config, t } = useTheme(); // AJUSTE: config adicionado
+  const insets = useSafeAreaInsets();
+  const { sincronizarPremiumConvite } = useMonetizacao();
   
   const [busca, setBusca] = useState('');
   const [buscaAtiva, setBuscaAtiva] = useState(false);
@@ -102,6 +116,18 @@ export default function HomeScreen() {
   const [modalPastaAberto, setModalPastaAberto] = useState(false);
   const [modalNovaPastaAberto, setModalNovaPastaAberto] = useState(false);
   const [nomeNovaPasta, setNomeNovaPasta] = useState('');
+  // Altura real do teclado (Android) — para o modal nova pasta subir junto
+  const [alturaTeclado, setAlturaTeclado] = useState(0);
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    const ALTURA_MAX = 500;
+    const show = Keyboard.addListener('keyboardDidShow', (e) => {
+      const h = e.endCoordinates.height;
+      if (h > 0 && h <= ALTURA_MAX) setAlturaTeclado(h);
+    });
+    const hide = Keyboard.addListener('keyboardDidHide', () => setAlturaTeclado(0));
+    return () => { show.remove(); hide.remove(); };
+  }, []);
   
   const swipeableRefs = useRef<Map<string, Swipeable>>(new Map());
   const animaMenu = useMemo(() => new Animated.Value(0), []);
@@ -123,7 +149,7 @@ export default function HomeScreen() {
   useEffect(() => {
     const checarUsuario = async () => {
       try {
-        const currentUser = GoogleSignin.getCurrentUser();
+        const currentUser = await GoogleSignin.getCurrentUser();
         if (currentUser) setUser(currentUser.user);
       } catch (e) {
         console.warn("[Google] Falha ao verificar usuário atual", e);
@@ -152,14 +178,14 @@ export default function HomeScreen() {
         try {
           await GoogleSignin.signInSilently();
           await fazerBackupCloud();
-        } catch (e) {
+        } catch {
           console.log("Falha silenciosa no backup automático");
         }
       }
     };
     const timer = setTimeout(dispararBackup, 4000);
     return () => clearTimeout(timer);
-  }, [user]);
+  }, [user, fazerBackupCloud]);
 
   const paleta = appColors(isDark);
   const cores = {
@@ -223,6 +249,15 @@ export default function HomeScreen() {
     setSelecionando(false);
     setIdsSelecionados([]);
   };
+  // Back do celular (Android) sai do modo de seleção — sem sair da tela.
+  useEffect(() => {
+    if (!selecionando) return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      sairSelecao();
+      return true;
+    });
+    return () => sub.remove();
+  }, [selecionando]);
   // Divide os ids selecionados em notas e listas (têm ids separados)
   const selecionadosSplit = () => {
     const itens = notasFiltradas.filter(i => idsSelecionados.includes(i.id));
@@ -254,12 +289,14 @@ export default function HomeScreen() {
     if (idsSelecionados.length === 0) return;
     const qtd = idsSelecionados.length;
     Alert.alert(
-      'Excluir itens',
-      `Apagar ${qtd} ${qtd !== 1 ? 'itens' : 'item'} selecionado${qtd !== 1 ? 's' : ''}?`,
+      t('Excluir itens'),
+      qtd !== 1
+        ? t('Apagar {n} itens selecionados?', { n: qtd })
+        : t('Apagar {n} item selecionado?', { n: qtd }),
       [
-        { text: 'Cancelar', style: 'cancel' },
+        { text: t('Cancelar'), style: 'cancel' },
         {
-          text: 'Excluir',
+          text: t('Excluir'),
           style: 'destructive',
           onPress: () => {
             LayoutAnimation.configureNext(LayoutAnimation.Presets.spring);
@@ -314,7 +351,7 @@ export default function HomeScreen() {
 
   const handleTrocarConta = async () => {
     if (isOffline) {
-      Alert.alert("Offline", "Você está offline. Conecte-se à internet para trocar de conta.");
+      Alert.alert(t('Offline'), t('Você está offline. Conecte-se à internet para trocar de conta.'));
       return;
     }
     try {
@@ -328,22 +365,27 @@ export default function HomeScreen() {
         // conta escolhida não está como usuário de teste). Não engolir o silêncio.
         console.warn("[Google] Sign-in cancelado após escolher a conta:", userInfo);
         Alert.alert(
-          "Login",
-          "O login não foi concluído.\n\nSe isso se repetir: no Google Cloud Console (projeto simple-notes-39893) → APIs e serviços → Tela de consentimento OAuth → configure e adicione sua conta como usuário de teste."
+          t('Login'),
+          t('O login não foi concluído.') + "\n\nSe isso se repetir: no Google Cloud Console (projeto simple-notes-39893) → APIs e serviços → Tela de consentimento OAuth → configure e adicione sua conta como usuário de teste."
         );
+        // Deslogado após o signOut: o convite de premium não vale mais.
+        sincronizarPremiumConvite(null).catch(() => {});
         return;
       }
       if (userInfo.type !== 'success') {
-        Alert.alert("Login", "Login não concluído. Tente novamente.");
+        Alert.alert(t('Login'), t('Login não concluído. Tente novamente.'));
+        sincronizarPremiumConvite(null).catch(() => {});
         return;
       }
       setUser(userInfo.data.user);
+      // O convite de premium só vale na conta logada: reavalia na hora.
+      sincronizarPremiumConvite({ user: userInfo.data.user }).catch(() => {});
       if (recarregarTudo) await recarregarTudo();
       await restaurarBackupCloud();
       // Sobe um backup logo após o login: garante que a chave de IA (e as notas)
       // digitadas ANTES de entrar cheguem à conta Google — não precisa repor.
       fazerBackupCloud().catch(() => {});
-      Alert.alert("Sucesso", `Conectado como ${userInfo.data.user.name || userInfo.data.user.email}`);
+      Alert.alert(t('Sucesso'), t('Conectado como {nome}', { nome: userInfo.data.user.name || userInfo.data.user.email }));
     } catch (error: any) {
       // Mostra o erro real (ex.: "10: The caller has no permission" = SHA-1 não cadastrado no Firebase)
       console.error("[Google] Falha no login:", error);
@@ -353,23 +395,28 @@ export default function HomeScreen() {
         msgTexto.includes('DEVELOPER_ERROR') || msgTexto.includes(': 10') || msgTexto.includes('statusCode')
           ? "\n\nDica: erro 10/DEVELOPER_ERROR = a assinatura do APK não está cadastrada no Firebase. Cadastre o SHA-1 do seu keystore em Configurações do projeto → App Android → Adicionar impressão digital."
           : "";
-      Alert.alert("Falha no login", msgTexto + dica);
+      Alert.alert(t('Falha no login'), msgTexto + dica);
       try {
         const currentUser = await GoogleSignin.getCurrentUser();
         setUser(currentUser ? currentUser.user : null);
+        // Reavalia o convite com o usuário real pós-falha (null se deslogado).
+        sincronizarPremiumConvite(currentUser ? { user: currentUser.user } : null).catch(() => {});
       } catch {
         setUser(null);
+        sincronizarPremiumConvite(null).catch(() => {});
       }
     }
   };
 
   const handleLogout = async () => {
-    Alert.alert("Sair", "Deseja realmente desconectar?", [
-      { text: "Cancelar", style: "cancel" },
-      { text: "Sair", style: "destructive", onPress: async () => {
+    Alert.alert(t('Sair'), t('Deseja realmente desconectar?'), [
+      { text: t('Cancelar'), style: "cancel" },
+      { text: t('Sair'), style: "destructive", onPress: async () => {
           setModalContaVisible(false);
           await logout();
           setUser(null);
+          // Sem conta logada o convite de premium não vale: revoga na hora.
+          sincronizarPremiumConvite(null).catch(() => {});
       }}
     ]);
   };
@@ -388,9 +435,12 @@ export default function HomeScreen() {
   };
 
   const handleExcluir = async (item: any) => {
-    Alert.alert("Excluir", `Deseja apagar esta ${item.tipoItem === 'lista' ? 'lista' : 'nota'}?`, [
-      { text: "Cancelar", style: "cancel", onPress: () => swipeableRefs.current.get(item.id)?.close() },
-      { text: "Excluir", style: "destructive", onPress: () => {
+    Alert.alert(
+      t('Excluir'),
+      item.tipoItem === 'lista' ? t('Deseja apagar esta lista?') : t('Deseja apagar esta nota?'),
+      [
+      { text: t('Cancelar'), style: "cancel", onPress: () => swipeableRefs.current.get(item.id)?.close() },
+      { text: t('Excluir'), style: "destructive", onPress: () => {
           LayoutAnimation.configureNext(LayoutAnimation.Presets.spring);
           if (item.tipoItem === 'lista') excluirLista(item.id);
           else excluirNota(item.id);
@@ -429,9 +479,9 @@ export default function HomeScreen() {
         <View style={styles.header}>
           <View style={styles.topRow}>
             <View style={styles.headerTitleBlock}>
-              <Text style={[styles.title, { color: cores.textoPrincipal }]}>Notas</Text>
+              <Text style={[styles.title, { color: cores.textoPrincipal }]}>{t('Notas')}</Text>
               <Text style={[styles.headerSubtitle, { color: cores.textoSecundario }]}>
-                {notasFiltradas.length === 0 ? 'Comece a organizar suas ideias' : `${notasFiltradas.length} itens salvos`}
+                {notasFiltradas.length === 0 ? t('Comece a organizar suas ideias') : t('{n} itens salvos', { n: notasFiltradas.length })}
               </Text>
             </View>
             <TouchableOpacity onPress={() => setModalContaVisible(true)} style={[styles.avatarBtn, { backgroundColor: user ? cores.botaoAdd : cores.searchBar, overflow: 'hidden' }]}>
@@ -459,7 +509,7 @@ export default function HomeScreen() {
           >
             <Ionicons name="search" size={20} color={buscaAtiva ? cores.botaoAdd : cores.placeholder} style={{ marginLeft: 15 }} />
             <TextInput 
-              placeholder="Procurar em suas notas..." 
+              placeholder={t('Procurar em suas notas...')} 
               placeholderTextColor={cores.placeholder}
               style={[styles.searchInput, { color: cores.textoPrincipal }]}
               value={busca}
@@ -499,7 +549,7 @@ export default function HomeScreen() {
             activeOpacity={0.8}
           >
             <Ionicons name="add" size={17} color={cores.botaoAdd} />
-            <Text style={[styles.chipPastaNome, { color: cores.botaoAdd }]}>Nova pasta</Text>
+            <Text style={[styles.chipPastaNome, { color: cores.botaoAdd }]}>{t('Nova pasta')}</Text>
           </TouchableOpacity>
           {pastasComContagem.map((p: any, i: number) => (
             <MotiView
@@ -534,8 +584,8 @@ export default function HomeScreen() {
               <View style={[styles.emptyIconCircle, { backgroundColor: paleta.primarySoft }]}>
                 <Ionicons name="pencil-outline" size={42} color={cores.botaoAdd} />
               </View>
-              <Text style={[styles.emptyText, { color: cores.textoPrincipal }]}>Nenhuma nota encontrada</Text>
-              <Text style={[styles.emptyHint, { color: cores.textoSecundario }]}>Toque no + para criar sua primeira nota</Text>
+              <Text style={[styles.emptyText, { color: cores.textoPrincipal }]}>{t('Nenhuma nota encontrada')}</Text>
+              <Text style={[styles.emptyHint, { color: cores.textoSecundario }]}>{t('Toque no + para criar sua primeira nota')}</Text>
             </MotiView>
           ) : (
             notasFiltradas.map((item: any) => {
@@ -560,7 +610,11 @@ export default function HomeScreen() {
                     style={[
                       styles.cardNota,
                       { backgroundColor: cores.card },
-                      selecionando && idsSelecionados.includes(item.id) && { borderWidth: 2, borderColor: cores.botaoAdd },
+                      selecionando && {
+    borderWidth: idsSelecionados.includes(item.id) ? 2 : 0,
+    borderColor: idsSelecionados.includes(item.id) ? cores.botaoAdd : 'transparent',
+    borderRadius: 22,
+  },
                     ]}
                     onPress={() => {
                       if (selecionando) {
@@ -579,12 +633,12 @@ export default function HomeScreen() {
                         {item.fixada && <Ionicons name="pin" size={14} color={cores.fixar} style={{ marginRight: 6 }} />}
                         {item.lembrete && <Ionicons name="notifications" size={14} color={cores.botaoAdd} style={{ marginRight: 6 }} />}
                         <Text style={[styles.cardTitulo, { color: cores.textoPrincipal, flex: 1 }]} numberOfLines={1}>
-                          {item.titulo || (item.tipoItem === 'lista' ? "Lista sem título" : "Nota sem título")}
+                          {item.titulo || (item.tipoItem === 'lista' ? t('Lista sem título') : t('Nota sem título'))}
                         </Text>
                       </View>
                       {item.tipoItem === 'lista' ? (
                         <Text style={[styles.cardConteudo, { color: cores.textoSecundario }]} numberOfLines={2}>
-                          {`${item.itens ? item.itens.length : 0} itens na lista`}
+                          {t('{n} itens na lista', { n: item.itens ? item.itens.length : 0 })}
                         </Text>
                       ) : (
                         <View>
@@ -604,7 +658,7 @@ export default function HomeScreen() {
                             {item.conteudo ? (
                               <RichText html={item.conteudo} />
                             ) : (
-                              "Toque para editar..."
+                              t('Toque para editar...')
                             )}
                           </Text>
                         </View>
@@ -634,7 +688,7 @@ export default function HomeScreen() {
           {notasFiltradas.length > 0 && !selecionando && (
             <View style={styles.footer}>
               <Text style={[styles.footerText, { color: cores.textoSecundario }]}>
-                {notasFiltradas.length} {notasFiltradas.length !== 1 ? 'itens salvos' : 'item salvo'}
+                {notasFiltradas.length} {notasFiltradas.length !== 1 ? t('itens salvos') : t('item salvo')}
               </Text>
             </View>
           )}
@@ -651,24 +705,24 @@ export default function HomeScreen() {
               {user ? (
                 <View style={styles.userInfoSection}>
                    {user.photo && <Image source={{ uri: user.photo }} style={styles.modalAvatar} />}
-                   <Text style={[styles.userName, { color: cores.textoPrincipal }]}>{user.name || "Usuário"}</Text>
+                   <Text style={[styles.userName, { color: cores.textoPrincipal }]}>{user.name || t('Usuário')}</Text>
                    <Text style={[styles.userEmail, { color: cores.textoSecundario }]}>{user.email}</Text>
                 </View>
               ) : (
                 <View style={styles.userInfoSection}>
                    <Ionicons name="cloud-offline-outline" size={50} color={cores.textoSecundario} />
-                   <Text style={[styles.userName, { color: cores.textoPrincipal, marginTop: 10 }]}>Sem sincronização</Text>
+                   <Text style={[styles.userName, { color: cores.textoPrincipal, marginTop: 10 }]}>{t('Sem sincronização')}</Text>
                 </View>
               )}
               <View style={[styles.separator, { backgroundColor: cores.borda }]} />
               <TouchableOpacity style={[styles.modalOption, { opacity: isOffline ? 0.5 : 1 }]} onPress={handleTrocarConta}>
                 <Ionicons name={user ? "swap-horizontal-outline" : "log-in-outline"} size={24} color={cores.botaoAdd} />
-                <Text style={[styles.modalOptionText, { color: cores.textoPrincipal }]}>{user ? "Trocar Conta" : "Entrar com Google"}</Text>
+                <Text style={[styles.modalOptionText, { color: cores.textoPrincipal }]}>{user ? t('Trocar Conta') : t('Entrar com Google')}</Text>
               </TouchableOpacity>
               {user && (
                 <TouchableOpacity style={styles.modalOption} onPress={handleLogout}>
                   <Ionicons name="log-out-outline" size={24} color={cores.perigo} />
-                  <Text style={[styles.modalOptionText, { color: cores.perigo }]}>Sair</Text>
+                  <Text style={[styles.modalOptionText, { color: cores.perigo }]}>{t('Sair')}</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -676,17 +730,17 @@ export default function HomeScreen() {
         </Modal>
 
         {/* Modal de Ajuda */}
-        <Modal visible={modalAjudaVisible} transparent animationType="slide">
+        <Modal visible={modalAjudaVisible} transparent animationType="fade">
           <View style={styles.modalOverlay}>
             <View style={[styles.modalContent, { backgroundColor: cores.card, width: '90%' }]}>
-              <Text style={[styles.userName, { color: cores.textoPrincipal, textAlign: 'center', marginBottom: 20 }]}>Guia Rápido</Text>
+              <Text style={[styles.userName, { color: cores.textoPrincipal, textAlign: 'center', marginBottom: 20 }]}>{t('Guia Rápido')}</Text>
               
               <View style={styles.helpItem}>
                 <View style={[styles.helpIconCircle, { backgroundColor: cores.fixar }]}>
                   <Ionicons name="pin" size={20} color="#000" />
                 </View>
                 <Text style={[styles.modalOptionText, { color: cores.textoPrincipal, flex: 1 }]}>
-                  Arraste para a <Text style={{fontWeight: '900'}}>Direita</Text> para fixar itens no topo.
+                  {t('Arraste para a')} <Text style={{fontWeight: '900'}}>{t('Direita')}</Text> {t('para fixar itens no topo')}.
                 </Text>
               </View>
 
@@ -695,7 +749,7 @@ export default function HomeScreen() {
                   <Ionicons name="trash" size={20} color={cores.onPrimary} />
                 </View>
                 <Text style={[styles.modalOptionText, { color: cores.textoPrincipal, flex: 1 }]}>
-                  Arraste para a <Text style={{fontWeight: '900'}}>Esquerda</Text> para excluir uma nota.
+                  {t('Arraste para a')} <Text style={{fontWeight: '900'}}>{t('Esquerda')}</Text> {t('para excluir uma nota')}.
                 </Text>
               </View>
 
@@ -704,7 +758,7 @@ export default function HomeScreen() {
                   <Ionicons name="cloud-upload" size={20} color={cores.onPrimary} />
                 </View>
                 <Text style={[styles.modalOptionText, { color: cores.textoPrincipal, flex: 1 }]}>
-                  Suas notas são salvas <Text style={{fontWeight: '900'}}>automaticamente</Text> na sua conta Google.
+                  {t('Suas notas são salvas')} <Text style={{fontWeight: '900'}}>{t('automaticamente')}</Text> {t('na sua conta Google')}.
                 </Text>
               </View>
 
@@ -712,7 +766,7 @@ export default function HomeScreen() {
                 style={[styles.botaoEntendi, { backgroundColor: cores.botaoAdd }]} 
                 onPress={() => setModalAjudaVisible(false)}
               >
-                <Text style={{color: cores.onPrimary, fontWeight: 'bold', fontSize: 16}}>Entendi!</Text>
+                <Text style={{color: cores.onPrimary, fontWeight: 'bold', fontSize: 16}}>{t('Entendi!')}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -728,7 +782,9 @@ export default function HomeScreen() {
           >
             <View style={styles.barraSelecaoTopo}>
               <Text style={[styles.barraSelecaoContagem, { color: cores.textoPrincipal }]}>
-                {idsSelecionados.length} selecionada{idsSelecionados.length !== 1 ? 's' : ''}
+                {idsSelecionados.length !== 1
+                  ? t('{n} selecionadas', { n: idsSelecionados.length })
+                  : t('{n} selecionada', { n: idsSelecionados.length })}
               </Text>
               <TouchableOpacity onPress={sairSelecao} style={styles.barraSelecaoFechar} hitSlop={8} activeOpacity={0.7}>
                 <Ionicons name="close" size={20} color={cores.textoSecundario} />
@@ -741,7 +797,7 @@ export default function HomeScreen() {
                 activeOpacity={0.8}
               >
                 <Ionicons name="folder-open-outline" size={17} color={cores.botaoAdd} />
-                <Text style={[styles.barraSelecaoBotaoTexto, { color: cores.botaoAdd }]}>Pasta</Text>
+                <Text style={[styles.barraSelecaoBotaoTexto, { color: cores.botaoAdd }]}>{t('Pasta')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.barraSelecaoBotao, { backgroundColor: paleta.primarySoft }]}
@@ -749,7 +805,7 @@ export default function HomeScreen() {
                 activeOpacity={0.8}
               >
                 <Ionicons name="create-outline" size={17} color={cores.botaoAdd} />
-                <Text style={[styles.barraSelecaoBotaoTexto, { color: cores.botaoAdd }]}>Criar</Text>
+                <Text style={[styles.barraSelecaoBotaoTexto, { color: cores.botaoAdd }]}>{t('Criar')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.barraSelecaoBotao, { backgroundColor: paleta.dangerSoft }]}
@@ -757,23 +813,29 @@ export default function HomeScreen() {
                 activeOpacity={0.8}
               >
                 <Ionicons name="trash-outline" size={17} color={cores.perigo} />
-                <Text style={[styles.barraSelecaoBotaoTexto, { color: cores.perigo }]}>Excluir</Text>
+                <Text style={[styles.barraSelecaoBotaoTexto, { color: cores.perigo }]}>{t('Excluir')}</Text>
               </TouchableOpacity>
             </View>
           </MotiView>
         )}
 
         {/* Modal: escolher pasta (mesma subida/slide da aba da IA nas notas) */}
-        <Modal visible={modalPastaAberto} transparent animationType="slide" onRequestClose={() => setModalPastaAberto(false)}>
+        <Modal visible={modalPastaAberto} transparent animationType="fade" onRequestClose={() => setModalPastaAberto(false)}>
           <View style={styles.modalFundo}>
             <TouchableOpacity style={styles.modalDismiss} activeOpacity={1} onPress={() => setModalPastaAberto(false)} />
-            <View style={[styles.sheet, { backgroundColor: cores.fundo, borderColor: cores.borda }]}>
+            {/* Fundo escuro faz fade (Modal fade); o painel sobe sozinho com mola. */}
+            <MotiView
+              from={{ opacity: 0, translateY: 520 }}
+              animate={{ opacity: 1, translateY: 0 }}
+              transition={{ type: 'spring', damping: 24, stiffness: 230 }}
+            >
+            <View style={[styles.sheet, { backgroundColor: cores.fundo, borderColor: cores.borda, paddingBottom: 40 + insets.bottom }]}>
               <View style={[styles.sheetHandle, { backgroundColor: cores.borda }]} />
               <View style={styles.sheetHeader}>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.sheetTitulo, { color: cores.textoPrincipal }]}>Mover para pasta</Text>
+                  <Text style={[styles.sheetTitulo, { color: cores.textoPrincipal }]}>{t('Mover para pasta')}</Text>
                   <Text style={[styles.sheetSub, { color: cores.textoSecundario }]}>
-                    {idsSelecionados.length} {idsSelecionados.length !== 1 ? 'itens selecionados' : 'item selecionado'}
+                    {idsSelecionados.length} {idsSelecionados.length !== 1 ? t('itens selecionados') : t('item selecionado')}
                   </Text>
                 </View>
                 <TouchableOpacity onPress={() => setModalPastaAberto(false)} style={[styles.botaoFechar, { backgroundColor: paleta.surfaceElevated }]} activeOpacity={0.7}>
@@ -788,11 +850,11 @@ export default function HomeScreen() {
                 <View style={[styles.pastaRowIcone, { backgroundColor: paleta.primarySoft }]}>
                   <Ionicons name="add" size={20} color={cores.botaoAdd} />
                 </View>
-                <Text style={[styles.pastaRowNome, { color: cores.textoPrincipal }]}>Criar nova pasta...</Text>
+                <Text style={[styles.pastaRowNome, { color: cores.textoPrincipal }]}>{t('Criar nova pasta...')}</Text>
               </TouchableOpacity>
               {pastasComContagem.length === 0 ? (
                 <Text style={[styles.sheetSub, { color: cores.textoSecundario, textAlign: 'center', marginVertical: 10 }]}>
-                  Nenhuma pasta ainda — crie a primeira!
+                  {t('Nenhuma pasta ainda — crie a primeira!')}
                 </Text>
               ) : (
                 pastasComContagem.map((p: any) => (
@@ -813,22 +875,29 @@ export default function HomeScreen() {
                 ))
               )}
             </View>
+            </MotiView>
           </View>
         </Modal>
 
         {/* Modal: criar pasta (mesma subida/slide da aba da IA nas notas) */}
-        <Modal visible={modalNovaPastaAberto} transparent animationType="slide" onRequestClose={() => setModalNovaPastaAberto(false)}>
-          <View style={styles.modalFundo}>
+        <Modal visible={modalNovaPastaAberto} transparent animationType="fade" onRequestClose={() => setModalNovaPastaAberto(false)}>
+          <KeyboardAvoidingView style={styles.modalFundo} behavior="padding" enabled={Platform.OS === 'ios' ? true : alturaTeclado > 0}>
             <TouchableOpacity style={styles.modalDismiss} activeOpacity={1} onPress={() => setModalNovaPastaAberto(false)} />
-            <View style={[styles.sheet, { backgroundColor: cores.fundo, borderColor: cores.borda }]}>
+            {/* Fundo escuro faz fade (Modal fade); o painel sobe sozinho com mola. */}
+            <MotiView
+              from={{ opacity: 0, translateY: 520 }}
+              animate={{ opacity: 1, translateY: 0 }}
+              transition={{ type: 'spring', damping: 24, stiffness: 230 }}
+            >
+            <View style={[styles.sheet, { backgroundColor: cores.fundo, borderColor: cores.borda, paddingBottom: 40 + insets.bottom }]}>
               <View style={[styles.sheetHandle, { backgroundColor: cores.borda }]} />
               <View style={styles.sheetHeader}>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.sheetTitulo, { color: cores.textoPrincipal }]}>Nova pasta</Text>
+                  <Text style={[styles.sheetTitulo, { color: cores.textoPrincipal }]}>{t('Nova pasta')}</Text>
                   <Text style={[styles.sheetSub, { color: cores.textoSecundario }]}>
                     {idsSelecionados.length > 0
-                      ? `Leva os ${idsSelecionados.length} ${idsSelecionados.length !== 1 ? 'itens selecionados' : 'item selecionado'} para dentro`
-                      : 'Organize suas notas e listas em pastas'}
+                      ? t('Leva os {n} para dentro', { n: `${idsSelecionados.length} ${idsSelecionados.length !== 1 ? t('itens selecionados') : t('item selecionado')}` })
+                      : t('Organize suas notas e listas em pastas')}
                   </Text>
                 </View>
                 <TouchableOpacity onPress={() => setModalNovaPastaAberto(false)} style={[styles.botaoFechar, { backgroundColor: paleta.surfaceElevated }]} activeOpacity={0.7}>
@@ -840,7 +909,7 @@ export default function HomeScreen() {
                   styles.inputNovaPasta,
                   { backgroundColor: paleta.surface, borderColor: cores.borda, color: cores.textoPrincipal },
                 ]}
-                placeholder="Nome da pasta"
+                placeholder={t('Nome da pasta')}
                 placeholderTextColor={cores.placeholder}
                 value={nomeNovaPasta}
                 onChangeText={setNomeNovaPasta}
@@ -853,10 +922,11 @@ export default function HomeScreen() {
                 onPress={confirmarCriarPasta}
                 activeOpacity={0.85}
               >
-                <Text style={{ color: cores.onPrimary, fontWeight: 'bold', fontSize: 16 }}>Criar pasta</Text>
+                <Text style={{ color: cores.onPrimary, fontWeight: 'bold', fontSize: 16 }}>{t('Criar pasta')}</Text>
               </TouchableOpacity>
             </View>
-          </View>
+            </MotiView>
+          </KeyboardAvoidingView>
         </Modal>
 
         {/* FAB Menu (escondido no modo de seleção para não sobrepor a barra) */}
@@ -970,13 +1040,14 @@ const styles = StyleSheet.create({
   chipPastaContagemTexto: { fontSize: 12, fontWeight: '900' },
   // Seleção múltipla
   checkSelecao: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: 8,
+    marginRight: 2,
   },
   barraSelecao: {
     position: 'absolute',

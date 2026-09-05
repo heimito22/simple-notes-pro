@@ -39,6 +39,8 @@ interface MonetizacaoContextData {
   /**
    * true quando o premium foi liberado por EMAIL (convite do desenvolvedor)
    * em vez de compra — usado para exibir o selo "Premium por convite".
+   * O convite só vale ENQUANTO a conta Google logada estiver na lista de
+   * convidados: deslogou ou trocou de conta → o convite sai.
    */
   premiumPorEmail: boolean;
   /** true enquanto a janela de pagamento está abrindo. */
@@ -47,6 +49,12 @@ interface MonetizacaoContextData {
   mostrarAnuncio: () => void;
   /** Abre a janela de pagamento da Play Store (produto "remover_anuncios"). */
   comprarRemoverAnuncios: () => Promise<void>;
+  /**
+   * Reavalia o premium por convite contra a conta logada. Chamado ao abrir o
+   * app, ao voltar do background e (pelas telas) após login/logout. Quando
+   * `usuario` é passado, usa o usuário conhecido em vez de consultar o Google.
+   */
+  sincronizarPremiumConvite: (usuario?: { user?: { email?: string | null } } | null) => Promise<void>;
 }
 
 const MonetizacaoContext = createContext<MonetizacaoContextData>({
@@ -55,6 +63,7 @@ const MonetizacaoContext = createContext<MonetizacaoContextData>({
   comprando: false,
   mostrarAnuncio: () => {},
   comprarRemoverAnuncios: async () => {},
+  sincronizarPremiumConvite: async () => {},
 });
 
 export function MonetizacaoProvider({ children }: { children: React.ReactNode }) {
@@ -73,6 +82,9 @@ export function MonetizacaoProvider({ children }: { children: React.ReactNode })
   // Espelho do estado para uso dentro dos listeners do anúncio (evita captura
   // de valor antigo após a compra "remover anúncios").
   const anunciosRemovidosRef = useRef(false);
+  // Espelho do selo de convite: o sincronizador precisa saber se o premium ativo
+  // veio do convite (para revogar só o convite, nunca uma compra real).
+  const premiumPorEmailRef = useRef(false);
 
   // Ref para a função de recriação (o listener do anúncio a chama ao fechar —
   // evita o ciclo de declaração e mantém sempre a versão mais recente)
@@ -119,10 +131,13 @@ export function MonetizacaoProvider({ children }: { children: React.ReactNode })
     recriarRef.current = criarIntersticial;
   }, [criarIntersticial]);
 
-  // Mantém o espelho do estado de compra sincronizado para os listeners
+  // Mantém os espelhos de estado sincronizados para os listeners
   useEffect(() => {
     anunciosRemovidosRef.current = anunciosRemovidos;
   }, [anunciosRemovidos]);
+  useEffect(() => {
+    premiumPorEmailRef.current = premiumPorEmail;
+  }, [premiumPorEmail]);
 
   // Inicializa o SDK de anúncios e o primeiro interstitial (só no Android)
   useEffect(() => {
@@ -219,14 +234,17 @@ export function MonetizacaoProvider({ children }: { children: React.ReactNode })
     }
   }, [anunciosRemovidos, comprando]);
 
-  // Libera o premium de vez (mesma chave da compra real — persiste entre
-  // reinícios). É idempotente e NUNCA revoga: quem já comprou continua premium
-  // mesmo se trocar de conta no aparelho. Quando porEmail=true, marca a origem
-  // para exibir o selo "Premium por convite" nos Ajustes.
+  // Libera o premium (mesma chave da compra real — persiste entre reinícios).
+  // COMPRA nunca é revogada; o CONVITE (porEmail=true) é revogado pelo
+  // sincronizador quando a conta certa sai. Quando porEmail=true, marca a
+  // origem para exibir o selo "Premium por convite" nos Ajustes.
   const liberarPremium = useCallback(async (porEmail = false) => {
     setAnunciosRemovidos(true);
     anunciosRemovidosRef.current = true;
-    if (porEmail) setPremiumPorEmail(true);
+    if (porEmail) {
+      setPremiumPorEmail(true);
+      premiumPorEmailRef.current = true;
+    }
     try {
       await AsyncStorage.setItem(STORAGE_KEY, 'true');
       if (porEmail) await AsyncStorage.setItem(STORAGE_KEY_PREMIUM_EMAIL, 'true');
@@ -235,21 +253,44 @@ export function MonetizacaoProvider({ children }: { children: React.ReactNode })
     }
   }, []);
 
-  // Premium grátis por EMAIL (desenvolvedor): se a conta Google logada estiver
-  // na lista, libera sem anúncios automaticamente. Verifica ao abrir o app e
-  // sempre que o app volta ao primeiro plano — o Google Sign-In abre uma tela
-  // do sistema (leva o app a background e volta como "active"), então o login
-  // é coberto pelo listener do AppState.
-  const verificarPremiumEmail = useCallback(async () => {
+  // Premium grátis por EMAIL (convite do desenvolvedor): o convite só vale
+  // ENQUANTO a conta Google logada estiver na lista de convidados.
+  // - Conta convidada logada → libera/garante o premium por convite;
+  // - Deslogado OU conta sem convite → se o premium ativo veio do convite,
+  //   REVOGA (o selo some e os anúncios voltam). Compra real nunca é tocada.
+  const sincronizarPremiumConvite = useCallback(async (usuario?: { user?: { email?: string | null } } | null) => {
     if (Platform.OS === 'web') return;
     try {
-      const user = await GoogleSignin.getCurrentUser();
-      const email = user?.user?.email;
-      if (email && emailTemPremium(email)) {
+      let email: string | null | undefined;
+      if (usuario !== undefined) {
+        email = usuario?.user?.email;
+      } else {
+        const user = await GoogleSignin.getCurrentUser();
+        email = user?.user?.email;
+      }
+
+      const convidado = !!email && emailTemPremium(email);
+      if (convidado) {
         await liberarPremium(true);
+        return;
+      }
+
+      // Sem conta convidada: revoga SOMENTE o que veio do convite. Se a compra
+      // real estiver ativa (premiumPorEmail=false), ela permanece intocada.
+      const veioDoConvite =
+        premiumPorEmailRef.current ||
+        (await AsyncStorage.getItem(STORAGE_KEY_PREMIUM_EMAIL).catch(() => null)) === 'true';
+      if (veioDoConvite) {
+        setAnunciosRemovidos(false);
+        anunciosRemovidosRef.current = false;
+        setPremiumPorEmail(false);
+        premiumPorEmailRef.current = false;
+        await AsyncStorage.removeItem(STORAGE_KEY).catch(() => {});
+        await AsyncStorage.removeItem(STORAGE_KEY_PREMIUM_EMAIL).catch(() => {});
       }
     } catch {
-      // Sessão expirada/offline: não bloqueia nada
+      // Falha ao ler a sessão (offline/token expirado): não revoga nem libera
+      // às cegas — o próximo ciclo (foreground ou login/logout) reavalia.
     }
   }, [liberarPremium]);
 
@@ -258,19 +299,28 @@ export function MonetizacaoProvider({ children }: { children: React.ReactNode })
     // Primeira verificação agendada: a liberação só ocorre após a leitura
     // assíncrona do Google, então o setState nunca roda no corpo do efeito
     // (evita o aviso react-hooks/set-state-in-effect).
-    const t = setTimeout(verificarPremiumEmail, 0);
+    const t = setTimeout(() => sincronizarPremiumConvite(), 0);
     const sub = AppState.addEventListener('change', estado => {
-      if (estado === 'active') verificarPremiumEmail();
+      // O Google Sign-In abre uma tela do sistema (app vai a background e
+      // volta como "active"), então o login também é coberto por aqui.
+      if (estado === 'active') sincronizarPremiumConvite();
     });
     return () => {
       clearTimeout(t);
       sub.remove();
     };
-  }, [verificarPremiumEmail]);
+  }, [sincronizarPremiumConvite]);
 
   return (
     <MonetizacaoContext.Provider
-      value={{ anunciosRemovidos, premiumPorEmail, comprando, mostrarAnuncio, comprarRemoverAnuncios: comprar }}
+      value={{
+        anunciosRemovidos,
+        premiumPorEmail,
+        comprando,
+        mostrarAnuncio,
+        comprarRemoverAnuncios: comprar,
+        sincronizarPremiumConvite,
+      }}
     >
       {children}
     </MonetizacaoContext.Provider>

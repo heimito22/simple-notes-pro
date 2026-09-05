@@ -12,15 +12,15 @@ import { appColors } from '../../constants/theme';
 const DIAS: Recorrencia[] = ['Uma vez', 'Diária', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
 
 // Componente de Card isolado para evitar conflitos de contexto
-const TaskCard = ({ t, cores, onToggle, onDelete, isDone }: any) => (
+// `tr` = função de tradução; `task` = objeto da tarefa (antes chamado de t).
+const TaskCard = ({ task, cores, onToggle, onDelete, isDone, tr }: any) => (
   <MotiView
     from={{ opacity: 0, scale: 0.9, translateY: 15 }}
     animate={{ opacity: 1, scale: 1, translateY: 0 }}
     exit={{ opacity: 0, scale: 0.9, translateY: -15 }}
     transition={{ type: 'timing', duration: 250 }}
-    style={[styles.card, { backgroundColor: cores.card, borderLeftColor: cores.primaria }]}
-  >
-    <TouchableOpacity style={styles.checkArea} onPress={() => onToggle(t.id)} activeOpacity={0.75}>
+    style={[styles.card, { backgroundColor: cores.card, borderColor: cores.borda, borderLeftColor: cores.primaria }]}
+  >        <TouchableOpacity style={styles.checkArea} onPress={() => onToggle(task.id)} activeOpacity={0.75}>
       <MotiView
         animate={{ scale: isDone ? [0.86, 1.12, 1] : 1 }}
         transition={{ type: 'spring', damping: 10, stiffness: 220 }}
@@ -40,12 +40,12 @@ const TaskCard = ({ t, cores, onToggle, onDelete, isDone }: any) => (
           styles.taskTxt,
           { color: cores.texto, textDecorationLine: isDone ? 'line-through' : 'none', opacity: isDone ? 0.58 : 1 }
         ]}>
-          {t.titulo}
+          {task.titulo}
         </Text>
-        <Text style={{ color: cores.subtexto, fontSize: 12, opacity: isDone ? 0.75 : 1 }}>{t.recorrencia} • {t.horario}</Text>
+        <Text style={{ color: cores.subtexto, fontSize: 12, opacity: isDone ? 0.75 : 1 }}>{tr(task.recorrencia)} • {task.horario}</Text>
       </View>
     </TouchableOpacity>
-    <TouchableOpacity onPress={() => onDelete(t.id)} style={styles.btnDelete} activeOpacity={0.7}>
+    <TouchableOpacity onPress={() => onDelete(task.id)} style={styles.btnDelete} activeOpacity={0.7}>
       <Ionicons name="trash-outline" size={20} color={cores.perigo} />
     </TouchableOpacity>
   </MotiView>
@@ -53,7 +53,7 @@ const TaskCard = ({ t, cores, onToggle, onDelete, isDone }: any) => (
 
 export default function TarefasScreen() {
   const { tarefas, adicionarTarefa, alternarTarefa, excluirTarefa } = useTarefas();
-  const { isDark } = useTheme();
+  const { isDark, t } = useTheme();
   
   const [novoTitulo, setNovoTitulo] = useState('');
   const [diaSelecionado, setDiaSelecionado] = useState<Recorrencia>('Diária');
@@ -68,6 +68,7 @@ export default function TarefasScreen() {
       texto: paleta.text,
       subtexto: paleta.muted,
       primaria: paleta.primary,
+      primariaSoft: paleta.primarySoft,
       borda: paleta.border,
       inputFundo: paleta.surfaceElevated,
       onPrimary: paleta.onPrimary,
@@ -117,8 +118,8 @@ export default function TarefasScreen() {
         
         <View style={styles.tituloArea}>
           <View>
-            <Text style={[styles.tituloPagina, { color: cores.texto }]}>Tarefas</Text>
-            <Text style={[styles.subtituloPagina, { color: cores.subtexto }]}>Um passo de cada vez</Text>
+            <Text style={[styles.tituloPagina, { color: cores.texto }]}>{t('Tarefas')}</Text>
+            <Text style={[styles.subtituloPagina, { color: cores.subtexto }]}>{t('Um passo de cada vez')}</Text>
           </View>
           <MotiView
             from={{ opacity: 0, scale: 0.8 }}
@@ -143,7 +144,7 @@ export default function TarefasScreen() {
           <View style={[styles.inputContainer, { backgroundColor: cores.card, borderColor: cores.borda }]}>
             <TextInput
               style={[styles.input, { color: cores.texto }]}
-              placeholder="O que precisa ser feito?"
+              placeholder={t('O que precisa ser feito?')}
               placeholderTextColor={cores.subtexto}
               value={novoTitulo}
               onChangeText={setNovoTitulo}
@@ -181,7 +182,7 @@ export default function TarefasScreen() {
                     : { backgroundColor: cores.card, borderColor: cores.borda }
                 ]}
               >
-                <Text style={{ color: diaSelecionado === d ? cores.onPrimary : cores.texto, fontWeight: '700' }}>{d}</Text>
+                <Text style={{ color: diaSelecionado === d ? cores.onPrimary : cores.texto, fontWeight: '700' }}>{t(d)}</Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -192,7 +193,8 @@ export default function TarefasScreen() {
             {pendentes.map((t: any) => (
               <TaskCard 
                 key={t.id} 
-                t={t} 
+                task={t} 
+                tr={t} 
                 cores={cores} 
                 onToggle={alternarTarefa} 
                 onDelete={excluirTarefa} 
@@ -207,7 +209,7 @@ export default function TarefasScreen() {
                 exit={{ opacity: 0 }}
                 style={styles.headerConcluidas}
               >
-                <Text style={[styles.secaoTitulo, { color: cores.subtexto }]}>CONCLUÍDAS</Text>
+                <Text style={[styles.secaoTitulo, { color: cores.subtexto }]}>{t('CONCLUÍDAS')}</Text>
                 <View style={[styles.linhaDivisora, { backgroundColor: cores.borda }]} />
               </MotiView>
             )}
@@ -215,7 +217,8 @@ export default function TarefasScreen() {
             {concluidas.map((t: any) => (
               <TaskCard 
                 key={t.id} 
-                t={t} 
+                task={t} 
+                tr={t} 
                 cores={cores} 
                 onToggle={alternarTarefa} 
                 onDelete={excluirTarefa} 
@@ -225,9 +228,17 @@ export default function TarefasScreen() {
           </AnimatePresence>
           
           {tarefas.length === 0 && (
-             <MotiView from={{ opacity: 0 }} animate={{ opacity: 1 }} style={styles.emptyContainer}>
-                <Ionicons name="sparkles-outline" size={60} color={cores.borda} />
-                <Text style={[styles.emptyText, { color: cores.subtexto }]}>Tudo limpo por aqui!</Text>
+             <MotiView
+               from={{ opacity: 0, scale: 0.9, translateY: 15 }}
+               animate={{ opacity: 1, scale: 1, translateY: 0 }}
+               transition={{ type: 'spring', damping: 16, stiffness: 120 }}
+               style={styles.emptyContainer}
+             >
+                <View style={[styles.emptyIconCircle, { backgroundColor: cores.primariaSoft }]}>
+                  <Ionicons name="sparkles-outline" size={38} color={cores.primaria} />
+                </View>
+                <Text style={[styles.emptyTitle, { color: cores.texto }]}>{t('Tudo limpo por aqui!')}</Text>
+                <Text style={[styles.emptySub, { color: cores.subtexto }]}>{t('Adicione sua primeira tarefa acima.')}</Text>
              </MotiView>
           )}
         </ScrollView>
@@ -267,11 +278,13 @@ const styles = StyleSheet.create({
   headerConcluidas: { flexDirection: 'row', alignItems: 'center', marginTop: 25, marginBottom: 15 },
   linhaDivisora: { flex: 1, height: 1, marginLeft: 10, opacity: 0.3 },
   secaoTitulo: { fontSize: 12, fontWeight: '800', letterSpacing: 1 },
-  card: { flexDirection: 'row', alignItems: 'center', padding: 16, borderRadius: 20, marginBottom: 10, borderLeftWidth: 3, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.08, shadowRadius: 7 },
+  card: { flexDirection: 'row', alignItems: 'center', padding: 16, borderRadius: 20, marginBottom: 10, borderWidth: 1, borderLeftWidth: 3, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.08, shadowRadius: 7 },
   checkArea: { flexDirection: 'row', alignItems: 'center', flex: 1 },
   customCheck: { width: 28, height: 28, borderRadius: 10, borderWidth: 2, justifyContent: 'center', alignItems: 'center' },
   taskTxt: { fontSize: 17, fontWeight: '600', marginBottom: 2 },
   btnDelete: { padding: 8, marginLeft: 5 },
-  emptyContainer: { alignItems: 'center', marginTop: 60, opacity: 0.5 },
-  emptyText: { fontSize: 16, fontWeight: '600', marginTop: 10 }
+  emptyContainer: { alignItems: 'center', marginTop: 70, paddingHorizontal: 24 },
+  emptyIconCircle: { width: 82, height: 82, borderRadius: 41, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+  emptyTitle: { fontSize: 19, fontWeight: '800' },
+  emptySub: { fontSize: 14, marginTop: 8, textAlign: 'center' }
 });

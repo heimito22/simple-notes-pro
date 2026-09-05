@@ -64,7 +64,7 @@ const proximoDisparo = (recorrencia: Recorrencia, horario: string): number => {
 const TarefasContext = createContext<any>({});
 
 export default function TarefasProvider({ children }: any) {
-  const { config } = useTheme();
+  const { config, t } = useTheme();
   const tempoSoneca = config?.tempoSoneca ?? 10;
   const [tarefas, setTarefas] = useState<Tarefa[]>([]);
   // Só passa a salvar depois que os dados foram carregados (evita apagar tudo no 1º launch)
@@ -101,11 +101,11 @@ export default function TarefasProvider({ children }: any) {
   useEffect(() => {
     if (Platform.OS === 'web') return;
     Notifications.setNotificationCategoryAsync(CATEGORIA_TAREFA, [
-      { identifier: ACAO_VOU_FAZER, buttonTitle: 'Vou fazer', options: { opensAppToForeground: true } },
-      { identifier: ACAO_SONECA_10, buttonTitle: `Daqui a ${tempoSoneca} min`, options: { opensAppToForeground: true } },
-      { identifier: ACAO_DEIXAR_DEPOIS, buttonTitle: 'Deixar para depois', options: { opensAppToForeground: true } },
+      { identifier: ACAO_VOU_FAZER, buttonTitle: t('Vou fazer'), options: { opensAppToForeground: true } },
+      { identifier: ACAO_SONECA_10, buttonTitle: t('Daqui a {n} min', { n: tempoSoneca }), options: { opensAppToForeground: true } },
+      { identifier: ACAO_DEIXAR_DEPOIS, buttonTitle: t('Deixar para depois'), options: { opensAppToForeground: true } },
     ]).catch(e => console.error("[Notificações] Erro na categoria:", e));
-  }, [tempoSoneca]);
+  }, [tempoSoneca, t]);
 
   // --- LÓGICA DE AUTO-RESET ---
   // Usa data LOCAL (não UTC) para o "dia" — evita erro no Brasil (UTC-3) após as 21h
@@ -248,8 +248,8 @@ export default function TarefasProvider({ children }: any) {
   ): Promise<string | undefined> => {
     try {
       const content: Notifications.NotificationContentInput = {
-        title: "Lembrete: " + titulo,
-        body: `Está na hora de: ${titulo}`,
+        title: t('Lembrete: {titulo}', { titulo }),
+        body: t('Está na hora de: {titulo}', { titulo }),
         sound: true,
         data: { tarefaId },
         categoryIdentifier: CATEGORIA_TAREFA,
@@ -262,7 +262,7 @@ export default function TarefasProvider({ children }: any) {
     } catch {
       return undefined;
     }
-  }, [montarTrigger]);
+  }, [montarTrigger, t]);
 
   // --- AÇÕES ---
   // Verificação das permissões do alarme (popup/tela cheia/Xiaomi) compartilhada

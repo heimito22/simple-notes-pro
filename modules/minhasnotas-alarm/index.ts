@@ -339,3 +339,28 @@ export const abrirPermissoesMiui = (): void => {
 };
 
 
+
+// ---------------------------------------------------------------------------
+// FECHAR APP NA TELA DE BLOQUEIO (após interagir com o alarme)
+// ---------------------------------------------------------------------------
+
+/** Verifica se o celular está com a tela de bloqueio ativa. */
+export const isKeyguardLocked = async (): Promise<boolean> => {
+  if (!nativeModule) return false;
+  try {
+    return !!(await nativeModule.isKeyguardLocked());
+  } catch {
+    return false;
+  }
+};
+
+/** Fecha a Activity (volta para a tela de bloqueio do celular). */
+export const finishActivity = (): void => {
+  if (nativeModule) {
+    try {
+      nativeModule.finishActivity();
+    } catch {
+      // ignora
+    }
+  }
+};

@@ -11,10 +11,7 @@ export type SomAlarme =
   | 'suave'
   | 'urgente'
   | 'eco'
-  | 'sino'
-  | 'ondas'
-  | 'passaro'
-  | 'galaxia';
+  | 'ondas';
 
 export const SOM_PADRAO: SomAlarme = 'classico';
 
@@ -28,10 +25,7 @@ export interface SomAlarmeInfo {
     | 'flower'
     | 'warning'
     | 'musical-notes'
-    | 'sparkles'
-    | 'water'
-    | 'paw'
-    | 'planet';
+    | 'water';
   asset: number;
 }
 
@@ -72,32 +66,11 @@ export const SONS_ALARME: SomAlarmeInfo[] = [
     asset: require('../assets/sounds/alarme-eco.wav'),
   },
   {
-    chave: 'sino',
-    nome: 'Sino',
-    descricao: 'Badalar suave de sino de igreja',
-    icone: 'sparkles',
-    asset: require('../assets/sounds/alarme-sino.wav'),
-  },
-  {
     chave: 'ondas',
     nome: 'Ondas',
     descricao: 'Mar calmo batendo na areia',
     icone: 'water',
     asset: require('../assets/sounds/alarme-ondas.wav'),
-  },
-  {
-    chave: 'passaro',
-    nome: 'Pássaros',
-    descricao: 'Passarinhos cantando de manhã',
-    icone: 'paw',
-    asset: require('../assets/sounds/alarme-passaro.wav'),
-  },
-  {
-    chave: 'galaxia',
-    nome: 'Galáxia',
-    descricao: 'Som futurista espacial',
-    icone: 'planet',
-    asset: require('../assets/sounds/alarme-galaxia.wav'),
   },
 ];
 

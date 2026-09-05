@@ -94,6 +94,8 @@ class AlarmTriggerReceiver : BroadcastReceiver() {
         try {
           context.startActivity(launchIntent)
           abriuDireto = true
+        // Toca o som via AlarmManager stream (backup: o overlay também toca ao abrir)
+        AlarmSound.tocar(context, som)
         } catch (_: Exception) {
           // bloqueado pelo sistema/ROM — cai na notificação fullScreenIntent
         }

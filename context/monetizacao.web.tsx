@@ -14,6 +14,7 @@ interface MonetizacaoContextData {
   comprando: boolean;
   mostrarAnuncio: () => void;
   comprarRemoverAnuncios: () => Promise<void>;
+  sincronizarPremiumConvite: (usuario?: { user?: { email?: string | null } } | null) => Promise<void>;
 }
 
 const VALORES_PADRAO: MonetizacaoContextData = {
@@ -22,6 +23,7 @@ const VALORES_PADRAO: MonetizacaoContextData = {
   comprando: false,
   mostrarAnuncio: () => {},
   comprarRemoverAnuncios: async () => {},
+  sincronizarPremiumConvite: async () => {},
 };
 
 const MonetizacaoContext = createContext<MonetizacaoContextData>(VALORES_PADRAO);

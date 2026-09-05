@@ -1,8 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { MotiView } from 'moti';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Animated,
   KeyboardAvoidingView,
@@ -15,7 +15,9 @@ import {
   TouchableOpacity,
   UIManager,
   View,
+  BackHandler,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { appColors } from '../constants/theme';
 import { ItemLista, useListas } from '../context/ListaContext';
 import { useTheme } from '../context/ThemeContext';
@@ -35,7 +37,8 @@ const layoutAnimConfig = {
 export default function EditorL() {
   const { id, pastaId } = useLocalSearchParams();
   const router = useRouter();
-  const { isDark } = useTheme();
+  const { isDark, t } = useTheme();
+  const insets = useSafeAreaInsets();
   const { listas, salvarLista } = useListas();
 
   const [titulo, setTitulo] = useState('');
@@ -112,10 +115,10 @@ export default function EditorL() {
     setItens(prev => prev.filter(item => item.id !== itemId));
   };
 
-  const salvarETotalizar = () => {
+  const salvarETotalizar = useCallback(() => {
     salvarLista({
       id: (id as string) || Date.now().toString(),
-      titulo: titulo.trim() || "Nova Lista",
+      titulo: titulo.trim() || t('Nova Lista'),
       itens,
       fixada: listaExistente?.fixada,
       protegida: listaExistente?.protegida,
@@ -123,7 +126,19 @@ export default function EditorL() {
       pastaId: pastaId ? String(pastaId) : listaExistente?.pastaId,
     });
     router.back();
-};
+  }, [id, titulo, itens, listaExistente, pastaId, salvarLista, router, t]);
+
+  // Salvar ao apertar o botão voltar do celular
+  useFocusEffect(
+    React.useCallback(() => {
+      const onBackPress = () => {
+        salvarETotalizar();
+        return true;
+      };
+      const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      return () => sub.remove();
+    }, [salvarETotalizar])
+  );
 
   const rotaçãoIcone = animacaoRotacao.interpolate({
     inputRange: [0, 1],
@@ -143,10 +158,10 @@ export default function EditorL() {
             <Ionicons name="chevron-back" size={23} color={cores.primariaForte} />
           </TouchableOpacity>
           <View style={styles.headerTitleArea}>
-            <Text style={[styles.eyebrow, { color: cores.primaria }]}>LISTA</Text>
+            <Text style={[styles.eyebrow, { color: cores.primaria }]}>{t('LISTA')}</Text>
             <TextInput
               style={[styles.inputTitulo, { color: cores.texto }]}
-              placeholder="Título da lista"
+              placeholder={t('Título da lista')}
               placeholderTextColor={cores.subtexto}
               value={titulo}
               onChangeText={setTitulo}
@@ -168,7 +183,7 @@ export default function EditorL() {
           </View>
           <View style={styles.summaryContent}>
             <View style={styles.summaryTopLine}>
-              <Text style={[styles.summaryTitle, { color: cores.texto }]}>Progresso da lista</Text>
+              <Text style={[styles.summaryTitle, { color: cores.texto }]}>{t('Progresso da lista')}</Text>
               <Text style={[styles.summaryCount, { color: cores.primaria }]}>{concluidos}/{itens.length}</Text>
             </View>
             <View style={[styles.progressTrack, { backgroundColor: cores.cardElevated }]}>
@@ -178,7 +193,7 @@ export default function EditorL() {
                 style={[styles.progressFill, { backgroundColor: cores.primaria }]}
               />
             </View>
-            <Text style={[styles.summarySubtext, { color: cores.subtexto }]}>Toque em um item para marcar como feito</Text>
+            <Text style={[styles.summarySubtext, { color: cores.subtexto }]}>{t('Toque em um item para marcar como feito')}</Text>
           </View>
         </View>
 
@@ -189,7 +204,7 @@ export default function EditorL() {
             </View>
             <TextInput
               style={[styles.inputNovo, { color: cores.texto }]}
-              placeholder="Adicionar item..."
+              placeholder={t('Adicionar item...')}
               placeholderTextColor={cores.subtexto}
               value={novoItem}
               onChangeText={setNovoItem}
@@ -212,7 +227,7 @@ export default function EditorL() {
 
         <ScrollView
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[styles.listContent, { paddingBottom: 45 + insets.bottom }]}
           keyboardShouldPersistTaps="handled"
         >
           {itens.length === 0 ? (
@@ -225,8 +240,8 @@ export default function EditorL() {
               <View style={[styles.emptyIcon, { backgroundColor: cores.primariaSoft }]}>
                 <Ionicons name="list-outline" size={42} color={cores.primaria} />
               </View>
-              <Text style={[styles.emptyTitle, { color: cores.texto }]}>Sua lista está vazia</Text>
-              <Text style={[styles.emptyText, { color: cores.subtexto }]}>Adicione o primeiro item acima para começar.</Text>
+              <Text style={[styles.emptyTitle, { color: cores.texto }]}>{t('Sua lista está vazia')}</Text>
+              <Text style={[styles.emptyText, { color: cores.subtexto }]}>{t('Adicione o primeiro item acima para começar.')}</Text>
             </MotiView>
           ) : (
             itens.map((item, index) => (
@@ -271,7 +286,7 @@ export default function EditorL() {
                       {item.texto}
                     </Text>
                     <Text style={[styles.itemStatus, { color: item.concluido ? cores.sucesso : cores.subtexto }]}>
-                      {item.concluido ? 'Concluído' : 'Pendente'}
+                      {item.concluido ? t('Concluído') : t('Pendente')}
                     </Text>
                   </View>
                 </TouchableOpacity>

@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import { Alert, Platform } from 'react-native';
+import { idiomaAtual, tIdioma } from './idiomas';
 import {
   alarmeNativoDisponivel,
   ehDispositivoXiaomi,
@@ -28,12 +29,16 @@ export const verificarTelaCheia = async () => {
     const faltando: string[] = [];
     if (apiLevel >= 34) {
       const ok = await podeUsarTelaCheia();
-      if (!ok) faltando.push('“Tela cheia” do Android 14+');
+      if (!ok) faltando.push(tIdioma(idiomaAtual, '“Tela cheia” do Android 14+'));
     }
     // A permissão de sobreposição é o que permite o popup abrir com a TELA LIGADA
     const podePopup = await podeExibirSobreposicao();
     if (!podePopup) {
-      faltando.push(xiaomi ? '“Exibir pop-ups em segundo plano” do MIUI' : '“Exibir sobre outros apps”');
+      faltando.push(
+        xiaomi
+          ? tIdioma(idiomaAtual, '“Exibir pop-ups em segundo plano” do MIUI')
+          : tIdioma(idiomaAtual, '“Exibir sobre outros apps”')
+      );
     }
 
     // Xiaomi sempre merece a guia (mesmo com as permissões verificáveis OK)
@@ -55,11 +60,11 @@ export const verificarTelaCheia = async () => {
     if (faltando.length > 0 && !avisoTelaCheiaRef) {
       avisoTelaCheiaRef = true;
       Alert.alert(
-        'Popup do alarme bloqueado',
-        `Para o alarme abrir em POPUP (por cima de outros apps, mesmo com o celular bloqueado), ative: ${faltando.join(' e ')}.${xiaomi ? ' No Xiaomi, ative também “Iniciar automaticamente” e “Sem restrições” na bateria.' : ''}`,
+        tIdioma(idiomaAtual, 'Popup do alarme bloqueado'),
+        `${tIdioma(idiomaAtual, 'Para o alarme abrir em POPUP (por cima de outros apps, mesmo com o celular bloqueado), ative: {itens}.')}${faltando.join(' e ')}.${xiaomi ? tIdioma(idiomaAtual, ' No Xiaomi, ative também “Iniciar automaticamente” e “Sem restrições” na bateria.') : ''}`,
         [
-          { text: 'Agora não', style: 'cancel' },
-          { text: 'Abrir permissões', onPress: () => router.push('/permissoes') },
+          { text: tIdioma(idiomaAtual, 'Agora não'), style: 'cancel' },
+          { text: tIdioma(idiomaAtual, 'Abrir permissões'), onPress: () => router.push('/permissoes') },
         ]
       );
     }

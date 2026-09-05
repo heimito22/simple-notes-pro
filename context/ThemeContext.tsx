@@ -1,6 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
+import { definirSomAlarme } from '../modules/minhasnotas-alarm';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { ehSomAlarme, SOM_PADRAO, type SomAlarme } from './sons-alarme';
+import { definirIdiomaAtual, ehIdioma, tIdioma, type Idioma } from './idiomas';
 
 // 1. Defina a interface para as configurações
 interface Config {
@@ -11,6 +14,7 @@ interface Config {
   tempoSoneca: number;
   somAlarme: SomAlarme;
   chaveIA: string;
+  idioma: Idioma;
 }
 
 const CONFIG_PADRAO: Config = {
@@ -21,6 +25,7 @@ const CONFIG_PADRAO: Config = {
   tempoSoneca: 10,
   somAlarme: SOM_PADRAO,
   chaveIA: '',
+  idioma: 'pt',
 };
 
 // 2. Defina o formato do Contexto
@@ -29,6 +34,8 @@ interface ThemeContextData {
   toggleTheme: () => void;
   config: Config;
   atualizarConfig: (chave: keyof Config, valor: any) => void;
+  /** Traduz uma chave para o idioma ativo do app. */
+  t: (chave: string, vars?: Record<string, string | number>) => string;
   loading: boolean;
 }
 
@@ -58,6 +65,10 @@ export default function ThemeProvider({ children }: { children: React.ReactNode 
           if (parseada.somAlarme !== undefined && !ehSomAlarme(parseada.somAlarme)) {
             delete parseada.somAlarme;
           }
+          // Valida idioma (config antiga pode não ter o campo)
+          if (parseada.idioma !== undefined && !ehIdioma(parseada.idioma)) {
+            delete parseada.idioma;
+          }
           setConfig({ ...CONFIG_PADRAO, ...parseada });
         }
       } catch (e) {
@@ -76,14 +87,30 @@ export default function ThemeProvider({ children }: { children: React.ReactNode 
   };
 
   // 4. Função para atualizar configurações específicas
+    // Sincroniza o som do alarme com o módulo nativo (usado no Android
+  // fechado: SharedPreferences do AlarmSound.somAtual).
+  useEffect(() => {
+    if (Platform.OS === 'android' && config.somAlarme) {
+      definirSomAlarme(config.somAlarme);
+    }
+  }, [config.somAlarme]);
+
   const atualizarConfig = async (chave: keyof Config, valor: any) => {
     const novasConfigs = { ...config, [chave]: valor };
     setConfig(novasConfigs);
     await AsyncStorage.setItem('@config_seguranca', JSON.stringify(novasConfigs));
   };
 
+  // Mantém o espelho do idioma ativo (módulos puros usam para notificações)
+  useEffect(() => {
+    definirIdiomaAtual(config.idioma);
+  }, [config.idioma]);
+
+  const t = (chave: string, vars?: Record<string, string | number>) =>
+    tIdioma(config.idioma, chave, vars);
+
   return (
-    <ThemeContext.Provider value={{ isDark, toggleTheme, config, atualizarConfig, loading }}>
+    <ThemeContext.Provider value={{ isDark, toggleTheme, config, atualizarConfig, t, loading }}>
       {children}
     </ThemeContext.Provider>
   );

@@ -5,9 +5,9 @@ import React, { createContext, useCallback, useContext, useEffect, useRef, useSt
 import { Alert } from 'react-native';
 import { useListas } from './ListaContext';
 import { agendarLembretes, cancelarLembretes, type LembreteNota } from './lembrete-notas';
-import { useMonetizacao } from './monetizacao';
 import { verificarTelaCheia } from './permissao-alarme';
 import { useTheme } from './ThemeContext';
+import { idiomaAtual, tIdioma } from './idiomas';
 
 // SEM webClientId de propósito: o client OAuth do app (google-services.json,
 // projeto simple-notes-39893) é do tipo Android (android_info) — não é um Web
@@ -45,7 +45,6 @@ export function NotasProvider({ children }: any) {
   const listaContext = useListas();
   const listas = listaContext?.listas || [];
   const setListas = listaContext?.setListas;
-  const { mostrarAnuncio } = useMonetizacao();
   // Acesso às configurações (a chave de IA é sincronizada no backup do Drive)
   const { config: configTema, atualizarConfig: atualizarConfigTema } = useTheme();
 
@@ -106,7 +105,7 @@ export function NotasProvider({ children }: any) {
   useEffect(() => {
     const checkUserChange = async () => {
       try {
-        const user = GoogleSignin.getCurrentUser();
+        const user = await GoogleSignin.getCurrentUser();
         const userId = user ? user.user.id : 'local';
         
         if (userId !== currentUserId) {
@@ -243,13 +242,15 @@ export function NotasProvider({ children }: any) {
 
   const restaurarBackupCloud = async () => {
     if (!estaOnline) {
-      Alert.alert("Offline", "Você precisa de internet para restaurar.");
+      Alert.alert(tIdioma(idiomaAtual, 'Offline'), tIdioma(idiomaAtual, 'Você precisa de internet para restaurar.'));
       return;
     }
     try {
       const backupData = await buscarBackupDrive();
       if (!backupData) {
-        Alert.alert("Erro", "Nenhum backup encontrado na sua conta.");
+        // Sem backup na conta é NORMAL (primeiro acesso) — não é um erro:
+        // o login segue sem alarme, o primeiro backup sobe logo em seguida.
+        console.log('[Backup] Nenhum backup na conta — primeiro acesso.');
         return;
       }
       if (backupData.notas) setNotas(backupData.notas);
@@ -261,9 +262,9 @@ export function NotasProvider({ children }: any) {
       if (backupData.chaveIA && !chaveLocal && typeof atualizarConfigTema === 'function') {
         await atualizarConfigTema('chaveIA', backupData.chaveIA);
       }
-      Alert.alert("Sucesso", "Dados restaurados!");
+      Alert.alert(tIdioma(idiomaAtual, 'Sucesso'), tIdioma(idiomaAtual, 'Dados restaurados!'));
     } catch (e) {
-      Alert.alert("Erro", "Falha ao restaurar.");
+      Alert.alert(tIdioma(idiomaAtual, 'Erro'), tIdioma(idiomaAtual, 'Falha ao restaurar.'));
     }
   };
 
@@ -295,12 +296,12 @@ export function NotasProvider({ children }: any) {
     if (typeof setListas === 'function') setListas([]);
     setPastas([]);
     setCurrentUserId('local');
-    Alert.alert("Sair", "Desconectado.");
+    Alert.alert(tIdioma(idiomaAtual, 'Sair'), tIdioma(idiomaAtual, 'Desconectado.'));
   };
 
   const salvarNota = (titulo: string, conteudo: string, id?: string, protegida: boolean = false, pastaId?: string | null) => {
-  // Nota NOVA = sem id (o contexto gera o id). Anúncio curto só na criação.
-  const ehNova = !id;
+  // Nota NOVA = sem id (o contexto gera o id). O anúncio por alteração é
+  // decidido NO EDITOR (Pronto/voltar), nunca aqui no save.
   // Id gerado FORA do updater para poder retorná-lo — o editor usa o retorno
   // quando o sino é acionado na primeira edição de uma nota nova.
   const idFinal = id || Math.random().toString(36).substr(2, 9);
@@ -329,9 +330,6 @@ export function NotasProvider({ children }: any) {
       return [nova, ...prev];
     }
   });
-
-  // Anúncio curto ao CRIAR uma nota nova (não ao editar)
-  if (ehNova) mostrarAnuncio();
 
   // Se o título mudou, re-agenda os lembretes com o novo título
   // (cancela os IDs antigos do fallback e guarda os novos)
@@ -385,7 +383,7 @@ export function NotasProvider({ children }: any) {
     const id = Math.random().toString(36).substr(2, 9);
     const pasta: Pasta = {
       id,
-      nome: nome.trim() || 'Nova pasta',
+      nome: nome.trim() || tIdioma(idiomaAtual, 'Nova pasta'),
       data: new Date().toLocaleDateString('pt-BR'),
     };
     setPastas(prev => [pasta, ...prev]);
@@ -416,7 +414,10 @@ export function NotasProvider({ children }: any) {
       salvarNota, salvarLembreteNota, excluirNota, alternarFixarNota, logout, 
       fazerBackupCloud, estaOnline,
       restaurarBackupCloud, isAppBloqueado, toggleBloqueioApp,
-      recarregarTudo: carregarTudo 
+      recarregarTudo: carregarTudo,
+      // Identidade da conta logada ('local' quando deslogado) — usada, ex., para
+      // saber se a conta já deu feedback no plano gratuito.
+      usuarioId: currentUserId ?? 'local',
     }}>
       {children}
     </NotasContext.Provider>

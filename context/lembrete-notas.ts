@@ -1,6 +1,10 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { agendarAlarmeAndroid, alarmeNativoDisponivel, cancelarAlarmeAndroid } from '../modules/minhasnotas-alarm';
+import { idiomaAtual, tIdioma } from './idiomas';
+
+/** Traduz um dia da semana armazenado (ex.: 'Segunda') para exibição no idioma ativo. */
+const diaTraduzido = (dia: string): string => tIdioma(idiomaAtual, dia);
 
 export type TipoLembrete = 'data' | 'dias' | 'semana';
 
@@ -110,7 +114,7 @@ export const agendarLembretes = async (
   const ids: string[] = [];
   const content = (): Notifications.NotificationContentInput => ({
     title: titulo,
-    body: 'Está na hora de revisar esta nota',
+    body: tIdioma(idiomaAtual, 'Está na hora de revisar esta nota'),
     sound: true,
     data: { tarefaId: notaId, tipo: 'lembrete' },
     ...(Platform.OS === 'android' ? { channelId: 'tarefas' } : {}),
@@ -180,7 +184,7 @@ export const sonecaLembrete = async (notaId: string, titulo: string, minutos = 1
     await Notifications.scheduleNotificationAsync({
       content: {
         title: titulo,
-        body: 'Está na hora de revisar esta nota',
+        body: tIdioma(idiomaAtual, 'Está na hora de revisar esta nota'),
         sound: true,
         data: { tarefaId: notaId, tipo: 'lembrete' },
         ...(Platform.OS === 'android' ? { channelId: 'tarefas' } : {}),
@@ -204,16 +208,26 @@ export const cancelarLembretes = async (notaId: string, expoIds: string[] = []):
   }
 };
 
-/** Texto amigável do lembrete (exibido na nota). */
+/** Texto amigável do lembrete (exibido na nota), no idioma ativo do app. */
 export const resumoLembrete = (l: LembreteNota): string => {
+  const locale = idiomaAtual === 'pt' ? 'pt-BR' : idiomaAtual === 'en' ? 'en-US' : 'es-ES';
   if (l.tipo === 'data' && l.data) {
     const [y, m, d] = l.data.split('-').map(Number);
     const data = new Date(y, (m || 1) - 1, d || 1);
-    return `Lembrete em ${data.toLocaleDateString('pt-BR')} às ${l.horario}`;
+    return tIdioma(idiomaAtual, 'Lembrete em {data} às {hora}', {
+      data: data.toLocaleDateString(locale),
+      hora: l.horario,
+    });
   }
   if (l.tipo === 'dias') {
-    return `Revisar a cada ${l.intervaloDias} dias às ${l.horario}`;
+    return tIdioma(idiomaAtual, 'Revisar a cada {n} dias às {hora}', {
+      n: l.intervaloDias ?? 1,
+      hora: l.horario,
+    });
   }
-  const dias = (l.diasSemana ?? []).join(', ');
-  return dias ? `Revisar às ${dias}, às ${l.horario}` : `Revisar às ${l.horario}`;
+  const dias = (l.diasSemana ?? []).map(diaTraduzido).join(', ');
+  if (dias) {
+    return tIdioma(idiomaAtual, 'Revisar às {dias}, às {hora}', { dias, hora: l.horario });
+  }
+  return tIdioma(idiomaAtual, 'Revisar às {hora}', { hora: l.horario });
 };
