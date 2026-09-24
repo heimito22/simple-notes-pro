@@ -9,7 +9,7 @@ import MobileAds, {
 } from 'react-native-google-mobile-ads';
 import {
   billingNativoDisponivel,
-  comprarRemoverAnuncios,
+  comprarRemoverAnuncios as comprarNativo,
   ouvirCompraAtualizada,
   restaurarComprasRemoverAnuncios,
 } from '../modules/minhasnotas-alarm';
@@ -22,54 +22,184 @@ import {
  * teste aparecem normalmente. Para anúncios REAIS, troque PROD_AD_UNIT_ID pelo
  * ID do seu Ad Unit interstitial no console do AdMob.
  */
-const AD_UNIT_ID = __DEV__ ? TestIds.INTERSTITIAL : 'ca-app-pub-3940256099942544/1033173712';
+const AD_UNIT_ID = __DEV__ ? TestIds.INTERSTITIAL : 'ca-app-pub-3606563609683859/1398347698';
 
+/**
+ * Modelo de premium por CONTA (direito vinculado ao email que pagou):
+ *
+ * 1. COMPRA REAL (Play Billing, não-consumível "removeranuncios"): exige conta
+ *    Google logada e fica VINCULADA ao email logado no pagamento — o dono é
+ *    gravado (a) localmente, como cache do aparelho, e (b) no DRIVE DA CONTA
+ *    (`premium_owner.json` no appDataFolder — a mesma pasta privada do backup
+ *    `backup_notas.json`), que é por-conta e acompanha o email entre aparelhos.
+ *    A restauração PURA do Play Billing nunca vincula dono; só compra nova
+ *    (restaurado===false) ou o arquivo por-conta do Drive vinculam.
+ * 2. CONVITE do desenvolvedor: vale SÓ enquanto a conta convidada estiver
+ *    logada (chave `@config_premium_por_email`).
+ *
+ * REGRAS (sem auto-adoção legada):
+ * - Sem conta logada (offline/deslogado) → NUNCA premium (revoga em memória).
+ * - Só o email DONO da compra tem premium comprado. Outra conta → anúncios.
+ * - Reembolso: quando a Play confirma sem compra (Boolean false), limpa STORAGE.
+ *   Quando a Play está indisponível/offline (null), apenas revoga em memória
+ *   sem destruir o entitlement local — o próximo online reavalia.
+ * - Legado sem dono nunca é auto-adotado para "qualquer conta".
+ */
 const STORAGE_KEY = '@config_anuncios_removidos';
-// Marca quando a liberação veio do email de convite (exibe o selo nos Ajustes)
+const STORAGE_KEY_DONO = '@config_premium_dono_email';
 const STORAGE_KEY_PREMIUM_EMAIL = '@config_premium_por_email';
+// Arquivo por-conta no appDataFolder do Drive: fonte durável do dono.
+const ARQUIVO_PREMIUM_NUVEM = 'premium_owner.json';
 
 // Emails com premium grátis (desenvolvedor). Quando a conta Google logada
 // estiver nesta lista, o app libera sem anúncios automaticamente.
 const EMAILS_PREMIUM = ['heitoruliacchrabeloreis@gmail.com', 'elenuliach@gmail.com'];
 const emailTemPremium = (email: string): boolean => EMAILS_PREMIUM.includes(email.trim().toLowerCase());
 
+/** Resultado de tentar abrir a compra (a UI decide o que avisar). */
+export type ResultadoCompra = 'aberta' | 'precisaLogin' | 'outraConta' | 'indisponivel';
+
 interface MonetizacaoContextData {
-  /** true quando o usuário comprou a remoção de anúncios (para sempre). */
+  /** true quando o premium está ATIVO nesta sessão (ads desligados). */
   anunciosRemovidos: boolean;
   /**
-   * true quando o premium foi liberado por EMAIL (convite do desenvolvedor)
-   * em vez de compra — usado para exibir o selo "Premium por convite".
-   * O convite só vale ENQUANTO a conta Google logada estiver na lista de
-   * convidados: deslogou ou trocou de conta → o convite sai.
+   * true quando o premium ativo veio de CONVITE (selo "Premium por convite").
+   * O convite só vale enquanto a conta Google logada estiver na lista.
    */
   premiumPorEmail: boolean;
   /** true enquanto a janela de pagamento está abrindo. */
   comprando: boolean;
-  /** Mostra o anúncio interstitial (curto) se o usuário NÃO comprou. */
+  /** Email da conta Google logada agora (null quando deslogado). */
+  emailLogado: string | null;
+  /** Email dono da compra (null = compra legada ou sem compra). */
+  emailDonoCompra: string | null;
+  /** true quando a compra foi bloqueada e o login para comprar está pendente. */
+  aguardandoLoginParaCompra: boolean;
+  /** Mostra o anúncio interstitial (curto) se o premium NÃO estiver ativo. */
   mostrarAnuncio: () => void;
-  /** Abre a janela de pagamento da Play Store (produto "remover_anuncios"). */
-  comprarRemoverAnuncios: () => Promise<void>;
   /**
-   * Reavalia o premium por convite contra a conta logada. Chamado ao abrir o
-   * app, ao voltar do background e (pelas telas) após login/logout. Quando
-   * `usuario` é passado, usa o usuário conhecido em vez de consultar o Google.
+   * Tenta abrir o pagamento. NÃO abre sem conta Google logada — o premium é
+   * vinculado ao email da conta. Retorna o que aconteceu para a UI orientar.
    */
-  sincronizarPremiumConvite: (usuario?: { user?: { email?: string | null } } | null) => Promise<void>;
+  comprarRemoverAnuncios: () => Promise<ResultadoCompra>;
+  /**
+   * Reavalia o premium (compra por conta + convite) contra a conta logada.
+   * Chamado ao abrir o app, voltar do background e após login/logout/troca.
+   */
+  sincronizarPremium: (usuario?: { user?: { email?: string | null } } | null) => Promise<void>;
+  /** Marca que o usuário quer comprar e precisa entrar primeiro (abre o login). */
+  solicitarLoginParaCompra: () => void;
+  /** Cancela o pedido de compra pendente (fechou o login sem entrar). */
+  cancelarCompraPendente: () => void;
+  /**
+   * Depois do login bem-sucedido, dispara a compra que ficou pendente e
+   * devolve o resultado (a tela dá o feedback se ela não abriu).
+   */
+  tentarCompraPendente: () => Promise<ResultadoCompra>;
 }
 
 const MonetizacaoContext = createContext<MonetizacaoContextData>({
   anunciosRemovidos: false,
   premiumPorEmail: false,
   comprando: false,
+  emailLogado: null,
+  emailDonoCompra: null,
+  aguardandoLoginParaCompra: false,
   mostrarAnuncio: () => {},
-  comprarRemoverAnuncios: async () => {},
-  sincronizarPremiumConvite: async () => {},
+  comprarRemoverAnuncios: async () => 'indisponivel',
+  sincronizarPremium: async () => {},
+  solicitarLoginParaCompra: () => {},
+  cancelarCompraPendente: () => {},
+  tentarCompraPendente: async () => 'indisponivel',
 });
+
+const normalizarEmail = (email?: string | null): string | null =>
+  email ? email.trim().toLowerCase() : null;
+
+/* ---------------------------------------------------------------------------
+ * Acesso ao appDataFolder do Drive da conta logada (mesmo padrão do backup de
+ * notas do NotasContext: escopo drive.appdata, sessão renovada em silêncio).
+ * O arquivo `premium_owner.json` é POR CONTA: cada conta Google tem a sua
+ * pasta privada, então o dono viaja com o email entre aparelhos.
+ * ------------------------------------------------------------------------- */
+
+const buscarTokenDrive = async (): Promise<string | null> => {
+  try {
+    await GoogleSignin.signInSilently().catch(() => {});
+    const tokens = await GoogleSignin.getTokens();
+    return tokens.accessToken || null;
+  } catch {
+    return null;
+  }
+};
+
+/** Lê o dono registrado na nuvem da conta logada (null se não houver/offline). */
+const lerDonoNuvem = async (): Promise<string | null> => {
+  const token = await buscarTokenDrive();
+  if (!token) return null;
+  try {
+    const busca = await fetch(
+      `https://www.googleapis.com/drive/v3/files?q=name='${ARQUIVO_PREMIUM_NUVEM}' and parents in 'appDataFolder'&spaces=appDataFolder`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    const dados = await busca.json();
+    const fileId = dados?.files?.[0]?.id;
+    if (!fileId) return null;
+    const download = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!download.ok) return null;
+    const corpo = await download.json();
+    return normalizarEmail(corpo?.email);
+  } catch {
+    return null;
+  }
+};
+
+/** Grava o dono na nuvem da conta logada (cria ou atualiza o arquivo). */
+const escreverDonoNuvem = async (email: string): Promise<void> => {
+  const token = await buscarTokenDrive();
+  if (!token) return;
+  const corpo = JSON.stringify({ email: normalizarEmail(email) });
+  try {
+    const busca = await fetch(
+      `https://www.googleapis.com/drive/v3/files?q=name='${ARQUIVO_PREMIUM_NUVEM}' and parents in 'appDataFolder'&spaces=appDataFolder`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    const dados = await busca.json();
+    const fileId = dados?.files?.[0]?.id;
+    if (fileId) {
+      await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: corpo,
+      });
+    } else {
+      const metadata = { name: ARQUIVO_PREMIUM_NUVEM, parents: ['appDataFolder'] };
+      const boundary = 'premium_boundary';
+      const multipart =
+        `--${boundary}\nContent-Type: application/json\n\n${JSON.stringify(metadata)}\n` +
+        `--${boundary}\nContent-Type: application/json\n\n${corpo}\n--${boundary}--`;
+      await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': `multipart/related; boundary=${boundary}` },
+        body: multipart,
+      });
+    }
+  } catch {
+    // best-effort: o cache local cobre o offline
+  }
+};
+
+/* ------------------------------------------------------------------------- */
 
 export function MonetizacaoProvider({ children }: { children: React.ReactNode }) {
   const [anunciosRemovidos, setAnunciosRemovidos] = useState(false);
   const [premiumPorEmail, setPremiumPorEmail] = useState(false);
   const [comprando, setComprando] = useState(false);
+  const [emailLogado, setEmailLogado] = useState<string | null>(null);
+  const [emailDonoCompra, setEmailDonoCompra] = useState<string | null>(null);
+  const [aguardandoLoginParaCompra, setAguardandoLoginParaCompra] = useState(false);
   // Cache do interstitial: recarregado ao abrir após ser mostrado/fechado
   const intersticialRef = useRef<InterstitialAd | null>(null);
   const intersticialCarregadoRef = useRef(false);
@@ -82,9 +212,11 @@ export function MonetizacaoProvider({ children }: { children: React.ReactNode })
   // Espelho do estado para uso dentro dos listeners do anúncio (evita captura
   // de valor antigo após a compra "remover anúncios").
   const anunciosRemovidosRef = useRef(false);
-  // Espelho do selo de convite: o sincronizador precisa saber se o premium ativo
-  // veio do convite (para revogar só o convite, nunca uma compra real).
   const premiumPorEmailRef = useRef(false);
+  // Existe compra REAL (Play Billing) neste aparelho — nunca é apagada por
+  // troca de conta/convite (só o estado de SESSÃO é revogado).
+  const possuiCompraRef = useRef(false);
+  const aguardandoRef = useRef(false);
 
   // Ref para a função de recriação (o listener do anúncio a chama ao fechar —
   // evita o ciclo de declaração e mantém sempre a versão mais recente)
@@ -138,6 +270,9 @@ export function MonetizacaoProvider({ children }: { children: React.ReactNode })
   useEffect(() => {
     premiumPorEmailRef.current = premiumPorEmail;
   }, [premiumPorEmail]);
+  useEffect(() => {
+    aguardandoRef.current = aguardandoLoginParaCompra;
+  }, [aguardandoLoginParaCompra]);
 
   // Inicializa o SDK de anúncios e o primeiro interstitial (só no Android)
   useEffect(() => {
@@ -154,53 +289,263 @@ export function MonetizacaoProvider({ children }: { children: React.ReactNode })
     };
   }, [criarIntersticial]);
 
-  // Carrega o estado de compra: storage local + verificação nativa (Play Billing)
+  const lerDono = useCallback(async (): Promise<string | null> => {
+    try {
+      return normalizarEmail(await AsyncStorage.getItem(STORAGE_KEY_DONO));
+    } catch {
+      return null;
+    }
+  }, []);
+
+  // Ativa o premium na sessão (ads desligados). `porEmail=true` marca o selo de
+  // convite e persiste SÓ a chave de convite — nunca toca na chave de compra
+  // real (o convite não pode "virar" compra).
+  const liberarPremium = useCallback(async (porEmail = false) => {
+    setAnunciosRemovidos(true);
+    anunciosRemovidosRef.current = true;
+    if (porEmail) {
+      setPremiumPorEmail(true);
+      premiumPorEmailRef.current = true;
+      try {
+        await AsyncStorage.setItem(STORAGE_KEY_PREMIUM_EMAIL, 'true');
+      } catch (e) {
+        console.warn('[Premium] Falha ao salvar convite:', e);
+      }
+    } else {
+      setPremiumPorEmail(false);
+      premiumPorEmailRef.current = false;
+      // Se sobrava uma marca de convite antiga (outra conta convidada já usou
+      // este aparelho), limpa — a compra do dono tem precedência na sessão.
+      try {
+        await AsyncStorage.removeItem(STORAGE_KEY_PREMIUM_EMAIL);
+      } catch {
+        // ignora
+      }
+    }
+  }, []);
+
+  // Desativa o premium da sessão. NUNCA apaga a chave de compra (STORAGE):
+  // a limpeza de legado de convite é feita no momento do decode (ver
+  // sincronizarPremium), longe da corrida com a restauração do billing — um
+  // logout/revogação não consegue mais destruir o marcador de compra real
+  // enquanto o restore ainda não respondeu (ex.: offline no boot).
+  const revogarPremium = useCallback(async (haviaInvite: boolean) => {
+    setAnunciosRemovidos(false);
+    anunciosRemovidosRef.current = false;
+    setPremiumPorEmail(false);
+    premiumPorEmailRef.current = false;
+    if (haviaInvite) {
+      try {
+        await AsyncStorage.removeItem(STORAGE_KEY_PREMIUM_EMAIL);
+      } catch {
+        // ignora
+      }
+    }
+  }, []);
+
+  /**
+   * Reavalia o premium contra a conta logada (compra por conta + convite).
+   * `usuario` passado evita a consulta assíncrona ao Google (login/logout já
+   * conhecem o usuário); sem ele, consulta a sessão atual.
+   */
+  const sincronizarPremium = useCallback(
+    async (usuario?: { user?: { email?: string | null } } | null) => {
+      if (Platform.OS === 'web') return;
+      try {
+        let email: string | null | undefined;
+        if (usuario !== undefined) {
+          email = usuario?.user?.email;
+        } else {
+          const user = await GoogleSignin.getCurrentUser();
+          email = user?.user?.email;
+        }
+        email = normalizarEmail(email);
+        setEmailLogado(email);
+
+        const convidado = !!email && emailTemPremium(email);
+
+        // Fonte durável do dono: primeiro a nuvem DA CONTA logada (se o email
+        // estiver logado e houver arquivo), depois o cache local do aparelho.
+        let dono = await lerDono();
+        if (email) {
+          const donoNuvem = await lerDonoNuvem();
+          if (donoNuvem && donoNuvem === email) {
+            dono = donoNuvem;
+            try {
+              await AsyncStorage.setItem(STORAGE_KEY_DONO, donoNuvem);
+            } catch {
+              // ignora
+            }
+          } else if (dono === email && !donoNuvem) {
+            escreverDonoNuvem(email).catch(() => {});
+          }
+        }
+        // Sem conta logada = sem dono efetivo (premium exige login)
+        if (!email) dono = null;
+        setEmailDonoCompra(dono);
+
+        // Verifica no Play Billing se a compra ainda existe (reembolso/cancelamento).
+        // null = Play indisponível/offline → não destrói entitlement; false = sem
+        // compra confirmada → limpa marca local. Em null, só revoga em memória.
+        let possuiCompraAtual: boolean | null = null;
+        if (billingNativoDisponivel()) {
+          try {
+            const r: boolean | null = await restaurarComprasRemoverAnuncios();
+            if (r === null) {
+              possuiCompraAtual = null;
+            } else if (!r) {
+              possuiCompraAtual = false;
+              possuiCompraRef.current = false;
+              try { await AsyncStorage.removeItem(STORAGE_KEY); } catch {}
+              try {
+                const inv = await AsyncStorage.getItem(STORAGE_KEY_PREMIUM_EMAIL).catch(() => null);
+                if (inv === 'true') await AsyncStorage.removeItem(STORAGE_KEY).catch(() => {});
+              } catch {}
+            } else {
+              possuiCompraAtual = true;
+              possuiCompraRef.current = true;
+              try { await AsyncStorage.setItem(STORAGE_KEY, 'true'); } catch {}
+            }
+          } catch {
+            possuiCompraAtual = null;
+          }
+        }
+
+        const invite = (await AsyncStorage.getItem(STORAGE_KEY_PREMIUM_EMAIL).catch(() => null)) === 'true';
+        const entit = (await AsyncStorage.getItem(STORAGE_KEY).catch(() => null)) === 'true';
+        // Se a Play confirmou sem compra (false), zera; se indisponível (null), usa cache.
+        const possuiCompra =
+          possuiCompraAtual === false ? false
+          : possuiCompraAtual === true ? true
+          : possuiCompraRef.current || (entit && !invite);
+        if (possuiCompra) {
+          possuiCompraRef.current = true;
+        } else if (entit && invite) {
+          try { await AsyncStorage.removeItem(STORAGE_KEY); } catch {}
+        }
+
+        // Legado sem dono: nunca auto-adota. Dono só é vinculado em compra nova
+        // (registrarCompra, restaurado===false) ou via premium_owner.json da conta.
+        // Sem dono, premium comprado fica indisponível até compra nova.
+
+        // REGRA DURA: sem conta logada → nunca premium (nem comprado nem convite)
+        if (!email) {
+          const haviaInvite = invite || premiumPorEmailRef.current;
+          const haviaPremium = anunciosRemovidosRef.current;
+          if (haviaPremium || haviaInvite) await revogarPremium(haviaInvite);
+          return;
+        }
+
+        // Conta logada: convite vale só para a conta convidada
+        if (convidado) {
+          await liberarPremium(true);
+          return;
+        }
+
+        // Compra vale SÓ quando há compra ativa E o email logado é o dono.
+        const compraVale = possuiCompra && dono !== null && dono === email;
+        if (compraVale) {
+          await liberarPremium(false);
+          return;
+        }
+
+        // Não vale para esta conta: revoga premium (outra conta sem compra ou reembolsado).
+        const haviaInvite2 = invite || premiumPorEmailRef.current;
+        const haviaPremium2 = anunciosRemovidosRef.current;
+        if (haviaPremium2 || haviaInvite2) {
+          await revogarPremium(haviaInvite2);
+        }
+      } catch {
+        // Falha ao ler a sessão (offline/token expirado): não revoga nem libera
+        // às cegas — o próximo ciclo (foreground ou login/logout) reavalia.
+      }
+    },
+    [lerDono, liberarPremium, revogarPremium]
+  );
+
+  // Assinatura persistente do evento de compra (ref evita re-subscrição).
+  const aoCompraAtualizadaRef = useRef<() => void>(() => {});
+  const registrarCompra = useCallback(
+    async (comprado: boolean, restaurado: boolean) => {
+      if (!comprado) return;
+      // Compra confirmada pelo Play: existe compra real neste aparelho.
+      possuiCompraRef.current = true;
+      try {
+        await AsyncStorage.setItem(STORAGE_KEY, 'true');
+      } catch (e) {
+        console.warn('[Premium] Falha ao salvar compra:', e);
+      }
+      if (!restaurado) {
+        // Compra NOVA feita agora: vincula ao email logado no momento do
+        // pagamento (o fluxo exige conta logada para comprar) e sobe o dono
+        // para o Drive DA CONTA — é o que garante o "para sempre" entre
+        // aparelhos. Restauração pura nunca adota dono.
+        try {
+          const cur = await GoogleSignin.getCurrentUser();
+          const email = normalizarEmail(cur?.user?.email);
+          if (email) {
+            await AsyncStorage.setItem(STORAGE_KEY_DONO, email);
+            setEmailDonoCompra(email);
+            escreverDonoNuvem(email).catch(() => {});
+          }
+        } catch (e) {
+          console.warn('[Premium] Falha ao vincular dono da compra:', e);
+        }
+      }
+      aoCompraAtualizadaRef.current();
+    },
+    []
+  );
+  aoCompraAtualizadaRef.current = () => {
+    sincronizarPremium().catch(() => {});
+  };
+
+  // Carrega o estado inicial: conta logada + compra real (restauração nativa).
   useEffect(() => {
     let ativo = true;
 
     const carregar = async () => {
       try {
-        const salvo = await AsyncStorage.getItem(STORAGE_KEY);
-        if (salvo === 'true' && ativo) setAnunciosRemovidos(true);
-        const porEmail = await AsyncStorage.getItem(STORAGE_KEY_PREMIUM_EMAIL);
-        if (porEmail === 'true' && ativo) setPremiumPorEmail(true);
-      } catch (e) {
+        const dono = await lerDono();
+        if (ativo) setEmailDonoCompra(dono);
+      } catch {
         // ignora
       }
-
       // Verificação real no Play Billing (restaura compras em outro aparelho)
+      // null = indisponível/offline → não assume compra nem limpa nada.
       if (billingNativoDisponivel()) {
-        const comprado = await restaurarComprasRemoverAnuncios();
-        if (comprado && ativo) {
-          // Compra real tem precedência sobre o convite (selo some)
-          setAnunciosRemovidos(true);
-          setPremiumPorEmail(false);
-          AsyncStorage.setItem(STORAGE_KEY, 'true').catch(() => {});
-          AsyncStorage.removeItem(STORAGE_KEY_PREMIUM_EMAIL).catch(() => {});
+        try {
+          const restaurado: boolean | null = await restaurarComprasRemoverAnuncios();
+          if (restaurado === null) {
+            // indisponível/offline: mantém cache; sincronizarPremium reavalia depois
+          } else if (restaurado) {
+            possuiCompraRef.current = true;
+            await AsyncStorage.setItem(STORAGE_KEY, 'true').catch(() => {});
+          } else {
+            possuiCompraRef.current = false;
+            await AsyncStorage.removeItem(STORAGE_KEY).catch(() => {});
+          }
+        } catch {
+          // billing indisponível
         }
       }
     };
     carregar();
 
-    // Reage a compras concluídas em tempo real
+    // Reage a compras concluídas em tempo real (nova ou reconciliada)
     const sub = ouvirCompraAtualizada(info => {
-      if (info.comprado) {
-        // Compra real tem precedência sobre o convite (selo some)
-        setAnunciosRemovidos(true);
-        setPremiumPorEmail(false);
-        AsyncStorage.setItem(STORAGE_KEY, 'true').catch(() => {});
-        AsyncStorage.removeItem(STORAGE_KEY_PREMIUM_EMAIL).catch(() => {});
-      }
+      registrarCompra(!!info.comprado, !!info.restaurado);
     });
 
     return () => {
       ativo = false;
       sub.remove();
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [registrarCompra]);
 
   const mostrarAnuncio = useCallback(() => {
-    // Comprou → nunca mostra anúncio
+    // Premium ativo → nunca mostra anúncio
     if (anunciosRemovidos) return;
     if (Platform.OS !== 'android') return;
     if (mostrandoRef.current) return;
@@ -221,95 +566,80 @@ export function MonetizacaoProvider({ children }: { children: React.ReactNode })
     }
   }, [anunciosRemovidos]);
 
-  const comprar = useCallback(async () => {
-    if (anunciosRemovidos || comprando) return;
-    if (!billingNativoDisponivel()) return;
+  /**
+   * Abre a janela de pagamento. O premium é vinculado ao email da conta Google
+   * logada — por isso, sem conta logada o pagamento NÃO abre (a UI pede login).
+   * Com conta de outro email dono de compra, também não abre (não há o que
+   * comprar de novo: a compra pertence àquele email).
+   */
+  const comprar = useCallback(async (): Promise<ResultadoCompra> => {
+    if (anunciosRemovidos || comprando) return 'aberta';
+    if (!billingNativoDisponivel()) return 'indisponivel';
+
+    // Deteta a conta logada no momento da compra.
+    let email: string | null = null;
+    try {
+      const cur = await GoogleSignin.getCurrentUser();
+      email = normalizarEmail(cur?.user?.email);
+    } catch {
+      email = null;
+    }
+
+    const dono = await lerDono();
+    if (possuiCompraRef.current && dono && email && dono !== email) {
+      // A compra deste aparelho pertence a outro email: trocar de conta é o
+      // caminho (a UI avisa qual email tem o premium).
+      return 'outraConta';
+    }
+    if (!email) {
+      // Exige login para comprar (o premium fica no email da conta).
+      return 'precisaLogin';
+    }
+
     setComprando(true);
     try {
-      await comprarRemoverAnuncios();
+      const res = await comprarNativo();
+      return res?.ok ? 'aberta' : 'indisponivel';
     } catch (e) {
       console.warn('[Billing] Erro ao abrir pagamento:', e);
+      return 'indisponivel';
     } finally {
       setComprando(false);
     }
-  }, [anunciosRemovidos, comprando]);
+  }, [anunciosRemovidos, comprando, lerDono]);
 
-  // Libera o premium (mesma chave da compra real — persiste entre reinícios).
-  // COMPRA nunca é revogada; o CONVITE (porEmail=true) é revogado pelo
-  // sincronizador quando a conta certa sai. Quando porEmail=true, marca a
-  // origem para exibir o selo "Premium por convite" nos Ajustes.
-  const liberarPremium = useCallback(async (porEmail = false) => {
-    setAnunciosRemovidos(true);
-    anunciosRemovidosRef.current = true;
-    if (porEmail) {
-      setPremiumPorEmail(true);
-      premiumPorEmailRef.current = true;
-    }
-    try {
-      await AsyncStorage.setItem(STORAGE_KEY, 'true');
-      if (porEmail) await AsyncStorage.setItem(STORAGE_KEY_PREMIUM_EMAIL, 'true');
-    } catch (e) {
-      console.warn('[Premium] Falha ao salvar liberação:', e);
-    }
+  const solicitarLoginParaCompra = useCallback(() => {
+    if (anunciosRemovidosRef.current) return;
+    setAguardandoLoginParaCompra(true);
   }, []);
 
-  // Premium grátis por EMAIL (convite do desenvolvedor): o convite só vale
-  // ENQUANTO a conta Google logada estiver na lista de convidados.
-  // - Conta convidada logada → libera/garante o premium por convite;
-  // - Deslogado OU conta sem convite → se o premium ativo veio do convite,
-  //   REVOGA (o selo some e os anúncios voltam). Compra real nunca é tocada.
-  const sincronizarPremiumConvite = useCallback(async (usuario?: { user?: { email?: string | null } } | null) => {
-    if (Platform.OS === 'web') return;
-    try {
-      let email: string | null | undefined;
-      if (usuario !== undefined) {
-        email = usuario?.user?.email;
-      } else {
-        const user = await GoogleSignin.getCurrentUser();
-        email = user?.user?.email;
-      }
+  const cancelarCompraPendente = useCallback(() => {
+    setAguardandoLoginParaCompra(false);
+  }, []);
 
-      const convidado = !!email && emailTemPremium(email);
-      if (convidado) {
-        await liberarPremium(true);
-        return;
-      }
+  // Depois de um login bem-sucedido, dispara a compra que ficou pendente e
+  // devolve o resultado — a tela dá o feedback se ela não abriu (outraConta,
+  // precisaLogin, indisponivel) em vez de engolir em silêncio.
+  const tentarCompraPendente = useCallback(async (): Promise<ResultadoCompra> => {
+    if (!aguardandoRef.current) return 'aberta';
+    setAguardandoLoginParaCompra(false);
+    return comprar();
+  }, [comprar]);
 
-      // Sem conta convidada: revoga SOMENTE o que veio do convite. Se a compra
-      // real estiver ativa (premiumPorEmail=false), ela permanece intocada.
-      const veioDoConvite =
-        premiumPorEmailRef.current ||
-        (await AsyncStorage.getItem(STORAGE_KEY_PREMIUM_EMAIL).catch(() => null)) === 'true';
-      if (veioDoConvite) {
-        setAnunciosRemovidos(false);
-        anunciosRemovidosRef.current = false;
-        setPremiumPorEmail(false);
-        premiumPorEmailRef.current = false;
-        await AsyncStorage.removeItem(STORAGE_KEY).catch(() => {});
-        await AsyncStorage.removeItem(STORAGE_KEY_PREMIUM_EMAIL).catch(() => {});
-      }
-    } catch {
-      // Falha ao ler a sessão (offline/token expirado): não revoga nem libera
-      // às cegas — o próximo ciclo (foreground ou login/logout) reavalia.
-    }
-  }, [liberarPremium]);
-
+  // Primeira avaliação + reavaliação ao voltar do background (o Google
+  // Sign-In também cobre login aqui: a tela do sistema manda o app a
+  // background e ele volta como active).
   useEffect(() => {
     if (Platform.OS === 'web') return;
-    // Primeira verificação agendada: a liberação só ocorre após a leitura
-    // assíncrona do Google, então o setState nunca roda no corpo do efeito
-    // (evita o aviso react-hooks/set-state-in-effect).
-    const t = setTimeout(() => sincronizarPremiumConvite(), 0);
+    const t = setTimeout(() => sincronizarPremium(), 0);
     const sub = AppState.addEventListener('change', estado => {
-      // O Google Sign-In abre uma tela do sistema (app vai a background e
-      // volta como "active"), então o login também é coberto por aqui.
-      if (estado === 'active') sincronizarPremiumConvite();
+      if (estado === 'active') sincronizarPremium();
     });
     return () => {
       clearTimeout(t);
       sub.remove();
     };
-  }, [sincronizarPremiumConvite]);
+  }, [sincronizarPremium]);
 
   return (
     <MonetizacaoContext.Provider
@@ -317,9 +647,15 @@ export function MonetizacaoProvider({ children }: { children: React.ReactNode })
         anunciosRemovidos,
         premiumPorEmail,
         comprando,
+        emailLogado,
+        emailDonoCompra,
+        aguardandoLoginParaCompra,
         mostrarAnuncio,
         comprarRemoverAnuncios: comprar,
-        sincronizarPremiumConvite,
+        sincronizarPremium,
+        solicitarLoginParaCompra,
+        cancelarCompraPendente,
+        tentarCompraPendente,
       }}
     >
       {children}

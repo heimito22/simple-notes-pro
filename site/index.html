@@ -1,0 +1,1134 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Notes Pro | Notas minimalistas com backup no Google Drive</title>
+    <meta name="description" content="Simple Notes Pro: bloco de notas minimalista para Android com backup automático no Google Drive, assistente de IA, pastas, alarmes e bloqueio por biometria.">
+    <meta name="theme-color" content="#000000">
+    <meta property="og:title" content="Simple Notes Pro">
+    <meta property="og:description" content="O bloco de notas que redefine o minimalismo no seu Android. Backup no Drive, IA, pastas e biometria.">
+    <meta property="og:type" content="website">
+    <meta property="og:image" content="favicon.png">
+    <link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAIAAADYYG7QAAAEu0lEQVR42u1YfUxbVRQ/577XV2gplNIVihS68bXxuQEbIkyQbSgqbELYJhG3BUNmojERIyYimqlLpotxHzFuiZJo/EhAHBuTzYhCXSDBLSxDgYAwBhgQxmih0EHbd/3jjfK5xRaLDjl/vZx73z2/+zv3nnPPQZgWRIQFQm2jtm9KhamUUrjzC50ze2aZ6VE6Z306e3k63yLeA800AArLKGRRq5RSQbPMaGYALUrJLKcsIPbujC5ZEO5/QXTeNoijnK4EYv+/givagUveGhJEJEgREBB5nud5/r+1RULIUsImOh6KKEUA6hnsG5WalrRxU4B0/GZPWVl5U9NVIZQ7lnYYh9GwYokkfFfMnuKdm9xdDW1G/WBsbGxJyRtqtXdNzU8OJ0F0DA0jdpNoYhVbnnXp+FI8dn1z4iNm81RdXZ1KpaqsrKj+7kL+cwWEEFuSdnbeQKk23ishX5ZctPXBmMGhoZaW5vb2ttHRkZyc7KDAQKNRn5mZAQAsyzofDQAn13iEpa9JfomLO/jh++/sP3AAEcVicWHhy+Pjo/7+/qWln1Z8Uw4ADMM412WIhFLeLSiZkSoRGcmGdPZSSU9vLyABygNAZ2dHcXGxj49679498fEJwnWzy2vEAYaAiDifiPGuSyJ3td4vk2HFSHlEfDIjQ6n0amz8JSIifGBgQAgBzj1DiAQAOIVWk39WvCbELWS79gWdOuuEq2aLu8zt4vnyoqJXIiIjjUZ9VtZTjp0hB2+ZKv1tkWr9UGUhI/WSJz4vUgZN9jdPtp3Xt35/7szXBuNUXt4+IRTZyxA6QBKlVOTuo3riMCNTjdSfMnU3iL3DZdHZIlWY+c8W5veKodZas1UoTOgyBEaKSKyTY2OtNVYXhWJznqs2wTzcOdb01eQfV1wC4unax6zG4ambHYgEwPmAhIsjkUi++Py0RH9NV3bSRa6WRe+WBKWYb3Xr6z/m3Lw84p6Z7L1iMQ4iYcBOkuwGxDAMz/NHj76349G0I+8enlDEUOOA/vJnrJvKPSZX5Kkd/vEI572BU4VMdNbhrALTWZkcALRarWFUvz0lATQ7tAcvSLQJwqh03cOagmqvrS+KlYG+u08hI5qJFH//NePA0yI1NbX24tnaLiYg83XDtcqJ7gbCipERjXfp9D+fcA3eBoDmW93IuixHtqeUjupHfvhtDKP2sVYjiiQTXTrebALKS9clEZZjPR6wGPrAYrrd32y/u5Cx6zhTShUKRXRUWBvGWAx9g1WH3DfukkdksDJvWeg2j6jskeYqV3WYZaTXou+ZMvTbf9HsASTkgbfeLHn1taKR9lr55PWns9OqTh+a4DmiDDWZcVh33EelAGXk1I2GiYEWylsdiLuMXfR4espzcvdbLObqc98ySD84diwlKc7UpcM+3Xqu6/H0NFNwbm/jGdONBqv5NiKC8xIZEgIAa4NCdmbl+Pn5CsrQ0JDS0k9aWn+tv3z1ZFndQwUfsf6Jwk10ZjfiLoQJhgGA48ScTAngMv9RsFxFBWODQgixPcEIAEEEJEssrfAfYetOo27Zu1ursiqrsgK6qauty/vMHThvkq0Un9FTCoiCxlZk4bTmHnU7zv1rtqGFmmk7i2H61+UvsWrbKb0GLucAAAAASUVORK5CYII=">
+    <!-- Link temporário da Play Store (trocar pelo link final quando publicado) -->
+    <meta name="playstore-url" content="https://play.google.com/store/apps/details?id=com.seuusuario.simplesnotes">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        :root {
+            /* Paleta idêntica ao app (constants/theme.ts — tema escuro) */
+            --primary: #0A84FF;
+            --primary-strong: #409CFF;
+            --primary-soft: #152A42;
+            --bg: #000000;
+            --surface: #1C1C1E;
+            --surface-elevated: #2C2C2E;
+            --border: #3A3A3C;
+            --text-main: #FFFFFF;
+            --text-muted: #8E8E93;
+            --success: #34C759;
+            --danger: #FF453A;
+            --warning: #FFD60A;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            scroll-behavior: smooth;
+        }
+
+        html { scroll-padding-top: 90px; }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text-main);
+            overflow-x: hidden;
+            line-height: 1.6;
+        }
+
+        /* Blobs decorativos usam 60vw e vazariam no mobile sem isso. */
+        html { overflow-x: hidden; }
+
+        ::selection { background: var(--primary); color: #fff; }
+
+        /* ===== Fundo ambiente ===== */
+        .glow-canvas {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: -1;
+            background: radial-gradient(circle at 50% -10%, #0d1a2b 0%, var(--bg) 70%);
+        }
+
+        .blob {
+            position: absolute;
+            width: 60vw; height: 60vw;
+            background: radial-gradient(circle, rgba(10, 132, 255, 0.10) 0%, transparent 70%);
+            filter: blur(120px);
+            border-radius: 50%;
+            animation: float 25s infinite alternate ease-in-out;
+        }
+
+        @keyframes float {
+            0% { transform: translate(-10%, -10%) rotate(0deg); }
+            100% { transform: translate(15%, 15%) rotate(15deg); }
+        }
+
+        /* ===== Glass ===== */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.02);
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            border: 1px solid var(--border);
+            border-radius: 28px;
+            box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.04);
+            transition: all 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+
+        /* ===== Navbar ===== */
+        nav {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            z-index: 100;
+            display: flex;
+            justify-content: center;
+            padding: 16px 24px;
+            background: rgba(0, 0, 0, 0.55);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .nav-inner {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            max-width: 900px;
+            width: 100%;
+        }
+
+        .nav-logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 800;
+            font-size: 1.05rem;
+            text-decoration: none;
+            color: var(--text-main);
+            margin-right: auto;
+        }
+
+        /* Logo = ícone real do app (a arte do favicon ampliada) */
+        .nav-logo .logo-badge {
+            width: 34px; height: 34px;
+            border-radius: 10px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+            display: flex; align-items: center; justify-content: center;
+            background: #000;
+        }
+
+        .nav-logo .logo-badge img {
+            width: 100%; height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 4px;
+        }
+
+        .nav-links a {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 600;
+            padding: 9px 16px;
+            border-radius: 100px;
+            transition: all 0.25s ease;
+        }
+
+        .nav-links a:hover { color: #fff; background: rgba(255,255,255,0.06); }
+
+        .nav-cta {
+            background: var(--primary);
+            color: #fff !important;
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+        }
+
+        .nav-cta svg { flex-shrink: 0; }
+
+        .nav-cta:hover { background: var(--primary-strong) !important; }
+
+        @media (max-width: 720px) {
+            .nav-links a:not(.nav-cta) { display: none; }
+        }
+
+        .lang-switch { display: flex; gap: 4px; margin-left: 12px; }
+        .lang-switch button {
+            background: transparent; border: 1px solid var(--glass-border);
+            color: var(--text-muted); font: 600 0.7rem 'Plus Jakarta Sans', sans-serif;
+            padding: 5px 9px; border-radius: 100px; cursor: pointer;
+            transition: all 0.2s ease; letter-spacing: 0.5px;
+        }
+        .lang-switch button:hover { color: #fff; border-color: rgba(255,255,255,0.25); }
+        .lang-switch button.ativo { background: var(--primary); border-color: var(--primary); color: #fff; }
+        @media (max-width: 720px) { .lang-switch { margin-left: 6px; } .lang-switch button { padding: 4px 7px; font-size: 0.65rem; } }
+
+        /* ===== Hero ===== */
+        header {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 140px 24px 80px;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--primary-strong);
+            background: var(--primary-soft);
+            border: 1px solid rgba(10, 132, 255, 0.35);
+            padding: 9px 20px;
+            border-radius: 100px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            font-size: clamp(3.2rem, 10vw, 6rem);
+            font-weight: 800;
+            line-height: 0.95;
+            margin-bottom: 28px;
+            letter-spacing: -0.05em;
+            background: linear-gradient(180deg, #fff 40%, rgba(255,255,255,0.4) 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        p.subtitle {
+            font-size: clamp(1.05rem, 2.5vw, 1.4rem);
+            color: var(--text-muted);
+            margin-bottom: 44px;
+            max-width: 680px;
+        }
+
+        .hero-actions { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; }
+
+        .btn-download {
+            background: #ffffff;
+            color: #000;
+            padding: 20px 48px;
+            border-radius: 100px;
+            font-weight: 700;
+            font-size: 1.1rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            text-decoration: none;
+            line-height: 1; /* ícone e texto na mesma linha de base */
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 10px 30px rgba(255,255,255,0.08);
+        }
+
+        .btn-download svg { flex-shrink: 0; } /* alinhamento vertical exato via flex */
+
+        .btn-download:hover {
+            transform: scale(1.05) translateY(-4px);
+            background: var(--primary);
+            color: #fff;
+            box-shadow: 0 20px 40px rgba(10, 132, 255, 0.35);
+        }
+
+        .btn-ghost {
+            background: transparent;
+            color: #fff;
+            border: 1px solid var(--border);
+            padding: 20px 40px;
+            border-radius: 100px;
+            font-weight: 700;
+            font-size: 1.1rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+
+        .btn-ghost:hover { border-color: var(--primary); color: var(--primary-strong); }
+
+        .phone-mockup-container { margin-top: 90px; position: relative; }
+
+        /* Mockup em CSS — renderização da UI do app. Se um dia quiser usar um
+           print real, adicione print.png e a classe .usar-print no container
+           (a imagem substitui a UI fake automaticamente via JS abaixo). */
+        .phone-image {
+            width: 300px;
+            aspect-ratio: 9 / 19;
+            border-radius: 44px;
+            box-shadow: 0 60px 120px -30px rgba(0,0,0,0.8), 0 0 80px -20px rgba(10,132,255,0.25);
+            border: 11px solid #1a1a1f;
+            background: #000;
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.6s ease;
+            text-align: left;
+            font-size: 1rem;
+        }
+
+        .phone-image img { width: 100%; height: 100%; object-fit: cover; display: none; }
+
+        .phone-image.usar-print img { display: block; }
+        .phone-image.usar-print .phone-ui { display: none; }
+
+        .phone-image:hover { transform: scale(1.03) rotateY(5deg); }
+
+        .phone-ui {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            background: #000;
+            color: #fff;
+        }
+
+        .pu-status {
+            display: flex; justify-content: space-between;
+            padding: 12px 20px 6px;
+            font-size: 0.6rem; font-weight: 700; color: rgba(255,255,255,0.85);
+        }
+
+        .pu-header { padding: 10px 18px 14px; }
+
+        .pu-header .pu-title { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.03em; }
+
+        .pu-search {
+            margin-top: 10px;
+            background: #1C1C1E;
+            border: 1px solid #3A3A3C;
+            border-radius: 12px;
+            padding: 7px 12px;
+            font-size: 0.62rem;
+            color: #8E8E93;
+        }
+
+        .pu-folders { display: flex; gap: 8px; padding: 2px 18px 12px; overflow: hidden; }
+
+        .pu-folder {
+            flex-shrink: 0;
+            background: #1C1C1E;
+            border: 1px solid #3A3A3C;
+            border-radius: 12px;
+            padding: 7px 12px;
+            font-size: 0.6rem;
+            font-weight: 600;
+            color: rgba(255,255,255,0.85);
+            display: flex; align-items: center; gap: 6px;
+        }
+
+        .pu-folder i { width: 12px; height: 12px; color: #409CFF; }
+
+        .pu-notas { flex: 1; padding: 0 14px; display: flex; flex-direction: column; gap: 9px; overflow: hidden; }
+
+        .pu-nota {
+            background: #1C1C1E;
+            border: 1px solid #3A3A3C;
+            border-radius: 16px;
+            padding: 11px 14px;
+        }
+
+        .pu-nota-top { display: flex; align-items: center; gap: 8px; }
+
+        .pu-nota-titulo { font-size: 0.72rem; font-weight: 700; flex: 1; }
+
+        .pu-nota i { width: 13px; height: 13px; color: #8E8E93; }
+
+        .pu-nota-texto {
+            font-size: 0.6rem; color: #8E8E93; margin-top: 4px;
+            display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+        }
+
+        .pu-nota-img {
+            margin-top: 8px;
+            height: 54px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #152A42, #0A84FF33), #0d1220;
+            display: flex; align-items: center; justify-content: center;
+            color: #409CFF;
+        }
+
+        .pu-nota-img i { width: 20px; height: 20px; }
+
+        .pu-nota.check { border-color: rgba(52, 199, 89, 0.5); }
+
+        .pu-check {
+            width: 15px; height: 15px; border-radius: 50%;
+            background: #34C759; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center;
+            color: #000;
+        }
+
+        .pu-check i { width: 10px; height: 10px; color: #000; }
+
+        .pu-fab {
+            position: absolute;
+            right: 16px; bottom: 66px;
+            width: 46px; height: 46px;
+            border-radius: 16px;
+            background: #0A84FF;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 10px 24px rgba(10,132,255,0.45);
+        }
+
+        .pu-fab i { width: 20px; height: 20px; color: #fff; }
+
+        .pu-tabbar {
+            background: #09090B;
+            border-top: 1px solid rgba(255,255,255,0.06);
+            display: flex; justify-content: space-around;
+            padding: 9px 0 14px;
+        }
+
+        .pu-tab {
+            display: flex; flex-direction: column; align-items: center; gap: 3px;
+            font-size: 0.5rem; font-weight: 700; color: #8E8E93;
+        }
+
+        .pu-tab i { width: 15px; height: 15px; }
+
+        .pu-tab.ativa { color: #0A84FF; }
+
+        .pu-home-indicator {
+            width: 86px; height: 4px; border-radius: 2px;
+            background: rgba(255,255,255,0.3);
+            margin: 0 auto 6px;
+        }
+
+        /* ===== Seções ===== */
+        section { padding: 110px 24px; max-width: 1240px; margin: 0 auto; }
+
+        .section-title {
+            text-align: center;
+            font-size: clamp(2rem, 5vw, 3.2rem);
+            font-weight: 800;
+            margin-bottom: 20px;
+            letter-spacing: -0.03em;
+        }
+
+        .section-sub {
+            text-align: center;
+            color: var(--text-muted);
+            max-width: 620px;
+            margin: 0 auto 70px;
+            font-size: 1.05rem;
+        }
+
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; }
+
+        .feature-card { padding: 44px; }
+
+        .feature-card:hover {
+            border-color: rgba(10, 132, 255, 0.5);
+            background: rgba(255, 255, 255, 0.04);
+            transform: translateY(-8px);
+        }
+
+        .icon-box {
+            width: 62px; height: 62px;
+            background: linear-gradient(135deg, var(--primary), #0050b8);
+            border-radius: 18px;
+            display: flex; justify-content: center; align-items: center;
+            margin-bottom: 26px;
+            box-shadow: 0 15px 30px rgba(10, 132, 255, 0.25);
+        }
+
+        .feature-card h3 { font-size: 1.3rem; margin-bottom: 10px; letter-spacing: -0.02em; }
+        .feature-card p { color: var(--text-muted); font-size: 0.98rem; }
+
+        /* ===== Abas (demonstração) ===== */
+        .tabs-wrap { max-width: 860px; margin: 0 auto; }
+
+        .tabs-nav {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-bottom: 34px;
+        }
+
+        .tab-btn {
+            display: inline-flex; align-items: center; gap: 9px;
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            padding: 13px 24px;
+            border-radius: 100px;
+            font-family: inherit;
+            font-size: 0.95rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .tab-btn:hover { color: #fff; border-color: var(--primary); }
+
+        .tab-btn.ativo {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: #fff;
+            box-shadow: 0 10px 26px rgba(10, 132, 255, 0.3);
+        }
+
+        .tab-panel { display: none; padding: 46px; }
+        .tab-panel.ativo { display: block; animation: tabIn 0.45s cubic-bezier(0.2, 0.8, 0.2, 1); }
+
+        @keyframes tabIn {
+            from { opacity: 0; transform: translateY(14px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .tab-panel h3 { font-size: 1.45rem; margin-bottom: 12px; letter-spacing: -0.02em; }
+        .tab-panel p { color: var(--text-muted); margin-bottom: 18px; }
+
+        .tab-panel ul { list-style: none; }
+        .tab-panel li {
+            display: flex; align-items: flex-start; gap: 12px;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+            font-size: 0.98rem;
+        }
+
+        .tab-panel li i { color: var(--primary-strong); flex-shrink: 0; margin-top: 3px; }
+
+        /* ===== Preço ===== */
+        .pricing-card {
+            max-width: 550px;
+            margin: 40px auto 0;
+            padding: 70px 50px;
+            text-align: center;
+            position: relative;
+            border: 1px solid rgba(255, 214, 10, 0.25);
+            background: radial-gradient(circle at top right, rgba(255,214,10,0.04), transparent);
+        }
+
+        .tag-premium {
+            background: linear-gradient(90deg, #FFD60A, #FFA500);
+            color: #000;
+            padding: 9px 26px;
+            border-radius: 100px;
+            font-size: 0.82rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            position: absolute;
+            top: -21px;
+            left: 50%;
+            transform: translateX(-50%);
+            white-space: nowrap;
+        }
+
+        .price-value {
+            font-size: 5.4rem;
+            font-weight: 800;
+            color: var(--warning);
+            letter-spacing: -4px;
+            line-height: 1;
+            margin: 22px 0 10px;
+        }
+
+        .price-note { color: var(--text-muted); margin-bottom: 36px; }
+
+        .benefits-list { list-style: none; display: inline-block; text-align: left; margin-top: 6px; }
+
+        .benefits-list li {
+            margin-bottom: 16px;
+            font-size: 1.08rem;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        /* ===== FAQ ===== */
+        .faq-wrap { max-width: 760px; margin: 0 auto; }
+
+        details {
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            margin-bottom: 14px;
+            background: rgba(255,255,255,0.02);
+            overflow: hidden;
+            transition: border-color 0.3s ease;
+        }
+
+        details:hover, details[open] { border-color: rgba(10, 132, 255, 0.45); }
+
+        summary {
+            padding: 22px 26px;
+            font-weight: 700;
+            cursor: pointer;
+            list-style: none;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+        }
+
+        summary::-webkit-details-marker { display: none; }
+
+        summary i { transition: transform 0.3s ease; color: var(--primary-strong); flex-shrink: 0; }
+        details[open] summary i { transform: rotate(45deg); }
+
+        details .faq-body { padding: 0 26px 22px; color: var(--text-muted); }
+
+        /* ===== Footer ===== */
+        footer {
+            padding: 80px 24px 50px;
+            text-align: center;
+            font-size: 0.95rem;
+            color: var(--text-muted);
+            border-top: 1px solid rgba(255,255,255,0.05);
+        }
+
+        footer .footer-links { display: flex; gap: 26px; justify-content: center; margin-bottom: 26px; flex-wrap: wrap; }
+        footer a { color: var(--text-muted); text-decoration: none; transition: color 0.2s; }
+        footer a:hover { color: var(--primary-strong); }
+
+        @media (max-width: 768px) {
+            .grid { grid-template-columns: 1fr; }
+            .feature-card { padding: 34px; }
+            .tab-panel { padding: 30px 24px; }
+            .pricing-card { padding: 54px 28px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="glow-canvas">
+        <div class="blob" style="top: -5%; left: -5%;"></div>
+        <div class="blob" style="bottom: 0%; right: -5%; background: radial-gradient(circle, rgba(64, 156, 255, 0.07) 0%, transparent 70%);"></div>
+    </div>
+
+    <!-- ===== NAVBAR ===== -->
+    <nav>
+        <div class="nav-inner">
+            <a href="#" class="nav-logo">
+                <span class="logo-badge"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAIAAADYYG7QAAAEu0lEQVR42u1YfUxbVRQ/577XV2gplNIVihS68bXxuQEbIkyQbSgqbELYJhG3BUNmojERIyYimqlLpotxHzFuiZJo/EhAHBuTzYhCXSDBLSxDgYAwBhgQxmih0EHbd/3jjfK5xRaLDjl/vZx73z2/+zv3nnPPQZgWRIQFQm2jtm9KhamUUrjzC50ze2aZ6VE6Z306e3k63yLeA800AArLKGRRq5RSQbPMaGYALUrJLKcsIPbujC5ZEO5/QXTeNoijnK4EYv+/givagUveGhJEJEgREBB5nud5/r+1RULIUsImOh6KKEUA6hnsG5WalrRxU4B0/GZPWVl5U9NVIZQ7lnYYh9GwYokkfFfMnuKdm9xdDW1G/WBsbGxJyRtqtXdNzU8OJ0F0DA0jdpNoYhVbnnXp+FI8dn1z4iNm81RdXZ1KpaqsrKj+7kL+cwWEEFuSdnbeQKk23ishX5ZctPXBmMGhoZaW5vb2ttHRkZyc7KDAQKNRn5mZAQAsyzofDQAn13iEpa9JfomLO/jh++/sP3AAEcVicWHhy+Pjo/7+/qWln1Z8Uw4ADMM412WIhFLeLSiZkSoRGcmGdPZSSU9vLyABygNAZ2dHcXGxj49679498fEJwnWzy2vEAYaAiDifiPGuSyJ3td4vk2HFSHlEfDIjQ6n0amz8JSIifGBgQAgBzj1DiAQAOIVWk39WvCbELWS79gWdOuuEq2aLu8zt4vnyoqJXIiIjjUZ9VtZTjp0hB2+ZKv1tkWr9UGUhI/WSJz4vUgZN9jdPtp3Xt35/7szXBuNUXt4+IRTZyxA6QBKlVOTuo3riMCNTjdSfMnU3iL3DZdHZIlWY+c8W5veKodZas1UoTOgyBEaKSKyTY2OtNVYXhWJznqs2wTzcOdb01eQfV1wC4unax6zG4ambHYgEwPmAhIsjkUi++Py0RH9NV3bSRa6WRe+WBKWYb3Xr6z/m3Lw84p6Z7L1iMQ4iYcBOkuwGxDAMz/NHj76349G0I+8enlDEUOOA/vJnrJvKPSZX5Kkd/vEI572BU4VMdNbhrALTWZkcALRarWFUvz0lATQ7tAcvSLQJwqh03cOagmqvrS+KlYG+u08hI5qJFH//NePA0yI1NbX24tnaLiYg83XDtcqJ7gbCipERjXfp9D+fcA3eBoDmW93IuixHtqeUjupHfvhtDKP2sVYjiiQTXTrebALKS9clEZZjPR6wGPrAYrrd32y/u5Cx6zhTShUKRXRUWBvGWAx9g1WH3DfukkdksDJvWeg2j6jskeYqV3WYZaTXou+ZMvTbf9HsASTkgbfeLHn1taKR9lr55PWns9OqTh+a4DmiDDWZcVh33EelAGXk1I2GiYEWylsdiLuMXfR4espzcvdbLObqc98ySD84diwlKc7UpcM+3Xqu6/H0NFNwbm/jGdONBqv5NiKC8xIZEgIAa4NCdmbl+Pn5CsrQ0JDS0k9aWn+tv3z1ZFndQwUfsf6Jwk10ZjfiLoQJhgGA48ScTAngMv9RsFxFBWODQgixPcEIAEEEJEssrfAfYetOo27Zu1ursiqrsgK6qauty/vMHThvkq0Un9FTCoiCxlZk4bTmHnU7zv1rtqGFmmk7i2H61+UvsWrbKb0GLucAAAAASUVORK5CYII=" alt="Simple Notes Pro"></span>
+                Simple Notes Pro
+            </a>
+            <div class="nav-links">
+                <a href="#recursos" data-i18n="nav_recursos">Recursos</a>
+                <a href="#diferenciais" data-i18n="nav_dif">Diferenciais</a>
+                <a href="#premium" data-i18n="nav_premium">Premium</a>
+                <a href="#faq" data-i18n="nav_faq">FAQ</a>
+                <a href="https://play.google.com/store/apps/details?id=com.seuusuario.simplesnotes" target="_blank" rel="noopener" class="nav-cta"><i data-lucide="download" size="15"></i><span data-i18n="nav_baixar">Baixar</span></a>
+                <div class="lang-switch" id="langSwitch" role="group" aria-label="Idioma / Language">
+                    <button data-lang="pt" type="button">PT</button><button data-lang="en" type="button">EN</button><button data-lang="es" type="button">ES</button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- ===== HERO ===== -->
+    <header>
+        <div data-aos="fade-up">
+            <span class="hero-badge"><i data-lucide="sparkles" size="15"></i> <span data-i18n="hero_badge">Backup no Google Drive · IA · Biometria</span></span>
+            <h1>Simple Notes Pro</h1>
+            <p class="subtitle" data-i18n="hero_sub">O bloco de notas que redefine o minimalismo no seu Android. Notas, listas e pastas com backup automático na sua conta Google.</p>
+            <div class="hero-actions">
+                <a href="https://play.google.com/store/apps/details?id=com.seuusuario.simplesnotes" target="_blank" rel="noopener" class="btn-download">
+                    <i data-lucide="download" style="margin-top:-1px"></i><span data-i18n="cta_download">Baixar na Play Store</span>
+                </a>
+                <a href="#recursos" class="btn-ghost">
+                    <i data-lucide="arrow-down"></i> <span data-i18n="cta_features">Ver recursos</span>
+                </a>
+            </div>
+        </div>
+
+        <div class="phone-mockup-container" data-aos="fade-up" data-aos-delay="200">
+            <div class="phone-image" id="phoneMock">
+                <!-- print.png real ao lado do index.html — se faltar, o JS
+                     remove a classe e cai na UI fake (nunca quebrado). -->
+                <img src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAUEBAQEAwUEBAQGBQUGCA0ICAcHCBALDAkNExAUExIQEhIUFx0ZFBYcFhISGiMaHB4fISEhFBkkJyQgJh0gISD/2wBDAQUGBggHCA8ICA8gFRIVICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICD/wAARCASnAjADASIAAhEBAxEB/8QAHQABAAIDAQEBAQAAAAAAAAAAAAUGAwQHAQIICf/EAF8QAAEDAgICCQwPBAcHAwQCAwABAgMEBQYREiEHExQVMTRxkrE2QVFTVFVhcnSTwdEIFiIyNTdSVnOBkZShsuEXI0LSGDNDRGJjoiQmJ2WCo/Bkg7NFdcLxCdMllcP/xAAbAQEBAAIDAQAAAAAAAAAAAAAAAQQFAgMGB//EADcRAQABAwEEBggFBQEBAAAAAAABAgMRBAUSITFBUWGRsdEGExQ0cXKBwSJikqHhFTJSU/DxI//aAAwDAQACEQMRAD8A/GQAAA2aGhq7lWx0dDA6eeRcmsan/mSeE6fbsI4ewrStuGJpI6yryRUgX+rY7sZfxr/5kBRrDg/EOI3pvXbnvhzyWeT3Eaf9S6vsOhUWxRh+ggbNijFeT2uXThoI0VMsuDTdwLnn1iNu+yHcqxNy2tiUtOnuW6uBPA1NSfiVaaSWpfttyrnPXsPcrvwLwR0hq7DVnjbFHZZLpMx2ltlVVPeq+BUjybl4MjOmP8GUys3uwHaWrGubF3AjlRezm7Wc6pm0zuL0FRU+FG6KElHupvvLXTxJ2ZZkz6RlXQY9mSsgarKGyRU7XLmqRU7GIvKiKfS7M+IF97b8v+hhQ2y16cG9sf1qpkSev7stycka+oZTC7/tlxF3Bwf4Geo9/bNiPuD/AEMKTuiv7ut/m19Q3RX922/za+oZVdf2y4i73pzGeoftkxF3vTmM9RSt0V/dtv8ANr6huiv7tt/m19QyLr+2XEXe/wD0M9Q/bLiLuD/QwpW6K/u23+bX1DdFf3bb/Nr6hkXRNmTEKL8H/wChnqPf2y4i69vRf+hhSt0V/dtv82vqG6K/u63+bX1DIun7ZMQ5/B/+hh7+2XESoib36vEaUrdFf3bb/Nr6huiu7tt/m19QyLr+2bEXcH+hnqH7ZcR5Zbg/0NKVuiu7tt/m19Q3RX93W/za+oZF0/bJiLvenMZ6h+2TEWee96cxnqKXuiv7tt/m19Q3RX93W/za+oZF1TZlxEn/ANPTmM9Q/bLiLuD/AEM9RR5Km5NbnFU26Rfk6Oj0oaD7vf2Oy3tjf4WIxyfgMph0f9suIl4aD/Qz1D9suIu4P9DPUc335xB3p/7bRvziDvT/ANtoyYdH/bJiLPPcH+hnqPf2y4i69vzXxGeo5vvziDvT/wBto35xB3p/7bRlXR/2yYiyy3vTV/gZ6h+2TEWee4EX/oYc435xB3p/7bRvziDvT/22jI6P+2TEWtd701/4G+oJsyYiT+4JzGeo5xvziDvT/wBto34xB3p/7bRkdH/bJiLvenMYe/tkxEq5rb0z8RpzffnEHen/ALbRvziDvT/22jKYdI/bLiNc/wDYP9DDz9smIu4P9DTnG/OIO9P/AG2jfnEHen/ttGVdH/bHiLPPcH+hnqH7ZMRdwJzGHON+MQd6f+20b84g70/9toymHR/2yYiyy3AnMZ6guzJiJf7h/oYc435xB3p/7bRvziDvT/22jJh0f9smIsstwavEZ6h+2TEWpdwJmn+BhzffnEHen/ttG/OIO9P/AG2jJh0dNmPEWv8A2BFRf8DD39seIe96ebYUCC4XuVf3sNHTp2ZXNz+xM1NvdFd3db1/9tfUMquf7Y8Q557gTPxGD9seIe4P9DSl7or+7bf5tfUe7or+7rf5tfUMi5/tjxCv9w/0M9Q/bFiHuD/Q0pm6K/u63+bX1DdFf3db/Nr6hkXNdmLEK8NB/oZ6jz9sWIe96cxpTN0V/d1v82vqG6K/u63+bX1DKYXP9sWIUXNKBM/Eae/tjxFnnuDX4jCl7or+7rf5tfUN0V/d1v8ANr6hlVz/AGxYh73/AOho/bFiJcv9gTmMKZuiv7ut/m19Q3RX93W/za+oZFz/AGxYi7g/0NPP2w4h73p9TGFN3RX93W/za+obor+7rf5tfUMi5/thxDnnuD/Q0ftixAn9w/0MKZt9w7ut/m19R4s9w7ut3m19QyLqmzLfEy07fnl/ltNafZRoa1HNuuE6CrRztN23UTHZr2VXPWutdZUXTXHrVNtfytVPQY3PuK5otNbpfFk0cxlFnlxNsaXJ6b5YIoYuDXAx9OurxFMMuFdiq/I7eqvrbTO73rWytnjT/pX3X49Yqsu2Ki7fYnKnZgkRxGSpa5H5aclNJ8mZmWX1jKpu8bE93pWyVFirae9UyKuSRLoSonWzYvoVTn9TS1NFUOp6unkgmbwskarVT6lLjSXe92hzZKStdLEnAjnabft4ULPDiex4phbb8TUTNt1I2R2pUX/C9NacgRyEFxxNgars0Tq+3yLW25NavRPdxeMnY8PQU4igAAG3brfVXS4wUFHHtk8ztFqdZPCvYROFVNQ6/hK30eE8HOxJXI9tbVxqrUdl7mPP3Oj4V1L9adhSjZfvPse2VIKViS3KZqI9+ebpHZa9eWpuf2eFTm1xuVVcqp1VWzK968CdZqdhE6x7dLlPc6+WuqnZueupuepqdZENB7kgRJJEzkXW1i/w+FRMjYZqYj55Up4l4Ou93Ih4l1pqbidIiu7ZL7pSKkkfK9XvcqqvZPggk5b7cZeGbJOwhrOuNa7hqHmqAM61lUvDUP5x5uqp7fJzlMIAzbqqe3yc5Ruqp7fJzlMIAzbqqe3yc5Ruqp7fJzlMIAzbqqe3yc5Ruqp7fJzlMIAzbqqe3yc5Ruqp7fJzlMIAzbqqe3yc5Ruqp7fJzlMIAzbqqe3yc5Ruqp7fJzlMIAzbqqe3yc5Ruqp7fJzlMIAzbqqe3yc5Rumo7e/nKYTJHDNMuUUT5F7DWqoH1umo7e/nDdNR29/OUyb3XDuCo8071De64dwVHmneoDFumo7e/nKN01Hb385TLvdcO4KjzTvUN7rh3BUead6gMW6ajt7+co3TUdvfzlMu91w7gqPNO9Q3uuHcFR5p3qAxbpqO3v5yjdNR29/OUy73XDuCo8071De64dwVHmneoDFumo7e/nKN01Hb385TLvdcO4KjzTvUN7rh3BUead6gMW6ajt7+co3TUdvfzlMu91w7gqPNO9Q3uuHcFR5p3qAxbpqO3v5yjdNR29/OUy73XDuCo8071De64dwVHmneoDFumo7e/nKe7pqO3v5ymTe64dwVHmneob3XDuCo8071AYt01Hb385Rumo7e/nGXe64dwVHmneo+X0NbG3SfRzsTsujVPQB87pqO3yc5Ruqp7fJzlMPAAM26qnt8nOUbqqe3yc5TCAM26qnt8nOUbqqe3yc5TCAM26qnt8nOUbqqe3yc5TCAM26qnt8nOUbqqe3yc5TCAM26qnt8nOUbqqe3yc5TCAM26qnt8nOUbqqe3yc5TCAM26qnt8nOUbqqe3yc5TCAM26qlP7eTnKfSV1WnBUP+01wBvMutexdVQ76zZS/1bm6FSyOoZ2HpmRAAmWVdJI7Sp3vopV/hVc2L6j170c7QmYkci8Cp713IQpsQ1GTdql91Gv2p4UAveGcWTWyVtFcXLLRu9zm/WrE7C9lOg+ca4RhggS/WOH/AGJ2uaJnBF/iTwdHIpUkVW5Mc7SavvH9kvWCb+1r1sdxykppkVrEfrTLrt6fxQqOYgn8W4ffh6/SUqIq00ibZA5VzzYvWz7KcBAEVP4OsS4ixZRW1WqsKu2ydexG3W77eD6y27IV53beEtlM7KnpusmpM+sn1J0m/sXUjLbhTEOKZlRFREo4lVODVpPyX7PsKLNJJUPqK6XNXyuV31qpehGrk1kb6l6ZtjXRanynfoRcj3SPV7lzVSSvH7hYKJP7NubvGXhIoigAAAAAAAAAAAAAAAAAAAAAAAB61rnvRjUVzlXJETrnhN2rRt9vnvT2osrXbTTIqfxqmt31J+IH0tNQWVqLcI0rK9Uz3NnkyLx1ThXwIYJcQ3WRNCKp3LH1o6dEjRPs1kW97pHue9yuc5c1VVzVVPkDe34u/fSr8871jfm799KvzzvWaIA3t+bv30q/PO9Y35u/fSr8871miAN7fm799KvzzvWN+bv30q/PO9ZogDe35u/fSr8871jfm799KvzzvWaJJWm1OuU71fKkFLC3TmmXganrUD434u/fSr8871nm/F376VfnnesnWvtESKyhsW6mJqWWoeubvqTUhrTW+33Fj974X0dYxFctO92bX+Kq9cCL35u/fSr8871jfm799KvzzvWaSoqKqKmSoeAb2/N376Vfnnesb83fvpV+ed6zRAG9vzd++lX553rG/N376Vfnnes0QBvb83fvpV+ed6z6Ze7wx2k26VSr4ZVXpI8ATbbxT137q9UjJc9W6YWoyVvh1anGncba+hVkscjaikmTOKdnA5Ox4FTsGgTNknZM59mqnf7PVrkxV/s5f4XJ0KBDA+5YnwzPhkTJ7HK1ydhUPgAAAAAAAAAAAAAAAAAAAAAAAADco5GuXc0q5NdwL8leybkbpYpEciqyaJ3CnCip1yIRVRc0J9WpLuap61Q3Qd4yf+IBfb1E3FuxlvjG1FrLd+9VE4dFNT05Mtf1IciOt7GVXHHe6iz1SI6nqmqisXroupU6Dm9/tj7NiO4Wt6ZLTTujTwoi6l+zIso63XxssuwFY6SJ+clxR1S9cstb35ZfUmr6ihR0yK+ggVNT36buRDpeykkUFmwxa4NUUVJAjW5quSbXnwr9RR1j0bpEnaqRzvt1ekSQpN2kWW6zuX5RomesXSrpl/xqYCKAAAdL2MNhjFWyk6eptUlLQ2qllSGeuqpMmteqZoxrU9052WWpEy8JzQ6dsHXGvTZmwZakrZ0oFvMU60ySLtaycGmreBXZJlmBHM2LL/W7MdVsZWiSGuuVPVyUq1GtkSIz30i560aiJn2frLviT2OtXbcM3i7YYxxZsV1FiRXXOgoc0mpkTPS1Zrnlkq5LkupctaZHTtjdGp7LrZWkiy3cykr1puzpbYzg/AofsUX1L9lS+xzK91HLY6ndelwKmkz331qv4gcSXCuI24Sbi1bLVpYXT7mSv2pdpWT5Ol/5r1HYYfY7UsOHbLdr/spYcw++70UdbDTXBXRvRr2o7LWqZ5Z5KqdcoUlbsmfsabRLvl+z7dy6C7Sm59vzVctPLPhzXLPLPwnbcQbI2wBjBMIUeJrHf7pLTWyC3LLG5adlCiZIq6KO92uea5pmmWXCuoDjdv2NrRXbKFywa/ZFsFLRUcKysvcsuVJULkxdFi58Pu1Th/hUuGJPY8MsOxxcsc0uyPYbvbaJnuXUiOVs79JG7Wx+eirs14PApWNlHANs2MtmZ+H3pUXayMWGsbHp6EslM73TmK5E1OREcmll1s8jsWJJsFbPWx3dYMFPvGHpcE0K1NHZ50jbRyQtRc1RjM8nqiKmkq5ouXDmqgflOCCWpqo6aBiySyvRjGpwucq5Ih039kLoKWOS4YmpaSV2pzVj9wjuwjlcmf2FFwuuWMrKqd2w/nQ/TOxxVUcvsi6+2XW426mbLh+SC3b57W6FtVI6PQ0WvRUVyr1kRVVEVDd6O1pqdLc1N+jfxMREZxzz1O+iKYomuqMuNTbE7n0kz7XiSjr6iNukkLGoml4M0cuXgzQ5oqKiqipkqH7XxvXWetxVQU1oudnu7qKOTbqqzwRthj02UyJEr40RHv2yOd+WvRR7c8s0Q/Gl1REvNanYnk/MpNfYs+z2tTao3N7PDMzyxx4lymndiqmMZaQOhPsWxc3GuGKGPG1e+wVdLE+71y0Ko+imVF02Nbl7pEXRTPJcs/4siOtdqwFOuLd88U1lMlFDI6xqyjV2+D0eqMR6f2ebcl8Ga69WS6V0KcAABM3P91Y7PA33ro3zL4VV2XoIYma7/aMN2ypbr2lX07/Auek38FUCGAAAAAAAAAAAsdO7a8INYxctuq/3ip2ETUhXCUttZC2CWgq10YJlRyP+Q5OBQLrZbXDeqZljtdrkrr7VSq2NGppKxicCMTgTrqrl/AhbpRz2q600E6tSsgm2p+iuetFyXWnCfFJU3m3P0qJ2n7lWtmhk0VVq9bNFzyNWWZ1PNu64yNdO1P3ULVzyXsqZFy7TXRTTFOJj9/i66aJpmZzzRd2axt4qkZ73bFU0T7kkdLK6R65ucqqqnwY7sAAAAAAAAD6Y5zHte1cnNXNF7CnyZaaB9TVRU8aZvlejE5VXICTxKxG4gqHomW2o2TLwuaiqQ5KYgmZPf6p0btJjHJG1eyjURPQRYAAAD7ZFLLpbXG5+gmbtFFXJM8s1+tUT6z4LpsZ3DEVsxm2rwvTUlRcWwPRG1muJGrlmqpmiO8CLnryXhRFQKbJHJDK+KVjo5GKrXNcmStVOFFTrKS1vw5c66522jkp5KRtxejIZpo3IxyL10Xr/AFFupsLUdxwnii+3Nk0d0pKmb3LZlc1rkyVUVVzV2tV1quZdK3g2O/po/wD4mgccxFY5sO32a1TzsndEjV02IqIqKmaal5RZMOXfEEyx26mVzGrk+V66LGcq+jhJ3ZP+MCs+ji/IhK7Gt2W63u04JumJYMM2mrqNGS6uizdCioq6KLwJpLkmkvBnrXIDxuxNcNrTbLvTNky96kblT7f0KzfsG3vD7Fmq4Elps8tvhXSanL10+s/Ws2FPYnW2WW019+uNwq4XpFNeEqaqVsUiatc0bdqbr+o4xsuy2zAGIajC+DMax4qtVXTI/bJVbNJRaS/1e2N9y/NuS+DPsgcYoaGquVwgoKKJZamoekcbE66qdtsvsZ8WXyj2+jrUmVmqTaKZz2Md2NJVTM5xsZ/GdY/pnfkcf0Mpn21uEsEWWWhrJoblnm+lqHQox68Ll0ffLmqrkvYUwL92uLm7TOIxn98drz+v1V6jURat17sRTntmZq3YjlOO5+QKD2MWKLos6W+4OqdzuVkuhRrkxycLc1dw+Aq122G660XF9DPeWbaxPdtdTOarVzyVFTPUfttjrWyCLCrb/Pbqu13l70ckb3urEV+rJW8LteWsi8ZQYIqcZ45pr1PVQVjqCKZZoI25RxxqxzmtVV9+96tbwcCE09y5VP4qs93/AHBw2dqNRdrj1lze6Jj8PPE9XGMYxx5834BxDhqtw9URtqHMmhlz2uVmeS5cKKi8CkGdf2QEo3WeDdiq1mlKsevXtm1roJq8JyA2D0YAABYKH95h6Rf4oJEen25ekr5Y8PptltuEXZjcv4Z+gCctUrqDFlBVRrkjnJ+KevI2tmegSmx82uYzRZcKSKoz7K5aK/lQ0ZPcwWuqThTa1z5FLRszwNlsuEbm1rNJ9NJA52vSXRVqp9SZr9ql6BO7MSouL6KBERGsa1EROsiMT1lLmbldatfkUbE+1ULjsurnsg07etoIv+lpUan4RuPgpoxI5rUcal8dekxGWo41L469JiIAAAFjwNib2m49suKdx7t3sqmVO59s0Ns0etpZLl9hXAB0im2W7vatm+s2ULLSMpaiqq5J30Uj1ex0cnvonKmSqip19WS5L1i63v2QNmZhy+0OAtjiiwpc8QsWO43COo2x7muz0kYiNTRzzd4EzVcs9acCAFiXG+KlwK3A63qf2utn3SlDk3QR+eeeeWllnryzyz15ZnXqPZ9wnV0doq8Y7EdqveILPCyCmr4ptztcjPeaUaNVNXDlrTPPJE4D8/gDrVHs7Yki2Yq7ZGuFtoLjJXxOpJ7fMzOLcyojdqaq5q3JETX19eeaKqEzetnKwU2Dbzh3Y42OKPCDr7HtNwq2VKzSPjXPNjNSaKZKqdhEVckz1nDABs0NXJQXKmroURZKeVsrUXgzaqKnQdXq8V7HOIZaevvFHPBWMc1784VcrtFFyYrmrrbr8GeSHHwbDSa+5paaqKYiqmecTGY4Oyi5NEYdyk2S8H2e07RY4JJFiau008cG1MR3hVeBM9a8KnEJZXzTvmkXSe9yucvZVVzU+ActdtK/rt2LuIinlERiFuXarmM9AADWuoAAAlrRUwaM9srX6FLVoiafanp713r8BEgDZraKooKt9NUs0Xt7GtHJ1lReuimsS1Ndo3UraG60+66ZnvHIuUkXiu7HgXUfa2y2VHuqK9RMRf4KpqxuT60zRQIYEzvD/wA5tnn19Q3h/wCc2zz6+oCGBM7w/wDObZ59fUN4f+c2zz6+oCGBM7w/85tnn19Q3h/5zbPPr6gIYEzvD/zm2efX1DeH/nNs8+vqAiGySMTJj3NTwLkeKqquarmpMbw/85tnn19Q3h/5zbPPr6gIYEzvD/zm2efX1DeH/nNs8+vqAhgTO8P/ADm2efX1DeH/AJzbPPr6gIYEzvD/AM5tnn19Q3h/5zbPPr6gIYEzvD/zm2efX1Hm8cbVzlvdua3rq2VXL9iIBDk7Qx7z0K3eoTRqZWq2kjXh1pksip2ETgPlstktvu4GuudSnvXSt0Imr2dHhd9ZF1dZUV1S6pqpVkkd1163gTsIBhVVVVVVzVeueAAAAALBhHEi4Wv2+aUiVSLE6JY9PQ4cteeS9gr4AukOO3x2C/2tba1Vu88s22JLltWnwpllryyM8+yHJMmHMrWxq2ZzXL+9X97k1G9jVqTwlEAE1ie+riPEM91WmSm21GtSNHaWSIiJw/UQoAHb8LeyPxThbYXrdjqlttHMr2uhpK97Ezp4n56bXMyykXWuTl4M9eeSHEAANy2XGrtF1prnQybXU00iSRuyz1p2fAfoGyeynv8AZrO2309BNCzWqtinarWqvCrNJiq37T85A6a7NFc708+5h39HZv1RXXE5jhmJmJx1ZiYfpG1+ylutmgmht1tqYmTSLK/SnjeqvXhdmrFXMpt62Zm3i5SV0lpqFklT9459Uiq9c881XR16zkAONGnotzE09HbLqsbO0+nqiq3E8OWZmcZ7JnCwYlxRVYimiR8KU9PDnoRIueteFVXrqV8AyGxAAALPhRNJ1Sz5THJ/pUrBacH8blTwehQJSVP92qCTro3oUt+ypE2XYtwrWLnpR1EsadjJUzX8qdfslUlT/dKkXwO6VLZslOVdhnDCZ8NY9cv+hSiQ2XNeyNT/AESdCFSqfhG5eTRFt2XPjGp8u0t6EKlVfCNy8miEjmlRxqXx16TEZajjUvjr0mIgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWnB/HJeT0KVYtGD+OScnoUCal6kaXkd0qWnZHz/YvhVV1/wC1O/IpV5epGl5HdKlo2R9ewrhTyp35FKJLZd+Men+hToQqVV8I3LyaItuy58Y1N9C3oQqVV8I3LyaISOaVHGpfHXpMRlqONS+OvSYiAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABaMH8cl5PQpVy04P45LyehQJqXqSpeR3SpaNkf4lsKav7078ilXl6kqXkd0qWfZH+JbCnlTvyKUSey58Y1Nr/ALFvQhUqr4RuXk0Rbdlz4xqb6FvQhU6r4RuXk0QkczqONS+OvSYjLUcal8dekxEAAAAD9Lexd2JMEbJ9Nil+L7dNVut7qZKdYql8Oij0k0s9FUz96gH5pB+zNnb2LuHrFgCTE2xvQVMVRa9KWtpHzvnWeDL3T26SqqOZlnknC3S66IfjMAD9d+xs2DtjvZH2Lau/YrtVRVV8Vzlpmvjq5Ik0GxxuRMmqicLl1nPPZN7G2E9jTHFmteEqKWkpaq37olbJO+VVftrm55uVctSIBwcAAACw4KwlcMdY2tmE7VNBBW3GRY4pKhypG1UartaoirwNXrAV4H6GxJ7EnZCwxhS64jrrzYZKW2UslXKyGaVXuaxquVG5xomeSdk/PIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAbFJR1dfVMpaKmkqJn+9ZG1XKv2F6tuxRfapiSV9TT29FT3iqsj0+pNX4mbptDqdXOLFE1eHfyYmo1mn00ZvVxH/dTnoOut2HqfQ91fZdLwU6ZfmIyv2IrrCxXW+5U9UvyJGrEq9KGxr9H9o0RvTa7pifuwKNuaCucRc74mPs5qDfudnudmqdz3OilppF4NNNTuReBfqNA0ldFVFU01xiYbimqmuN6mcwAA4OQAABacH8cl5PQpVi0YP45JyehQJuXqSpeR3SpZ9kf4lsKJ/wCqd+RSsS9SVL4rulSz7I/xLYU8qd+RSiT2XPjGp/oW9CFSqvhG5eTRFu2XfjGpvoW9CFRqvhG5eTRCRzSo41L469JiMtRxqXx16TEQAAAP2l7BzimOfHouiY/Fp+0vYOcUxz49F0TAfsVzUc1WuRFRdSop/OX2S+w0uxxjTf6yUujhe8yOdCjE9zSTcLofAnC5vgzT+E/YuyzsrR7FuIMGT3JGrYrtVTUle/RzdCmi1WSp4GqutOuir10QuGMcKWHZGwHW4duqMqbdcoUVk0ao5WLwslYvZRclRevyKBxP2GPxGXD/AO9z/wDxQnIfZs/Gdhz/AO0f/wDd5+gvY14MvOx/gPEOFL7ErKqjv86NkRqoyeNYodCVnZa5Nfg1pwopzXZ9wxT4y9llsZ4brGadJWUzd0M+XEyaSR7fraxU+sDnuw37FG4Y2stLijGtwnstoqmpJTUlO1N01DF4HqrkVI2qnBqVVTXkiZKve/6Imw7uXadxXVH5Zbdvg7T5cstH8Dtl5utDhvDNwvVZ+6obZSyVMqMRPcxxsVyoiciakPwsz2ZmyF7cEr32u1rY9t121Il09qz4Ntzz08uvlln1sgPnZm9ipcsC2apxTg24T3qy0rVkqaadqbppmJwvzbqkanXyRFRNeSpmqSvsbNgnElRecH7LjbtbEtDZpZVpVWTb8m7ZFllo6PCmfDwH7YtlxoMQ4corrSok9BcqVlRGj0RUfHIxHJmnhReA/P2x5so2LAmyLT+x7p7BW7ZSXKqggrNtZtbY5HyVEfueHUx7W/UB3DHNhqsUbHeIcN0U0UNTc7fPSRSTZ6DHPYrUV2WvLNesfgfHvsWcZ7H+A7njC6X+y1NHbmsdJFTOlWR2lI1iZaTEThcnXP6A4pv8OFsG3jEtRTvqYrXRy1j4Y1RHPRjVcrUVdWa5H5Cxx7JWy7L2D59jO14WuFBW4iqKWiiqJpo3MjctRGuaomteADnOwn7G297KVImIbvWvsmGkerGTNZpTVaouTkiRdSNRdSvXNM9SIuS5fpuD2Iew7DSJBJS3aeREyWaSvVHr4cmojfwO42Wz0FgsFDZLVA2noaCBlPBG1PesamSdB+WsUWP2Xd1x5VX2z1kdroGzqtHQQ3GDaWRIvuUexdT1VOFXcKqvBqRApOy/7EipwvY6rEux/cKm7UdK1Zai3VSItQyNEzV0bmoiPyTXo5IuSas+A4zsR7Ed/wBlzFb7TapWUVDStSStr5Wq5lOxVyRERPfOXJcm5pnkq5oiKf1Bs0tznw9b5r3Sx0tzfTRuq4I36bI5Vamm1q9dEdmiKcX2CbbYsL4/2V8I23aoaimvrapsLdStp5YkdGiJ8lqq5PBq7IEbafYe7E9BQsiuLrvdajL3c0tXtSKvgaxEyT615SrY79hjhyptc1Vsf3mqoLixquZSXCRJYJV+TpoiOZyrpJ4Dq+zjhrZYxFYbd+yzE6WioppHvqqdsu0PqkVE0NGTJcssne5XJFz4dRw++bNfsgNjTY0ltOMcGTpfGy7XDiOeNssDYstWltebHSIvAqqiKmWaKvCH5CvFnuVgvdZZbxRyUVwopXQzwSJk5jkXWn68C8JoG/eLxdL/AHmqvN6r56+4Vb9smqJ36T3u8K8mSZdZEyNAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEzhvDtdiW7NoaNNFqe6lmcnuYm9lfQnXIdEzXI/RWCsPMw9hqCFzESrnRJqh3X0lTU36k1fab7YmzP6hqN2r+ynjPl9Wl2vtH2GxvU/wB08I8/o3rDh214doUpbdAjVVP3kztb5V7Kr6OAlwFVE4VRD7BatUWaIt24xEdD5Zcu13a5ruTmZAeaTflN+09O11NS422hu1C+iuNMyogfwtenB4UXrL4UOD40wbUYYrUlhc6a3TuyilXhavyHeHw9c/QZo3e10t6tFRbKtucU7cs+uxes5PCi6zQ7Y2Rb2hamYjFyOU/aezwbvZW1LmhuxEzmiecfeO3xfl0GzX0U9uuNRQVLdGankdG9PCi5GsfHKqZpmaaucPq0TFURMcgAHFQtGD+OS8noUq5acH8cl5PQoE1L1JUvI7pUs2yN8S+FfKXfkcVmXqSpeR3SpZtkbXsMYUX/ANS5P9ClEpsufGNT/Qp0IVKp+Ebl5NEW3ZcX/iNTZcG0pl9iFSqvhG5eTRCRzSo41L469JiMtRxqXx16TEQAAAP2l7BzimOfHouiY/Fp+xfYVXa12ykxtvjcqWj2x9HobonbHpZJLnlpKmYE37N/qWwd5ZUf/Gw1/Yl7NO66aLYsxLV/v4Gqtnnkd79ia3U6r2WpmrfBmnWQw+zRu9queGMItt1zpKxzKuoVyQTskVqLG3h0VXI/GtDW1dtuNPcKCokpqumkbNDNG7RdG9q5tci9ZUVEUD+yB+YNlW5U9p9mxsU1dS9GRupXU+a8GlK6aNv+p6F72FtnCxbIux/BW3i50Vvv1HlBcIJZmxI5+WqViOVPcvTX4FzTra/zb7MS80tRsp4Zr7Nc4Zn09sRzZqWZr9rek71TW1VyVNSgftLHlhmxTsb4jw5TPRlRcrdPSxOcuSI98ao3PwZ5H8qG4QxQ7FntTSw12/u3bn3DtLtt088ssvTwZa+A/oBsL+yOwrj6w0ltxJc6WzYqiYkc0NS9Io6tyJ/WROXUufCrOFFz4U1nddKmRN1aUeWj/W5pwcvYAhcFWOXDOx9h/Dsz0fNbbdBSPci6nOZGjVVPBmin4qobnTXb/wDkQWtpno+JLzJT6SLmirHTrEv4sU7ts1+yPwvgSwVdqwvdKa8YqmYscUdM9JY6NVT+slcmrNOFGcKrlnkms/BGE8V12FtkC04wiVaiqoK1lY5Hu1zZOzcir/iTNFXwgf1H2TrfW3bYhxdbbdTvqayqtFVFDDGmbpHrE5EaiddVXUfzHwVDXYe2RcOXu52+qp6O23akmqJJYHNbGjZmqukqpq4F4T+nmCNkLCWyDYYLthi8QVbJGIr4NNEmgXLWyRmebVT7F6yqhyr2XFTTM2AK6mfURtmkrKbRiWREc5Ek15JnmoHf0XNuaa+wflG8+zJisF9rrJdtjSupa6hmdBNE+4sRWuauS/2Zsex+9kpYLrhqhwfj26RWu9UUbaeCuqn6MNaxNTdJ66myImSLpanZZouaqh+iKnDmDr9Ww32rsVnulUxEWKulpYpntROBWvVFX8QOI4g9kjibDGFLZii+bDN2pLPc42yQ1K3BitajvepJlHnGqpkqI7LNFTwon5atWLdkjHfsi6/GOxhR1lLfblUrIyGFUe2KHJG6MyqiMVmTW5q5ETV2cj9m7MuzfgLAeFq+gqqigv8AeaiJ0UVma5syPVUVP3ya0azs5614EQ/PPsYtnXCmDIa3CWLaektENbUrUw3WKBGt0l/s5lamaNT+F2tEzVFyTJQL9H7K674JxBUYT2XMCTUd1onIyWotUiK2ROtI2ORUzaqa0VHqin6LwziPDmyJgmlv1ocy4Wa5xuRGzRanIiq17Hsd2FRUVF1ajWuFi2PtkWhgqrhbLHiimYmcM744qpGp/hdryTkU1MQ412O9ivDLWXS522xUNJHowUEGi16omvRjhbrX6ky16wP5++yNwFadj3ZnrLVYokgtlbTx18FOi5pAj1cjmJ4Ecx2XYRUTrHHy+7LmyJUbKGyXcMVSU60tM9GwUlO5c1igZqair8pc1cvhcpQgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACbwlRMuOMLVSSJmx9Q1XJ2UT3S9B+leHX2T877H72x7IFpc7gWRzfrVjkTpP0QnAfTfRCmmNNcq6d77R5vnvpTVPtFFPRu/eQ6tsF08FRjO4sqIY5mpQqqI9qORF2xvZOUnWtgXq2uXkC//ACNN5tycbOu46vvDS7HjOutZ6/s6BVY9wxBjt2EJcLyyTbobTbaynjcxVdlry4ctes55s14ZtFivNurrTTR0m72ybbBEmi3Saqe6ROtnpa8uwX697L1FZMYVVifhuqqZKeZIlmhe1XPzRF1NyzXh4Myt7OuH40ioMUsqp1fI9KV8Ejs2tRWq5Fan8PAuadfM8dsqKtPrbE1UzbiuOvO9w/Z6raU039JeimqK5pnqxu8f3cOAB9LfP3CdlOibTY0WoY3JKqBkq+MmbV/KhRTo+y7I12JaGNPfMpEz+t7jnB8T21TTTtC9FPLL69smqatFamrqAAahtAtOD+OS8noUqxaMH8ck5PQoE3L1JUvI7pUs+yMqrsL4U8pd+RxWJepKl5HdKlm2RlT9jOFUTh3S78ilEpsufGNTfQt6EKlU/CNy8miLbsufGNTfQt6EKlVfCNy8miEjmlRxqXx16TEZajjUvjr0mIgAAAeouR4APVXM8AA9Rcgq5ngAGfdlXufc+6Zdp7Xpro/ZwGAAAABkimlgkSSGR0b04HMVUVPrQSzzTyLJPK+V68LnuVy/apjAAzx1lVFE6KKpljjdwsa9URfqQwAD3M8AAzQ1VTTOV1PPJCq8KxuVuf2GN73yPV73K5zlzVyrmqnyAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAANq3VklvulLXxe/p5Wyp4clzP1BS1MNbRw1lO5HQzsSRip10VM0PyqdX2MsXRxsbhu4yo3XnSSOXVmvDH9utPrTsHsfRfaNOmvzYuTiK+Xx/l5X0i0NWosxetxmaPD+HWS37H+M2YIvlTcpLe6uSen2jQbIjMvdIueaovYKgD6XqLFvUWqrN2M0zzfPbF6uxci7bnEw7v/SApc8/anLn2d1t/lOd452QrnjieBs9OyioaZVdFTscrvdLq0nO665auDUUwGt0uxNDpbkXbVH4o7ZnxbDUbX1mpom3cr4T2RHgAFF2QsXR2W1vtdFKi3KqZo+5XXCxeFy9hV4E+0ztZq7ejs1Xrs8I/fsYek0tzVXYs244z+3a5Zje7NvGMa6qidpQsckMS9lrdWf1rmv1lcAPht+9Vfu1Xa+dUzPe+x2bVNm3Tbp5RGO4AB0u0LTg/jkvJ6FKsWnB/HJeT0KBNS9SVLyO6VLNsjfEvhXX/enfkcVmXqSpeR3SpZdkb4mMKr/6l35FKJXZc+Mam+hb0IVKp+Ebl5NEW3Zc+Mam+hb0IVKq+Ebl5NEJHNKjjUvjr0mIy1HGpfHXpMRAAAA2KairKzT3JSTVG1ppP2qNX6KdlcuA1zvexNid1fYLhh2G3wUkFBbJJHyx+/nkVV905Uy6y5dfg4QODxRSzzxwQRuklkcjWMYmauVdSIiddTPX26utVfJQ3KklpKqL38UrVa5urNNSm3h1r34stDI55IHurIWpLGqI5iq9NaZ9dD9BWGgtcey9ieK43CquN0ZTsRi1MbFasGgxXLqaiIqLkiImWouB+aAdkwtsf4RxBcLxdLZvld7PQsYyCmVyQzVMytzc1VXLJE1ZcHDw6iQrti2ww4vwsq0FXR0F2dLFU2+afSfC9sSvTJ6Z9jsr+IwOFg7muDNjKWz36rZBdWtw9VObVPSX3UqIq+4ai6sv4c9S6szHUbHmCKrFeFZKaaoobReqV8+0Sze6c5qNc1qOXPJVR2tNfvdXCMDiAOlbJWGLNYKakfb8N3azzulcx26JElp5GpwK16Kvul4cuwbOxrg3D+IMPXO5V9HPebhTSIyO2U9SkL1Zknu81VM+Fevl7nsqMDlgOq0GEcPz7I9ytbcL4jqqWCFJIqJUbG9HL8t6qmTOwuessVdscYQt2LsOsrbfWUtDemyQOo5an3dNOiI5vu0zzzz0cs11qgwOEA6xS7Httt1hxTV3qCSWppq/e22t21WI+RVRGuXLhT3bV5EUujdhvDebbJvVcnSrBmt7SoboJL8na888s/B4M+uMD85mepo6uje1lXSzU7nN0mpKxWKqdlM+sdTocIYLsGAIL7jJtbVT19TJTxbkfltWi5zdJE4F96rtefWTI+dnPR9tNnRj1exLaxGuXrppuyUYHJwAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD1FVFRUXJU654AOnYW2UJqOKOhxCx9TE33LapmuRqf4k/i5eHlOoW6/Wa7Ro+3XKnqM/wCFr0RycrV1p9h+YT1FVFzRcl7J6vQek2q01MW7kb8R18+/zea1vo9ptRVNdudyZ6uXd5P1hkvyV+w0625W+3RLJX10FKxOvLIjfw4VPzIlwr2t0W1s6N7CSuy6TXe973K57lc5euq5qbav0wnd/BZ49s/w1lHorGfx3eHZH8uv4k2VKaGN9LhxizTLq3VK3JjfC1q61Xl1cpyOpqZ6yqkqqqZ800rlc971zVy+ExA8hr9p6jX171+rhHKOiHqNFs+xoqd2zHxnpkABrWwAAALRg/jkvJ6FKuWjB/HJOT0KBNS9SVLyO6VLNsirnsMYV4ONO/IpWZepKl5HdKlm2RfiZwtl3S7r/wCBSiV2XFRdkamROtC3V9SFSqfhG5eTRFt2XNeyLTKnaU6EKlU/CNy8miEjmlRxqXx16TEZajjUvjr0mIgAAAXDAuMosHz3SSW3vrN3Uq0yI2VGaGa8PAufIU8AbtqrUt17obi6NZEpZ45lYi5aWi5Fyz63AX6DZRSn2UqzGDLQq09ZClPLSulRXI3RamaOyyzzai8HgOaADplu2SLTarzd4aPDLWYbujGNkt7Zla5jkbkrmuTgz15pya9RiXZDtFNjey3q14aWkorUx7Eh3S50k+k1Uzc5c0zTPhyVeyvBlzgAX6PZAhZZsYW/et6riGd0zX7cn7jNVXJUy91w+A2X7I9tmjwxDW4Xir4LNSuppIqmXSbLm1qabdXuVTR1Z58P1nOAB0LFuyFRXnCtPhiyWaSgt8cqTOWoqXTvVUzyairwJrXr/YaOEcVYfslDNR3rDKXBz5UljrIJ3QVEapwNRya8uRU4defWpYA6+zZnZUXu6zXKwq63V1OymSKCoVkrGt0v48tarprwZZasvDX8V7IUV+tdipLban2t1nkWSJ26Fl7Gjkqpnmmjwqq5lABcjouOdk+fF1LbYKWgW2pSy7pkVJEftkuSIjuBMstfZ4STrNlazXOldW3PCDam+Op1p1m3U9sLtWWloJwL19WvwnJwMjo1h2RrfSYNZhvEWGor3BSSLNSK+TRRrlVVydq4M1Xg6yqhE4/xlHjW8Ulwjt60O0UyQKxZEfmukq5pqTJNfAU8EAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAC0YP45LyehSrlowfxyTk9CgTUvUlS8julSy7InxM4WT/ANU78ilal6kqXkd0qWbZF+JnC2r+8u/I4olNlv4xqf6FvQhU6r4RuXk0RbNlzL9o1Pl2pOhCp1XwjcvJohI5pUcal8dekxGWo41L469JiIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFpwfxyXk9ClWLTg/jkvJ6FAmZupOl5HdKll2RM/2NYW1f3l35FK1N1J0vI7pUsuyIv/AAZwsn/qnfkUqJXZb+Mam+hToQqdT8I3LyaItmy38Y1Nrz/ct6EKnU/CNy8miEq5pUcal8dekxGWo41L469JiIAAAAGamp31M6Rt1JwqvYQD4jikmfoRMVzuwhvx2edyZySMZ4OEl4YI6eNI4m5J1166mQuBEbzO7oTm/qN5nd0Jzf1JcARG8zu6E5v6jeZ3dCc39SXAERvM7uhOb+o3md3QnN/UlwBEbzO7oTm/qN5nd0Jzf1JcARG8zu6E5v6jeZ3dCc39SXAERvM7uhOb+o3md3QnN/UlwBEbzO7oTm/qN5nd0Jzf1JcARG8zu6E5v6jeZ3dCc39SXAERvM7uhOb+o3md3QnN/UlwBEbzO7oTm/qN5nd0Jzf1JcARG8zu6E5v6jeZ3dCc39SXAERvM7uhOb+o3md3QnN/UlwBEbzO7oTm/qN5nd0Jzf1JcARG8zu6E5v6jeZ3dCc39SXAERvM7uhOb+o3md3QnN/UlwBEbzO7oTm/qN5nd0Jzf1JcARG8zu6E5v6jeZ3dCc39SXAERvM7uhOb+o3md3QnN/UlwBEbzO7oTm/qN5nd0Jzf1JcARG8zu6E5v6jeZ3dCc39SXAERvM7uhOb+o3md3QnN/UlwBEbzO7oTm/qN5nd0Jzf1JcARG8zu6E5v6jeZ3dCc39SXAERvM7uhOb+o3md3QnN/UlwBEbzO7oTm/qeLZnZaqhOaTAAr09uqYUV2ij2p126zTLaRlxoGuY6eFuTk1uanX8IEKACAAABaMH8cl5PQpVy0YP45JyehQJqbqTpeR3SpZdkTL9jOFvKXfkUrU3UnS8julSybImS7DeFtWvdLvyKUS2y38Y1P9CnQhU6n4RuXk0RbNlv4xqb6FvQhU6n4RuXk0Qkc0qONS+OvSYjLUcal8dekxEAAACdtUKMpNsVPdSL+CEEWaj1UMHioWBnABQBv2y0V93nWGhg2xW63OVcmt5VJWbBd3jhdJA+mq1b75kEubk+oCtg9c1zXK1yK1yLkqKmSop4AAAAG023XB0G6G0NQsOWemkTssuXI1QAAAAAAAZEhmWBZ0hesSLksmiuii9jMDGAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAK1WwpBWSMRMm55pyKa5IXfjrfET0kecQAAAtGD+OScnoUq5acH8ck5PQoEzN1J0vI7pUseyH8TWF/KnfkUrkvUnS8julSx7Ief7G8L9jdLvyKUS+y0mWyLT/AELehCp1PwjcvJoi27LerZFpk620p0IVKp+Ebl5NEJHNKjjUvjr0mIy1HGpfHXpMRAAAAs1HxGDxEKyWaj4jB4iFgZwAUWy6TyWvB1poaNyxpWsWed7dSvXVqz+v8Cs0lXUUFUyqpJVilYuaK3r+BeyhYbfXWy6WSOx3mdaV9O5VpqrLNG5/wr/50GWLD1loJEqrpiClnp2rmkVP7p0ng4SjBjKKLfOlro2JG6tpmzPanyuupWi14xpqioqYbzDI2otssbWRPjTVGifwr9efQVQkgSNjWkbf6Ja/R3Mkqaen73wZ+DPIjjZoIaaouEMFXU7lge7J8uWeigF9u9TjGjur6ujatRb0XONkTUc1WdhUTXn4UKzR0DsS3etrZtqt1NHnLO5rfcxp2ETs6l/Enbdh/ENsucb6K5x73NejlesubXMz67eDPLsfabtFdaCXEV7pKCWBslS1qwvkTOOSRrVReXX9us5IrFTYrbNaKi5WO5vq2Uv9dHKzRcidlD4obXh6Slp3V9+WOoqOCOJmaRrnlk5VJ27T4jpMP1brgtspWyJtW1RsTTlRdS6KopvMp5aKgoFsFJbnUTo0dPV1GSqi9dV/88BBWIcLu9tq2OpqVa3QWRsrG56Tcs01KeVOHaWJY6GC5tqbtJMke52J7lia8817KJlmWpyp+1OBc0y3J6FKZaa2KgxhHV1Dsom1D0e7sIqqmf4gSsmGLHHM+3uxE1txY1Vcj2IkaKiZ5Z/rmbFrpYanY9qYKmsZTQNrNJ8y60REVvAnXVesfFwwhVVV2q67d1NHQSudMlQ5+aJnryy9JrxojdjKraj0dlWomacC626wNW8WCjpbRDdrVcFrKR79rcr25Ki//tOAi7TSU9fdqejqZ3QMmdoI9qIuS9bh8OonU+K92v8AvvpKq1zmPa9jtFzVRUVOsqcBFTMdgmfixbEr1TKRWrJlr0Ms9LLkN2nwzSTVVwlluSw2uhftbqhzUze5OFETg4fQWWWspW2t+MWKm6ZKNIEb2JM8un8EIOxNbd8I11ijnYyt27b2JIuW2cC9KdBcI0Lph+lhs++9nuG7qNrtGTSbouYv/mX2mtf7PHZpqSOOd023wJKquaiZKvWJyopHYdwTXUNdLGtZXvTQhY7SyTVr/DoNm+2ia/01suVDUQJTMpkZI+R+ikeWtVXk16vAMCOXCcCYkpLVu2TQnplnWTQTNF7GRHXS0W+2UasW6tnuLZNF1PGmaMbr4V7PAXZ+imyJbEa5HNShciL2eE5pVqq11Qqrn+9f+ZRI3rDa2Xi8MoZJnQtcxztJqIq6kz65N0+FLXVLPRU18SW5woqrGjPcal4M+v2FVDVwPqxbBn2t/QbGEF/32mzXrTdIgaNow/DV0E9zulbuGhhdoK5Ezc53XRDLXYco46emuFDdUmts0iRPne3JYc1yzVOx9hJUUKXzCU9mpZo2VtPVOlSN7stNNJV9K/YfFxg3hwO60Vc0b62rm2za2Oz0EzTX+H4jA28TWu2OtlDI66wU7oKVdqboZLU5ImSpy5fiQ0dgtlHbqaqv90fRvqm6UcUbNJUb2XfgSV+t812w1bLlRSRPgpaRUlzdkqZImf16l1Eu6suVztVDVWCOhqESNGTR1DUV0bkROz1iisJhCdcRR2xKtqwSRbe2oRvCzk7OtDXr7XYmUE1RbL2sssDka6Gdmi5+v+EmamS7VOL6emW80EFVTRKjJImqjc14Y1Trr4Ox9htXWmkmw7XVGJKGjpqyNP8AZ5oFTSkd9RBz0EvW2Goordb619RC9tdlota7W3PWmf2/UZ6nDFVTX+ls7qqB0tQ3SbIiropw8PX631kwqBBtXGikt1ynoZXskfC7RVzOBeuaoAAAAAAAAAAAAAAAAAAAAAAAAEHd+Ot8ROlSOJG78db4idKkccQAAAtGD+OS8noUq5acH8cl5PQoEzL1J0vI7pUseyHn+xzC6f8AqXfkcVuXqTpeR3SpY9kJP+DmF1/9U78ilRL7LXxi02S5ptLehCqVXwjcvJoi2bLXxjU+XaW9CFTqfhG5eTRiVc0qONS+OvSYjLUcal8dekxEAAACzUfEYPEQrJPWqVJKPa8/dRrl9RYG+ACgAAN6mu1dSW+pt8UqbmqUyfG5NJE8KdhTRAAAAD6036GhpO0fk56vsPkAD1znPXN7lcqdlcxpO0dHSXR4cs9R4AGa9lQAB7pO0NDSXR+Tnq+w8AAAACbud4gqbHb7TRQyRQ0yaUivVP3j+zq5V+0hEVUVFRclTroAB6rnOdpOVXL2VXNRpO0VbpLorwpnqU8ADNeyoAAAAD1FVFRUVUVOugVVcqq5VVV66rmeAD1HORqtRyo1eFEXUoa5zFza5WqvYXI8AA9c9zstJznZcGa55HgA9VVVERVVUTgRV4ArnK7SVyqqdfPWeAAqqq5quaqAAAAAAAAAAAAAAAAAAAAAAAAAAIK78db4iekjzZrpUmrZHoubUXRT6jWOIAAAWjB/HJOT0KVctOD+OS8noUCYl6k6Xkd0qWPZC+JzC+v+8u1f9Clcl6k6Xkd0qdGqrVQXzBOGbZdoqhaJySSOlpvfxOyyRyJ1+HgLCNTZb+MWm+hToQqdT8I3LyaItey38Y1P9C3oQqlT8I3LyaMSrmlRxqXx16TEZajjUvjr0mIgAAAZ6SpdSzpImtq6nJ2UMAAtUUsc0aSRu0mqfZV4Z5YH6UT1av4KSDLw9EykhRy9lq5FyJgEXvyztDucN+WdodzgJQEXvyztDucN+WdodzgJQEXvyztDucN+WdodzgJQEXvyztDucN+WdodzgJQEXvyztDucN+WdodzgJQEXvyztDucN+WdodzgJQEXvyztDucN+WdodzgJQEXvyztDucN+WdodzgJQEXvyztDucN+WdodzgJQEXvyztDucN+WdodzgJQEXvyztDucN+WdodzgJQEXvyztDucN+WdodzgJQEXvyztDucN+WdodzgJQEXvyztDucN+WdodzgJQEXvyztDucN+WdodzgJQEXvyztDucN+WdodzgJQEXvyztDucN+WdodzgJQEXvyztDucN+WdodzgJQEXvyztDucN+WdodzgJQEXvyztDucN+WdodzgJQEXvyztDucN+WdodzgJQEXvyztDucN+WdodzgJQEXvyztDucN+WdodzgJQEXvyztDucN+WdodzgJQEXvyztDuceLeW5aqdc/C4CVI64VzYmLBE7ORdSqn8Kes0Z7nUSorW5RNX5PD9pogAAQAAALRg/jkvJ6FKuWjB/HJOT0KBMy9SdLyO6VOw4ac5IMGRplov21HJ1lOPS9SdNyO6VOv4b95grP8AzSwkq1stfGLT8H9U3g5EKpU/CNy8miLXst/GNT9naW9CFUqfhG5eTRCVc0qONS+OvSYjLUcal8dekxEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAC0YP45LyehSrlpwfxyXk9CgTEvUnS8julTr+G/6rBSZZ/1pyCXqTpeR3Sp17DWtmC//dLCSrey38Y1P9CnQhVKn4RuXk0Ra9lv4xqf6FvQhVKn4RuXk0QlXNKjjUvjr0mIy1HGpfHXpMRAAAAsNpwvUV1K2vrqhtvoHe8kkarny9nQYmt3LqTwjC9qgrqqaur2adBQtR8jM8ttcq5Mj+teHwIpYqqqmrKh087kVy6kREya1E4GtTrInWQ2Wn09G5F27Gc8o+89jBvXqpq9Xb4Y5z9o7WCO04Xp8kS31laqcLp6hI0X/pYmr7TLuTDHzcX77J6jGDM34jlTT+mPvDG3M86p75+0sm48MfNxfvsnqG48MfNxfvsnqMYHrPy0/pp8jc/NP6p82TceGPm4v32T1DceGPm4v32T1GMD1n5af00+Rufmn9U+bJuPDHzcX77J6huPDHzcX77J6jGB6z8tP6afI3PzT+qfNk3Hhj5uL99k9Q3Hhj5uL99k9RjA9Z+Wn9NPkbn5p/VPmybjwx83F++yeobjwx83F++yeoxges/LT+mnyNz80/qnzZNx4Y+bi/fZPUNx4Y+bi/fZPUYwPWflp/TT5G5+af1T5sm48MfNxfvsnqG48MfNxfvsnqMYHrPy0/pp8jc/NP6p82TcmGPm4v32T1GKS14XnzRbZV0f+KCq08vqe3X9p6BvxPOmn9MeRudVU98+aGueFZqalkr7ZUpcaONM5NFujLCnZezseFM0K2dCp6iakqGVFPIscrF1OToXsp4CCxVa6eB8F3oIkipKxVR0TeCGVPfNTwLmip4Fy6xiX9PRNE3LUYxzj7x/38ZFm9VFUW7k5zyn7T/381oAGsZ4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWnB/HJeT0KVYtOD+OS8noUCYl6k6XxXdKnXsNJm3Betf7TgOQTdSdLyO6VOv4azRuC//AHciwkq3stfGLTa/7FvQhVKn4RuXk0Ra9lvP9otPq/sW9CFUqfhG5eTRCVc0qONS+OvSYjLUcal8dekxEAAAXy0x7nwTRo1Mlq6mWVy9nQRrG/Zm77T0+6PqKsnLUfnQ+DfVxiKY/LT4RLUUTnentnxmA+4YnT1EcDMtORyMbnwZquR8E1bG2XdtErpq7dG2MzRI2aOlmnXzzyzOVm16yuKcxDjeuerpmcZRE0ToKiSB+WnG5WOy4M0XI+CaubbLu2tVs1ctRtj8kWNmjpZr1888syFF616uuacxJZuespicYbVvoKi51zKOm0dteiqmmuSakz4TLvTWpeUtDmNZVK/QRHLknBnnn2MiQwf1V0viv/KpcY2Ud7u8VbFlFW2updHK35TEVUT1p9aG40OzrepsRXn8W9jHXEYzjt45anWbQr096acfh3c56p44z2ObVlLLQVs1JUaKSRO0XaK5pnymvmmWeaZHSKKgpZL/AH+4zthdJBLoxrP7xnuc9JTHWy2qJ9sr5pLdNVtnSOXc2Stex2aKuXg1L4DlVsf8M3N+IjM4z1ROO9xp2txijcmZxHfMZc8zTsoM04Mzp9La6G33a4SVcEe11tSyKFHMRUTNua5djXn9hAXWkjs2DY6N8LN1VNQ73StTSRqOXr8PAjftOu7seu1RNyurlE5+k4jv6HZa2rRdriimnnjH1jM93SrtrtdXd63ctI1ukjdJznrkjU7Knzc7dNaq51HUSRve1qO0o1zTJS1YDnhR1bAtOizIzbNtz1q3Umj9usy26W2Ja7liSC0RNdFkyOBfdNZkiZrwddVzVfAc7WzrV3TUVxViqrMzz4RTz4Y497jd1923qK6ZpzTGIjlxmeXHP2Uqkppa2shpINFZJnaDc1yTPlPquo5rdXS0dTopLEqI7RXNODPh+sviR0telgvzKSOlqJKprHoxMkcnuvt4M0U9gpqZcU3+4z07ah9I1qxsVM9ehmv16sjnGyImmIirjMxiejd3Zq5dfBw/qsxVMzTwiJ4dOd6I59SkxWmrms012Zte5oXaDs3e6z1cCfWhoZpnlmmZfn1rLtgKuqG0kdI6SVGuSP3qrpsTS6PsJd1JbrbJT29N7IqTQXbI6jLbZPCmZz/o9Nzdm1Xw3YnM9MzM9HDHJx/q1Vvei5RxzMY6oiI6enm5V18sxw8BfqCC00trxBKlPFWUlPOqx5ZLpN0UVER3YzKfdbhvnXbp3NFTJoIxI4veoiGr1OijT26aqq4mZ6PrMc/o2On1c366qaaMRHT9Inl9WifVbHujB93iVM9oWKpb4FR2gv4PPkzu6mb/AOSM/wDmYYdvjMx2VeEsy50T2x4w52ADQNuAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFowfxyTk9ClXLTg/jkvJ6FAl5epSl5HdKnXsNZZYMTVwyHIZepSm5HdKnXsNJ7nBmvJf3hYSVc2WvjEpk/wAlOhCqVPwjcvJoi17LXxi02faW9CFUqfhC5eTRCVc0qONS+OvSYjLUcal8dekxEAAAX22Sbdgm3K3Xueonhd4FXRenp+wEThO4wRy1FnrZWxU9do6Erl1RTN945ewi5q1eXPrE1NDLTzvgnjWOWNdFzXcKKbyKvWWqbkdURPxjh4cWpxuXKqJ68x8J/ljMkEroKmKdqIro3o9EXgVUXMxg4xMxOYcpiJjEsk8rp6mWdyIjpHq9UTgRVXMxgCZmZzJEREYhu2u4y2q5R10MbJHxoqI1+eS5pl1jNS3qro73JdYEakkrnOfHr0XI5c1TkIwHfRqLtERFNWMTmPi6a7FuuZmqM5jE/BOU+Jq6mu1XXsiiVKtc5YHIqsX0mG73ya7RwwrSwUsMOegyFuWSr4fQRIOyrWX6qJtzVwn/AN8XCnSWKa4uRTxj/wATlfievuEVEyRkbFpHtkRzc83uRNSr/wCdcwXq+VN8nilqIo4kiarWtjzy1rmq6yKAuay/ciqmuuZicZ+nIo0li3MTRTETGcfXmk7PeZ7NPNLBDHKs0e1qj89SZ59Y+7PfqyzOlbCyOaGX38UialXskSDjb1V63u7lWN3OPrzcq9Naub2/Tnexn6ck7XYouFbV0s7WRU7KR6SRRMT3KOTrr2ewZvbfcEvG+LYIGq6JInxJnovRFVUVevnrK4Dt/qGp3pq35znP1h1ew6fG7uRjGO9Ya/FlXX22e3uo6eKGVUy2tFRWIiour60/Eyw4zro4I2zUdLUTxN0WVEjfdIhWQcv6jqt7f35zjCf0/Tbu5uRjmlYb5Uw2qvt+0xObWuV735ZK1V7CJq6xFAGHXdruREVznHJk0WqLczNMYzzD7qn7RhG9SrkiSNip0z66rIjuhinkccksrYomOfI9Ua1rUzVy9hCMxbXRRxwWCmkbIlM5ZKmRi5o6ZUyyReujU1cqqTe9XRVcnqmPrMY/lymN+umiOuJ+kTn+FTABom2AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAC0YP45LyehSrlpwfxyXk9CgS8vUpTcjulTruGV9zgtMuDbDkUvUpTcjulTruGODBmvthYSVd2WvjFp+xtLehCqVPwjcvJoi1bLXxi02vP9y3oQqtT8I3LyaISrmlRxqXx16TEZajjUvjr0mIgAAAWq24qYtNHRX2CSqijTRiqYlRJom9ZuvU9vgXg6ylVB3Wb1dmc0T5S6rlqm7GKnQ432SpyWlxDStRf4apj4XJy6lT8TJueg+cVp+8L/Kc4Pc17Jmxraem3HfPmxfZKuiue6PJ0bc9B84rT94X+UbnoPnFafvC/ynOc17IzXsj22j/XHfJ7LX/nPdDo256D5xWn7wv8o3PQfOK0/eF/lOc5r2RmvZHttH+uO+T2Wv8Aznuh0bc9B84rT94X+UbnoPnFafvC/wApznNeyM17I9to/wBcd8nstf8AnPdDo256D5xWn7wv8o3PQfOK0/eF/lOc5r2RmvZHttH+uO+T2Wv/ADnuh0bc9B84rT94X+UbnoPnFafvC/ynOc17IzXsj22j/XHfJ7LX/nPdDo256D5xWn7wv8o3PQfOK0/eF/lOc5r2RmvZHttH+uO+T2Wv/Oe6HRtz0HzitP3hf5Rueg+cVp+8L/Kc5zXsjNeyPbaP9cd8nstf+c90OjbnoPnFafvC/wApjkdZaf3VTiKiyTrU7XzOXkyRE/E57mvZPBOtp6Lcd8+Z7JV01z3R5LdX4rhggfTYfhkgV6K19bMqbc5OujUTUxF8Ga+EqIBh3r9d6c1dHR0QybVmi1H4QAHQ7gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAtGD+OScnoUq5acH8cl5PQoEvL1KUvI7pU65hjUmDf/AHDkcvUpS8julTrmGM/9zctX9YWElXdln4xKf6FvQhVan4RuXk0RatlnP9olN9C3oQqtT8I3LyaISrmlRxqXx16TEZajjUvjr0mIgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWjB/HJOT0KVctGD+OScnoUCYl6lKbkd0qdcwuvUb/wC5wHI5epSm5HdKnXMLoueDc17YWElXdln4xKb6FvQhVan4RuXk0Ratln4xKdP8lvQhVan4RuXk0QlXNKjjUvjr0mIy1HGpfHXpMRAAAAAywQTVMzYYI3SSO4EQDECfhstNEiLVzOmf12Qrk1OV3X+pPrNtlPQx+8t8H/XpO6VAqoLboUve+l83+o0KXvfS+b/UuBUgW3Qpe99L5v8AUaFL3vpfN/qMCpAtuhS976Xzf6jQpe99L5v9RgVIFt0KXvfS+b/UaFL3vpfN/qMCpAtuhS976Xzf6jQpe99L5v8AUYFSBbdCl730vm/1GhS976Xzf6jAqQLboUve+l83+o0KXvfS+b/UYFSBbdCl730vm/1GhS976Xzf6jAqQLboUve+l83+o0KXvfS+b/UYFSBbdCl730vm/wBRoUve+l83+owKkC26FL3vpfN/qNCl730vm/1GBUgW3Qpe99L5v9RoUve+l83+owKkC26FL3vpfN/qNCl730vm/wBRgVIFt0KXvfS+b/UaFL3vpfN/qMCpAtuhS976Xzf6jQpe99L5v9RgVIFt0KXvfS+b/UaFL3vpfN/qMCpAtuhS976Xzf6jQpe99L5v9RgVIFt0KXvfS+b/AFGhS976Xzf6jAqQLboUve+l83+o0KXvfS+b/UYFSBbdCl730vm/1GhS976Xzf6jAqQLboUve+l83+o0KXvfS+b/AFGBUgW3Qpe99L5v9RoUve+l83+owKkC26FL3vpfN/qNCl730vm/1GBUgW3Qpe99L5v9RoUve+l83+owKkC26FL3vpfN/qNrpFTJbfS8xfWMCpAs0lBbZUyWmdCvyoXr0OzIystE1PG6eB6VECcLmpk5njJ1uXgIIwAAAAALRg/jknJ6FKuWjB/HJeT0KBMS9SlNyO6VOt4X1e07/wBw5HL1K03I7pU63hddeDs/8wsJKvbLHxiU/wBC3oQq1T8I3LyaItOyxkuyJT/Qt6EKtU/CNy8miEq5pUcal8dekxGWo41L469JiIAAAyQxSTzMhiarnvVGtROupaIYIqGBaaBUVV/rZU4ZF7Hi/wD7I6xw6Ec9aqe6T91GvYVU1r9mr6ySLAAAoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAfTHujej2Lk5OufIAirtQMazd1KxGRquUkacDHdlPAv4cHYIcuEaMeroZf6uZNrfyL1/qXJfqKlLG6Gd8L0ycxytXlQ4j4AAAtGD+OScnoUq5aMH8cl5PQoEvL1K03I7pU63hbWuDkz7Z0HJJepWm5HdKnWsMvp4KPC9VUztiZC2R2bl4SwkoDZZ+MSn+hb0IVWp+Ebl5NEWnZY+MSn6/7lvQhVqn4RuXk0QlXNKjjUvjr0mIy1HGpfHXpMRAAAFmt7dCy0+X8b5HL+CegzmKh+BKPlk/MZSgZaenmq6mOmp41kmlcjWNThVTET+DerG3+M78jjJ0tqL1+i1PKqYjvlj6m7NmzXcjoiZ7ofF1wtd7NSNq6uON0KqiOdE/S0FXgRSDOyYy6jrh4rfztONm327s+1oNTFqzM4mM8fjMfZq9i6+5rdPNy7jMTjh9PMABoG8AdBtmw7je77HMuP6KmonWKKGaoc99UjZNCJXI/wBxlw+5XJOufOxxsR4v2UJqpcPRU0NHSKjZ6yskVkTXKmaNTJFVzsteSJq1Z5ZoQUAHbaX2NmMpdkx2B6q72qCZlvS5Pq43PkjSJZFjRNHJF0lci6uDJM8zmOMsKXHBGNLnhW6yRS1dvkRjpIVVWPRWo5rkz162uRcl4AIAE1hbDF2xjimiw1Y44pLjWq5IWzSJG1dFivXNy8Gpqm3jXBF/2P8AESWDEkUEVcsDKjRgmSVug5VRNadf3K6iitAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAALwKQd7ajb3U5fxKjvtai+knF4CFvvw3PyM/IhJEYACAWjB/HJOT0KVctGD+OS8noUCXl6laXkd0qXavvdHhvB+F7xWWttzRrpGNgdJoNVcs0zXJdWaIUmXqVpuR3SpMY8T/hZhpf8APf8AlUsIsWyx8YdOn+UnQhVqn4RuXk0RaNlf4w6f6FvQhV6j4RuXk0QlXNKjjUvjr0mIy1HGpfHXpMRAAAFoofgSj5ZPzGUxUPwJR8sn5jKUCfwb1Y2/xn/kcQBP4N6sbf4z/wAjjP2d75a+aPFha/3W78s+DouMuo64eK387TjZ2TGXUdcPFb+dpxs9H6W++UfLHjLQei/ulXzT4QAHc9jb2PNZsi7GdbiujxJRxVjnOioqNM1akjHe6Sd2WbM04ERF4UVdWo8a9Y7FgFVT2Cd0VNaparmqc6U6BsNYWw9hnYZZSWC/vmgrmLWVFYk0bnU0z4WaaI5EyTQyTUvB1yrVdjm2LPYcXWwYkq6ZayO3VMLtofmx0s73aDGqqIrlzeicHWXrEF7H1Gp7FPE6av6y4/X+4aQaVjwmtX7Ixtrsuy3iC5JT4c3Q27R1sFTNrqMlhc7Rc1Wa9LRVM0VUUpdl2G48ceyZxbYb1erhX2uzSJPW1k8ibpqlc1ugxXIiIma6WtETJrcky1Gp7EBETZYuKIiJ/wD4V/An+bEdh2Nb5RUnsrtlOwTyMZU3F8E9OjlyWTamJptTsrk9Fy7CL2Cjew5gbYItuzFQUWDK6C34usD5JJaKGplk21Fjcx7XaaqiuRH5rormmWtOE4L7K/48W/8A2qn/ADSHXsJ7A2JbD7JWqx5V3KjdYmVdTWwOZKu3SumR6JG5uWrLTXNc9eSZcOrkPsrvjxbkv/0qn/NIBwcAFAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAXgIW+/Dc/Iz8iE0vAQt9+G5+Rn5EJIjAAQC0YP45JyehSrlowfxyTk9CgS0vUrTcjulSZx2q/stw2nWWd35VIaXqVpuR3SpMY8+K7Df07/wApYRYtlf4xKf6JvQhV6n4RuXk0RaNlf4xYPom9CFXqfhG5eTRCVc0qONS+OvSYjLUcal8dekxEAAAWih+BKPlk/MZTFQ/AlHyyfmMpQJ/BvVjb/Gf+RxAE/g3qxt/jP/I4z9ne+WvmjxYWv91u/LPg6LjLqOuHit/O042dkxl1HXDxW/nacbPR+lvvlHyx4y0Hov7pV80+EBP4ZxpizBlVJU4Wv9ZaZJctsSB/uJMuDSYubXfWhAA8c9YsmKMeYyxo6JcU4jrbq2Fc445nokbF7KMaiNRfDlmeWjHeMrFY5rFZsTXC32udXrLSQSI2N+mmTs0y66alK4ODhA/ZuwLbtiTBGCaLH0+KqOkvdZbEir46m5R5QLpIrmpF75qqrW6ta9g/M2PcYLfNmC+Yzw/U1FGk9es9HPG5Y5WNaiNY9FTW1VRuf15FKybnpaKZ9nI9IL3XbMOyhcpaKWrxxdHPoXK+BzHtZoO0VbpLoomkui5UzXPhUrF9xFfcUXNLniK7VN1rUjSLb6l+k7QTNUbn2EzX7SLCa1yTWAABQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAF4CFvvw3PyM/IhNLwELffhufkZ+RCSIwAEAtGD+OScnoUq5aMH8cl5PQoEtL1K03I7pUl8dqn7L8N/Tv8AyqREvUrTcjulSexjR1VbsZ4dioqWWpkbI97mxMV6o1GrmurrFRN7K/xh0/0LehCr1HwjcvJoi0bK3xh0/wBE3oQrFT8I3LyaISrmlRxqXx16TEZajjUvjr0mIgAAC0UPwJR8sn5jKYqH4Eo+WT8xlKBP4N6sbf4z/wAjiAJ/BvVjb/Gf+Rxn7O98tfNHiwtf7rd+WfB0XGXUdcPFb+dpxs7JjLqOuHit/O042ej9LffKPljxloPRf3Sr5p8IDx72RsdJI5GsbrVV6x6aVUjZ6yKkfntaN21ydnsf+eE8a9Y3qbENvo36cEaudllpSwo9fxXUbSYxhRVVY2Kq5JmtK1eDsa9RrbwyrK2GG3be9YEqdGFivVI8s9JcuBETh7BjqbO+j2vdlsfTba1Hs26FzNNq8CpnwoZlOou2vwRwY02Ld38U8WnfL2y5x6MbMnK5HOVGIxNSdhCBzXsqWLclL3PH9g3JS9zx/YY9yuq5VvVc3dRRFEbtKu5r2VPWvexyOa5zVTrouRYdyUvc8f2DclL3PH9h14c0VT3OphVEkcszOw7h+pSchmjnhSWJ2bV+1F7CmDclL3PH9hjiayluDYokVGTtX3PYcnB/54QN4AFAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAF4CFvvw3PyM/IhNLwELffhufkZ+RCSIwAEAtGD+OScnoUq5aMH8ck5PQoEtL1K03I7pU6phqB81LhhIKuSlqUR+0yM6y+E5XL1K03I7pU6xhLXLhHWv9pwFhJQGytr2Q4Pom9CFXqPhC5eTRFo2Vl/4hU/0LehCr1HwhcvJohKua1HGpfHXpMRlqONS+OvSYiAAALRQ/AlHyyfmMpiofgSj5ZPzGUoE/g3qxt/jP8AyOIAn8G9WNv8Z/5HGfs73y180eLC1/ut35Z8HRcZdR1w8Vv52nGzsmMuo64eK387TjZ6P0t98o+WPGWg9F/dKvmnwgIxiqt9mzXPJmSfYhJkFUzup7vJKxEXLUqL10yQ8a9Y6Xb7reLRfqaoslzhoKqS2QxaczWua5FRNWTkVM80RU1alQ18YYoxJiKWmTEF8huiw5rHtKN0Y1VERU1InWRPsKGt4avDA7nfoeb7s7QvO/Q7btyLlc19brt0blEU9SUBF77t7Q7nfoN929odzv0OvLsSgIvfdvaHc79Bvu3tDud+gyJeNzGpIj40fpNybmuWivZIytVUr6NUXJdL0ofG+7O0O536GstU6quEDlRGo1yIiJ1tZJkT4AKAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGVtNUOpX1TaeRadjkY6VGLoNcvAirwIpiLNhTFK2GWairqdK2zVvuaulcmeacGk3wp+P2KBWQWvFmFo7QyC8WeoStsNaudPOi5rGq/wO8OpdfgXPWhVAAAALwELffhufkZ+RCaXgIW+/Dc/Iz8iEkRgAIBaMH8ck5PQpVy0YP45LyehQJaXqVpuR3Sp1fCSrtmEc+zIcnl6lqbkd0qdYwjnt2EV4cts1FhJQGyr8YVOn+S3oQrFR8IXLyaIs+yr8YNP9CnQhWKj4QuXk0QlXNajjUvjr0mIy1HGpfHXpMRAAAFoofgSj5ZPzGUxUPwJR8sn5jKUCfwb1Y2/wAZ/wCRxAE/g3qxt/jP/I4z9ne+WvmjxYWv91u/LPg6LjLqOuHit/O042dkxl1HXDxW/nacbPR+lvvlHyx4y0Hov7pV80+EBXbj8IzcqdCFiK7cfhGblToQ8bL1jUABBmi3Lopt225569DLgy9Zsqln2xuTqxGZa80bnnmnB9Wf4GgANqZLekK7Q6oWXPVpoiJlmvY8GRqgADNTcch8dOkwmam45D46dIFnAByAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAC04TwxDeN0XW7VKUdjoFRamdVyVy8KMb4V/wD1rKsfSSSJGsSSOSNVRys0lyVU4Fy7IFlxXip19kioaCBKGy0fuaalamXBq0neHo5c1KwAAAABeAhb78Nz8jPyITS8BC334bn5GfkQkiMABALRg/jknJ6FKuWjB/HJeT0KBLS9StNyO6VOrYQzWXCScOuQ5RL1LU3I7pU6vhHXJhLNevIWElA7KvxhQfQt6EKxUfCFy8miLPsqJlsg0/0SdCFYqPhC5eTRCVc1qONS+OvSYjLUcal8dekxEAAAWih+BKPlk/MZTFQ/AlHyyfmMpQJ/BvVjb/Gf+RxAE/g3qxt/jP8AyOM/Z3vlr5o8WFr/AHW78s+DouMuo64eK387TjZ2TGXUdcPFb+dpxs9H6W++UfLHjLQei/ulXzT4QEBdY9CvV3y2o70egnzSuNItTAjo0zlj1oifxJ10PGvWK+ACAAAAAAGzQR7ZXwtzVPdZ/ZrNYm7XSOiYtRImTnpk1F6ydn6wJIAHIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAXgIW+/Dc/Iz8iE0vAQt9+G5+Rn5EJIjAAQC0YP45JyehSrlpwfxyTk9CgSkvUtTcjulTq2Ef63CmWv8ArOg5TL1LU3I7pU6thD+twnlwKsmZYSUFsqfGFT/Qp0IVio+ELl5NEWbZT+MCm+iToQrNR8IXLyaMSrmtRxqXx16TEZajjUvjr0mIgAAC0UPwJR8sn5jKYqH4Eo+WT8xlKBP4N6sbf4z/AMjiAJ/BvVjb/Gf+Rxn7O98tfNHiwtf7rd+WfB0XGXUdcPFb+dpxs7JjLqOuHit/O042ej9LffKPljxloPRf3Sr5p8IAAeOesatRQU9Sum9qsevC5nX5U65ousz0X3FQ1U8LVT1kwCCF3nl7cz7FG88vbmfYpNAYELvPL25n2KfTbM9XJpTtROuqIqkwBgadPbaaBUcqLK9Ou7gT6vWbnCuagAAAUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAXgIW+/Dc/Iz8iE0vAQt9+G5+Rn5EJIjAAQC0YP45JyehSrlpwfxyXk9CgSkvUtTcjulTq2D0zmwoqa0zfmcpl6lqbkd0qdPw5LXx0OHkoFp2OcyTSlqHaLI0TWqqq+DMsJKI2VMl2QqfLP8Aqk4eRCs1HwhcvJoyzbKfxg0/0TehCs1HwhcvJoxKua1HGpfHXpMRlqONS+OvSYiAAALRQ/AlHyyfmMpiofgSj5ZPzGUoE/g3qxt/jP8AyOIAn8G9WNv8Z/5HGfs73y180eLC1/ut35Z8HRcZdR1w8Vv52nGzsmMuo64eK387TjZ6P0t98o+WPGWg9F/dKvmnwgLJh/Bl2xJQT11BLSRwwSJE9aibQ15IvY8JWzpeEIrXPsVYgivVVNS0K1se2Sws03N1MyyTlyPHPWKxfcG3TD1AytraqgljfIkaJT1CSOzVFXgy4NRWy21VvwfFcbU2w3OruEklZGyaOqgRjUYqp4Ez16sibntdtTZ5ba0oIEod0tbudI02vLas8tHg4dYHNwSN/jjgxLdYoY2xxR1UrWsamSNRHrkiF8uc9jwZh2zUK4bo7rNcKVKmqnqU90qLwo1eFF16suDJAOZA7HV4XsFbshW+JLeyG2w2lK59OxujtuS6kdlwrrTPs5EVQVNlx1bL1Re1yitVTRUrqqknpW6Koifwu7PW8GtQOYm7S2m41tvrLhS0rpaWiRHTyIqZRovBnrz+w6paKO3zYZtT8NYfs18jWFFuMNQ9Eq1fl7pEz4Ov+BgwxcLdS4JxWyXDEUSUS5z00sjs5kVzso3qqZpo8AHJQX2SG112xlfbzT2ino5VukbYUYmksLF0fcNcuvLh+0+kt1v9oOEarcUO31F0WOaTQTSkbpL7ly9dAKADtSNw5Lsl1uC0wrQNpZ2qj6hG/vEftaO9z8lETsdfWQ1M+x4gw9ie2x4co6BLPA6SlniTOVdFVTNzl1qq6Ovra1A5cAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAvAQt9+G5+Rn5EJpeAhb78Nz8jPyISRGAAgFpwfxyTk9ClWLRg/jknJ6FAlJepam5HdKknjZV/Zph76Z35VIyXqXpuR3SpJY1+LXD+rL9+78qlFm2U9eyDTfQt6EK1UfCFy8mjLJspL/AMQYPom9CFbqPhC5eTRiRzWo41L469JiMtRxqXx16TEQAABaKH4Eo+WT8xlMFufp2SBE/gke1fwX0mcoE/g5UTGNvzXL3TvyOIA+4pZYJmTwyOjljcjmvauStVOuhk6a7Fm9RdmM7sxPdLo1Fqb1mu1HTEx3uwYyVPadcM1/hZ+dpxwlrliO8XanZT11XpxNXPQa1Goq9lcuEiTa7c2jb2hqIu2omIiMcfrP3azY+gr0NibdyYmZnPD6eQW7DeLLbaMO11kuljddKesmbM5u37WmpERE4M+FMyog0TdLRdb9huemiWx4WS01sUzJW1G6Fk1NXPLJeyuX2Fhdsi2Rb7T4h9qTVu6ZJNPujVllkugmWWeWrNU1Ic2AG3cqtLhd6yvSPa0qZ3y6Crno6TlXLPr8J1C0tv1xwZaEqMIUOJWRtVtHPt6Z0+S5IkqeDJNWfAmvWckM8FZV0zXNpqueBr/fJHI5qLy5KB0vF+K5rJslUddRuhqZqOjbT1UaL7h6rmr2auDhTk1ENV41s9Paa+kwxhtLTPcmqyondNpqjV4UYnW4V5M+Aoyqqrmq5qoAu9rxbhqjbb6qowim+dvajY5qWoWJkipwK9vXXs8J8WrHDIbnfZb1am19He1zqII36GiqcGS9jJcvxKWALpacX2ihprvaKuwOqbJXzbdHTJNk+FU4E0uvwJr4c0PLpjWjrrXZ7dSWNKCC11iVDGRy6SK1F1N1pnn2VXrlMAFyjxtGzZLfjDe16scqrubbUzT92jPfZeDPgNGzYmZaosQsdROm33gfCipIibVpK5c11a/feArYAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAALwELffhufkZ+RCaXgIO9uR97qcv4XI37ERPQSRHAAgFowfxyTk9ClXLRg/jknJ6FAlJepam5HdKkljXL9muH+zt7vyqRsvUvTcjulSRxqv/AA1w+mX9s78qlFm2U/jBp8+1N6EK3UfCFy8miLJspLnsgU6/5TehCt1HwhcvJohI5rUcal8dekxGWo41L469JiIAAAmrHNpbdRKut/7yPxk4U+tM/sJMqkcj4pWyRuVr2KjmqnWUtNNUx3CFZokRszUzliTrf4k8HQUfQAKAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAH0xjnuyb1kzVVXJETsqvWQD1j2RI6ol/q4U03eHLgT61yQqUkjpZXyvXNz1Vyr4VJO63BkyJR0rs4GLm5/bHdnkTrfaRJxAAAC0YP45JyehSrlowfxyTk9CgSkvUtTcjulSQxp8W1g+md+VSPl6lqbkd0qSGNF/4bWBP8535VKLNspfGBT/RN6EK5P8IXLyaIseyj8YFPq/sk6EK5P8IXLyaISOa1HGpfHXpMRlqONS+OvSYiAAAB9xSyQytlie5j2rmjmrkqHwAJyG+MeiJW0+buvLDkiryt4F+rI3G1tsfwV2h4JInIv4ZlXAFq3Vbe+UXMf6huq298ouY/1FVBci1bqtvfKLmP9Q3Vbe+UXMf6iqgZFq3Vbe+UXMf6huq298ouY/1FVAyLVuq298ouY/1DdVt75Rcx/qKqBkWrdVt75Rcx/qG6rb3yi5j/AFFVAyLVuq298ouY/wBQ3Vbe+UXMf6iqgZFq3Vbe+UXMf6huq298ouY/1FVAyLVuq298ouY/1DdVt75Rcx/qKqBkWrdVt75Rcx/qG6rb3yi5j/UVUDItW6rb3yi5j/UN1W3vlFzH+oqoGRat1W3vlFzH+obqtvfKLmP9RVQMi1bqtvfKLmP9Q3Vbe+UXMf6iqgZFq3Vbe+UXMf6huq298ouY/wBRVQMi1bqtvfKLmP8AUN1W3vlFzH+oqoGRat1W3vlFzH+obqtvfKLmP9RVQMi1bqtvfKLmP9Q3Vbe+UXMf6iqgZFq3Vbe+UXMf6huq298ouY/1FVAyLVuq298ouY/1DdVt75Rcx/qKqBkWrdVt75Rcx/qG6rb3yi5j/UVUDItW6rb3yi5j/UN1W3vlFzH+oqoGRat1W3vlFzH+obqtvfKLmP8AUVUDItW6rb3yi5j/AFDdVt75Rcx/qKqBkWrdVt75Rcx/qG6rb3yi5j/UVUDItW6rb3yi5j/UN1W3vlFzH+oqoGRat1W3vlFzH+oLVW1E+EovqY/1FVAyLHJdLbEnuXy1Duw1ugn2rr/AjKy61FWzakRsMGee1s4F5V4V+sjwQAAAAAAtGD+OScnoUq5aMH8ck5PQoEnJ1L03I7pUkMZ/FtYPp3flUj5epem5HdKm/jPP9nFhXszO/KpRZ9lHq/p1/wApOhCuz/CFy8miLFsodX8H0SdCFcn+ELl5NGJHNqjjUvjr0mIy1HGpfHXpMRAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAtOD+OScnoUqxaMH8ck5PQoEnJ1L03I7pU38ZZ/s3sPY2935VNCTqXpuR3Spv4y+Liw/Tu/KpRZ9lD4wIPok6EK5P8ACFy8miLFsn9X8H0TehCuz/CFy8miEjm1RxqXx16TEZajjUvjr0mIgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWnB/HJOT0KVYtOD+OS8noUCSl6l6bkd0qb2MVT9nNiTLXt7tf/SpoS9TFNyO6VN7GK/8ObEn+c78qlRaNk/Xj6n+iToQrs/whcvJoixbJ3V/T/RN6EK7P8IXLyaISrm1RxqXx16TEZajjUvjr0mIgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJ3DWHkxBWSRyV8NFDEjVe+ThXSXJEanXVVNfEVqZZMQ1VrjmdM2BWoj3NyVc2ovB9YEUCdwrYo8RXxLdLUup2rG5+m1ukurrZZmzh6xWa61EtJX3p1FU7ckUMaRaSy59GsCsgtGJ7BZrGu56O9OrK1ku1ywOi0dBMs88/sJi44NwvaaltNccUyU87mJIjFplXUvBwL4AOfgtOGsJLiS33KWCqWOel0UiYrdUiqiqiKuerg/EYVwfU4iuNRDO99JT03uZZNDNUfnkjcly18OfYyAqwMtREkFVLCi6SMerc+zkuRZLBhikr7NU3y73JaG3wP2rSZGr3Odq63WTWgFWBMX+1UVrrY2W+6w3GnmjSRr2anNz6zk6y/wDmomX4IlZgZMQbpctRoJMtNoJqjVcs88+xr4AKcCwsw9FUYJkxBTVTnzU821TwKzUxF4HIufhT8RV4eiocG0d7qKp7amtkVIqfQTLQTP3Srn4PxQCvAvtRg7Ddvgo3XXE0lJJUwtma1afS1KngXskVhzDVDfK25skuT4KaiYsiTNj0tJqLlmqZ6tWsCrgt9xwhSJZJ7xYL1HdKem/r26Gg9idnIqAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAALRg/jknJ6FKuWnB/HJOT0KBIy9S9NyO6VN3GOX7O7Fr1rM7V/0qaUvUvTcjulTcxh8Xdj1/2ztX/SpUWnZN6voPok6EK9P8IXLyaIsOycueP4MuDam9CFen+ELl5NEJVzao41L469JiMtRxqXx16TEQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEhY3I3EVtc5yNalVEqqq5Inu0JXHckcuOrlJFI2RiuZk5jkVF9w3roVoAXHY3lihxi180rI27RImk9yNTgTrqRVhexmNqB7ntaxKxqq5VyRE0uyQYAsGMXskxvc3xva9izZo5qoqLqTrodVvE12nqUS019h3MsSNXdb0V+lrz1p1uA4Ue5lF8wlWutmE8TSxVTIqqLa1iXSTNVRV4EXhJ6xY1hu+KaCmhpo7bA7bJ6pVe1EllVnDnq1auv4OwckAyNmuVFuNSqKiosrtaeMpdcEb5NtdStovtFHOsiadvrE9w9uXvs19HY19YoIIOg4ooLRcMV2ihonUcNVMiJXLTORImLmiqufBnlpfhmWlMR4VlxQ+1Zz6T4t71crk3PoJnq4fqzOKguRfcKrT2/EV3wrcKhi0dax8G2aaaOaZ6LkXg1pn9eRoY9uMNRe4bbRva6jtsLaePRVFRVyTSVFT6k+oqIIO4zVF0fQ2zeeusiMbSxpIla5HOR2ScHgKjghiJccS0U9VTRyyQPhR6vRrFcrlTNFXreg57meFyOjMp6HBuFbxBU3amra+5RJCyGmfpo1MlTNftX7DnIBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAC04P45LyehSrFowfxyTk9CgSUvUxTcjulTbxfn+z2x/TO/KpqS9TFNyO6VNzF6/wDDyxp/nO/KpUWjZM6vafPX+6ToQr8/whcvJoif2S1/38g+iToQgJvhC5eTRCVc2qONS+OvSYjLUcal8dekxEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAC04P45JyehSrFpwfxyTk9CgSMnUxTcjulTaxf8AF9Y+H+ud+VTVk6mKbkd0qbWL8v2f2NM1z212r/pUsItOyX1eU/0SdCEBN8IXLyaIntktVXHkCqmS7UnQhAzfCFy8miEq5tUcal8dekxGWo41L469JiIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFowfxyTk9ClXLRg/jknJ6FAkpOpim5HdKmzi5f+H9kTP8AtnflU1pOpim5HdKmxi5V9oFjTrba5f8ASpYRatkvq8gT/Kb0IQM3whcvJoid2SuryBP8pOhCCm+ELl5NEJVzao41L469JiMtRxqXx16TEQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAALTg/jkvJ6FKsWnB/HJOT0KBISdTNNyO6VNjF3UFY/pXdBrydTNNyO6VM+LeoOyfSu/KWEWvZKXPHkC/5SdCEFN8IXLyeInNknq7g+iToQg5uP3LyeMSrm1RxqXx16TEZajjUvjr0mIgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWjB/HJOT0KVctOD+OScnoUCQk6mabkd0qZ8W9Qlk+ld0GCTqZpuR3SpmxZ1CWX6V3QVFr2SM/b3D9GnQhBTcfuXk0ZObJHV3B9EnQhBy8fuXk0YlXN6jjUvjr0mIy1HGpfHXpMRAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAtGD+OS8noUq5aMH8cl5PQoEjJ1M0/I7pUzYs6hLIn+a7oMEvUzT8julTNivqFsv0rvylFr2R8vb3Dl2tOhCDl4/cvJoyb2R+rqDWn9U3oQhJeP3LyaISOb1HGpfHXpMRlqONS+OvSYiAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABaMH8ck5PQpVy0YP45JyehQJCTqZp+R3SpmxXl7RbN9K7oUwy9TNNyO6VMuKuoazfSu6FKLVsjasdQasv3TehCFl4/cvJ4ya2Rc/bzBn2pvQhCy8fuXk8Ykc3qONS+OvSYjLUcal8dekxEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAC0YP45JyehSrlowfxyTk9CgSEnU1T8julTLirqGs30ruhTFJ1NU/I7pUyYp6h7N9K7oUoteyKueOYF7MSdCELLx+5eTxEzsidXUK9fa06EIaXj9y8mjEjm9RxqXx16TEZajjUvjr0mIgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWnB/HJeT0KVYtGD+OScnoUCQk6mqfkd0qfeKeoez/Su6FMcnU1T8julTJijqIs+v+1d0KUWrZDVVxxAruHa06EIeXj9y8miJjZD6uIU7EaJ+CEPLx+5eTRCRzeo41L469JiMtRxqXx16TEQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAALTg/jknJ6FKsWjB/HJOT0KBvydTVPyO6VPvFGvBFn+ld0KfEnU1T8julT6xP1E2jV/au6FKLVsg5pjeFF4drToQiJOP3PyeIl9kHL27wfRp0IREnH7l5PGJHOKjjUvjr0mIy1HGpfHXpMRAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAtGD+OS8noUq5aMH8ck5PQoG/J1N0/I7pU+sT9RNo+ld0KfMnU3T8julT3E/UVafpXdClFr2QV/33g+jToQiJOP3LyeMltkBc8bwfRp0IRMnH7l5PGJHOKjjUvjr0mIy1HGpfHXpMRAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAtOD+OScnoUqxacH8ck5PQoG9J1N0/I7pU9xNl7SrT2dtXoU+ZOpun5HdKn1iZf9y7Sn+YvQpRacf9W0P0behCKk4/cvJ4yUx/1aw/Rp0IRcnHrl5PGJHOKjjUvjr0mIy1HGpfHXpMRAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAtGD+OScnoUq5acH8ck5PQoG7J1N0/I7pU9xN1F2n6VehTyTqbp+RelT3E3UXafpV6FKLTj5UXGsOXa06EIuTj1z8njJPHnVpD9GnQhGP4/c/J4xI5xUcal8dekxGWo41L469JiIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFowfxyTk9ClXLRg/jknJ6FA3pOpun5F6VGJeoy1fSr0KJOpqn5F6VGJeou1fSr0KUWnHnVpD9GnQhGP49cvJ4ySx4ueNYfo06EI1/Hrl5PGJHOKjjUvjr0mIy1HGpfHXpMRAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD3LMDw9yUsOHMI3fEk3+xxJHTNXJ9TJqY3weFfAh1uy7HGHrU1r6mHfKpThfUJ7lF8DOD7cze7P2Hq9dG/RGKeuft1tNrtsabRzu1zmrqj79ThlLb66tdo0dHPUL2Io1d0EuzBeKpG6TbDWZeGPLpP0bHHHDGkcMbYmJwNYiNRPqQ+sj1dv0QtRH/ANLszPZER5vNXPSm5M//ADtxHxnPk/NNRhXEdK1XT2StY1OFdpVU/AiHxPjerHtVrk4WuTJUP1bwcGo0bhZ7VdoljuNvgqUXrvYmknIvCn2nXf8ARCMZs3ePbH3jydln0pnOL1vh2T9p835eyPDreIdilisfU4dnVHJr3LO7PPwNf6F+05ZV0dTQ1UlLVwPgnjXJ8b0yVFPG67Zup0NW7fpx29E/V6vR7Q0+sp3rNWezphrgA1rPAAAAAAtGD+OS8noUq5aMH8ck5PQoG9J1N0/IvSoxJ1GWr6VehRJ1N0/IvSp5iTqMtX0q9ClFox31aRdf92mv6kI1/Hrl5PGSOOurSL6NOhCOfx65eTxiRzmo41L469JiMtRxqXx16TEQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAvGB8EyYiqN3VyOjtcTslVNSzO+S3wdlSBw1Y5sQX6ntsSq1r10pXp/AxOFf/OuqH6Po6OmoKGGipIkighajGMTrIh670e2PGsrm/ej8FP7z5dbzG3dqzpKPU2p/HV+0efU+qemp6SmjpqWFkMMaaLI2JkjU8BlAPqkRFMYjk+azMzOZAAVAAACu4pwnQYnoVbKiQ1rE/c1KJrb4Hdlvg63WLEDov2LeotzauxmJd1m9csVxctTiYfl252ystNxmoK6FYp4lycnWXsKi9dF7JonedkTDDb1ZXXCmjzr6JquTJNckfCrfq4U+vsnCVQ+ObX2bVs/UTb50zxiezzh9W2ZtCnXWIucpjhMdr4ABpm2AAALTg/jkvJ6FKsWnB/HJeT0KBuSdTlPyL0qMSdRtr+lXoUSdTlPyL0qeYj6jrX9KvQpRaMddWcX0adCEc/j1z8njJDHK/75Q/Rp0IR7+PXLyeMSOc1HGpfHXpMRlqONS+OvSYiAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB6iZqeH23wdYsJLtGxVZ20tinu8jf3tY/QYq9aNvrdn9h0UjbBRtt+G7dRtTLaqdiLy5Zr+KqSR9x2Zpo02kt2o6I4/GeMvju0NROo1Vd2emeHwjkAA2LAC2YFwZJja61lCy4NotzUyz6ax6ekueSJlmnXKmdd2Buqm8+Qf/mhq9rX7mn0Vy7anFURw74bHZtmi/qqLVyMxPk5GqKiqi8KLkeH0/8ArH+MvSfJs6ZzES188JAAVA/OuNLOllxXWUkbdGBztuiT/A7WifUuafUfoo5RsuUaJNa69E1ua+Fy8io5OlTyvpPpou6L1vTRP7Twl6b0c1E29X6voqj944+blCofJ9qh8qfJ5fS4eAAihacH8cl5PQpVi04P45LyehQNyTqcp+RelTzEfUba/pV6FPZOpun5HdKnziLqOtn0q9ClFoxx1ZQ/Rp0IR7uPXPyeM38b9WUOXa06ENB3Hrl5PGJHOajjUvjr0mIy1HGpfHXpMRAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHqGaFM5WovZQwoZWZourhOdHNxqfqiNESNqJwIiIn2H0alrqG1dnoqpi5pLAx/2tQ2z77bqiqiKo6YfE7kTTXMSEvhuCxVOIqWDEtZNR2t2ltssKZuTUuXWXJM8teSkQCXKJromiJmM9Mc4+CW6tyqKpjOOieTsG8OwX866/nu//rLtscW3Y5orxXvwfeqmuqnU2jMyVyqjY9JNaZsTrn5pOu7A/VTefIP/AM0PIbX2dXa0Vyub9dWI5TMYnjHY9RszXUXNXRRFmiM9MROeXxZHWHYM03Z4rr881z927/8ArI292bYdgsNbNZ8TV01xZEq08aqrke/rIqKxNX1nMn/1j/GXpPk21rZdymaavaK57Mx5NZc2hRMTT6ijunzAAb1pw53ssNRbBb166VKonMU6Icy2WalNz2ujz90rpJVTwZIiek0m3aojZ9zPZ4w3OxYmddbx2+EuQuTWY1Mz01mJT41U+rQ+QAcHMLRg/jkvJ6FKuWnB/HJeT0KBuSdTlPyL0qfGIuo+2a/7VehT7k6nKfkXpU+MRdR9s1/2q9ClFmxt1Yw/Rp0IaTuPXPyeM3cbL/vjF9GnQhpO49c/J4xI5zUcal8dekxGWo41L469JiIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA9Qys4TEhkbwnOlxl3fY2uja7CTKRzs5aF6xKn+FdbV6U+ouhwPBGIEsOIGSTOypKhNqn8CdZ31L+GZ3tFRzUc1UVFTNFTgU+v+j+tjU6SmiZ/FRwn7fs+W7c0k6fVTVEfhq4x93oAPQtCF32N8Y0GDL1X1twpp546mlWFqQZZo7SRUzzVNXhKQDH1Ono1Nqqzc/tl36e/Xp7kXbfOHqrm5XcGa5ngBkRGODp5gACBwzZBubbjiydsbs4qVqU7VTgzT334qv2HVsVX1lhsUtSjk3TJnHA3su7PInD9h+f53q97nOcrnKuaqvXU8P6Ua2N2nS0zx5z9nsvRzSTvVamrlyj7tSThMSmR5iU+cVPe0vkAHW5haMH8cl5PQpVy04P45JyehQNyTqcp+RelT4xEq+1C2al/rV6FPuTqcp+RelTHiHL2oW36VehSos2NcvbjDkuabWnQhpO49c/J4zcxmueMIlz/gToQ1Hcdufk8YlXOajjUvjr0mIy1HGpfHXpMRAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHqH2hjPtCwktmNx1bAWM2Niisd1lRqJ7mnncupP8AA5ehfqOSsU2Y35G42drrmiuxdt/WOuGr12jt6u1Nu5/4/T4OQ4Y2QKq3MZRXVH1dI3U2RFzkjT/8k8B1G3Xa3XaBJrfVxzt66NX3TeVOFD6todqafW05onFXVPP+XzTWbOv6Sr8cZjrjl/DdABtGtAAANS5XKjtVBJW1sqRxM+1y9ZETrqQl7xrZ7Q10ccqVtUmpIonZoi/4ncCdJya+YguF8q9vrZfct95E3UyNPAnpPPbS23Z0tM0W53q/2j4+TfbP2Pd1NUVXI3af3n4eb3Et/qb/AHR1XN7iNvuYos80jb6+ypXJFMsjjWe4+X6i9Xerm5XOZl9FsWabVMUURiIYnKY1PpVPhTXyzYeAA4uQWnB/HJeT0KVYtOD+OS8noUDck6nKfkXpUxYhX/dK2J/mLq+pTLJ1OU/IvSpixBn7UrbwZbavQpYRZsZ9V8K/5adCGmvHbn5PGbeMlzxfF4idCGovHbn5PGJVzqo41L469JiMtRxqXx16TEQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPUU8AGRFyM7HGsin2i5HZTLrmG8x5t09VLBK2WGV8UjeBzHKip9aEW15mbIZVFyY4wx67eV0o8d4jpWo3dyVDU607Ef+PD+JKs2Tbsjfd0NG9ez7pPSc7STwn2kht7e1tXRGKbk9/m1dzZmlrnNVuO5fJ9km+PRUihpIfCjFcv4qQFwxLerm1WVlxmexf7Nq6LfsQglkPlZDhe2lqb0YuXJmPi52tBp7U5ooiJ+DM55ge/wnw6Qwueayq42FND17zA5cw52Z8Kpi1VZZFMYeKp8nqnh1OwAAULRg/jkvJ6FKuWnB/HJeT0KBuSdTlPyO6VMOIE/wB0rauf9ovQpmk6nKfkd0qYMQL/ALqW1P8AMXoUsIs2Meq6H6NOhDVXjtz8njNrGK54ui8ROhDVXjty8njEq51Ucal8dekxGWo41L469JiIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAfSKfIAyIp9o8w5n1mc4qcZhnR59afhNbM9zOcVuG62ds8J8q8wZqMxvm6yK8+FdmfOZ4qnCanKIeqp8qp4Di5YAARQAAC0YP45LyehSrlowfxyXk9CgbknU7T8jukwYg6lbZ9I7oM8nU7T8jukw4g6lLb9IvQpYRZcYrni6LxE6ENZeO3LyePpNjF/VdF4idCGuvHbn5PGJVzqo41L469JiMtRxqXx16TEQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB7mMzwAe5jM8AAAAAAAAAAAAC0YP45JyehSrlpwfxyXk9CgbcnU5T8i9Jhv8A1K21f8xehTNJ1O0/IvSpr3/qXtv0jugsIsuLuqyLV/Zp0IYF47c/J4zNi7qtj1/wJ0IYf77c/J4xKudVHGpfHXpPEhlVM0jeqL/hU9qONS+OvSSUdxuDImNbWzNajURER66iCM2mbtT+ao2mbtT+apLb53Hu+fnqN87j3fPz1LgRO0zdqfzVG0zdqfzVJbfO493z89Rvnce75+eowInaZu1P5qjaZu1P5qktvnce75+eo3zuPd8/PUYETtM3an81RtM3an81SW3zuPd8/PUb53Hu+fnqMCJ2mbtT+ao2mbtT+apLb53Hu+fnqN87j3fPz1GBE7TN2p/NUbTN2p/NUlt87j3fPz1G+dx7vn56jAidpm7U/mqNpm7U/mqS2+dx7vn56jfO493z89RgRO0zdqfzVG0zdqfzVJbfO493z89Rvnce75+eowInaZu1P5qjaZu1P5qktvnce75+eo3zuPd8/PUYETtM3an81RtM3an81SW3zuPd8/PUb53Hu+fnqMCJ2mbtT+ao2mbtT+apLb53Hu+fnqN87j3fPz1GBE7TN2p/NUbTN2p/NUlt87j3fPz1G+dx7vn56jAidpm7U/mqNpm7U/mqS2+dx7vn56jfO493z89RgRO0zdqfzVG0zdqfzVJbfO493z89Rvnce75+eowInaZu1P5qjaZu1P5qktvnce75+eo3zuPd8/PUYETtM3an81RtM3an81SW3zuPd8/PUb53Hu+fnqMCJ2mbtT+ao2mbtT+apLb53Hu+fnqN87j3fPz1GBE7TN2p/NUbTN2p/NUlt87j3fPz1G+dx7vn56jAidpm7U/mqNpm7U/mqS2+dx7vn56jfO493z89RgRO0zdqfzVG0zdqfzVJbfO493z89Rvnce75+eowInaZu1P5qjaZu1P5qktvnce75+eo3zuPd8/PUYETtM3an81RtM3an81SW3zuPd8/PUb53Hu+fnqMCJ2mbtT+ao2mbtT+apLb53Hu+fnqN87j3fPz1GBE7TN2p/NUbTN2p/NUlt87j3fPz1G+dx7vn56jAidpm7U/mqNpm7U/mqS2+dx7vn56jfO493z89RgRO0zdqfzVG0zdqfzVJbfO493z89Rvnce75+eowInaZu1P5qjaZu1P5qktvnce75+eo3zuPd8/PUYETtM3an81RtM3an81SW3zuPd8/PUb53Hu+fnqMCJ2mbtT+ao2mbtT+apLb53Hu+fnqN87j3fPz1GBE7TN2p/NUbTN2p/NUlt87j3fPz1G+dx7vn56jAidpm7U/mqNpm7U/mqS2+dx7vn56jfO493z89RgQ7mPYuT2q3lTIs+D+OS8noUga6oqKiRjqiZ8qomSK9c8iewfxyXk9CkG3J1O0/IvSpr3/qYtvjr0GxJ1OU/IvSprX7qYtv0jugsCyYs6rIvEToQw/wB9ufk8ZmxZqxZEn+BOhDD/AH25eTxiRzuo41L469JsN943kNeo41L469JsN943kED6APWtVzka1M1XgKPERVVERM1XrIbUdDI5M5HIzwcKm3BTthb2XrwqZjNt6eOdTErvTypaqUMPXc5frG4YOy/7TaB3eqo6nV6yrrau4YOy/wC0bhg7L/tNoImbkTsrkX1VHUesq63zDZJqlmnTUdVO3g0o43OT7UQ+Z7Q6lcjamnqIHO1okrVYq/ah+s6KmgoaGCjpI0hghYjGMZqRERCl4kpKa4bJ+HaOthbUU8tHUtfHJrRyZKegu7Cot0RVvcZmI5dbR2tsVV1zGOEZnn1Pz1uGDsv+0bhg7L/tL1jbBNThes3RT6c9qmdlHKutY1+Q/wAPYXr8pTzR3dL6muaK6cTDcWtR62mK6JzEtXcMHZf9o3DB2X/abQOr1VHU7PWVdbV3DD1lcn1mJ9A5Ncb8/Apvgk2aJ6Fi7VHShXscx2i9qovhPCXliZKzRenIvYIuWN0Uisd9vZMO5amjj0Mq3cir4vgAHS7QAAAAAAAAAAADwD0HmadlPtGadlPtA9AAAAAAAAAAAAAAAAAAAAAAAABkp6eerqY6algknnkXRZHG1XOcvYRE4Sy2fDNFJZ7jdsSVdbaqajnjpkbHS6cj5H6S5ZOVvAjdfKBVgWe9YUWmktMmHnVt3pLpTrPA7cqpJmjla5qtbnrRU/ErLmuY9zHtVrmqqK1UyVFThRQPAAAAAAAAAABrVHvm8hY8H8cl5PQpXKj3zeQseD+OS8noU4jbk6nafkXpU1r8v+69uT/Md0GxJ1O0/IvSprX7qZt30jugosmLFzxXF4idCGL++3PyeMy4r6q4svkJ0IYv75c/J4xI53Ucal8dek2G+8byGvUcal8dek2G+8byCB9G7Qx++lVPAhpErSplSs8KZmRYpzW6b04pZgAbFhAAAHrfft5UPD1vv28qFjmk8n60b71ORCr4msV5qrza79YZKbd1Akke1VSKjJGvTXrTrknf20b8Pztr7rLaqdUbpVUUu1uZrTLJ3h4Cg7kwfn8aFx+//oe71VyMRbmOqecQ8XpqJzvxP7TKYrItkauopqOstmHpqeZqtfG971RyHELnb6i1XaqttU1jZ6eRY3ox2k1F8C9c/RGE47XHQVLbViOe+R7YmlJPUbasa5cCdjsnDsc9X978qd0IaTalqPU0XZmZmZ68txs65PrarcRERHZhXQAeeb0AAA1qyPTh004Wa/qNk8cmkxWr10yOFdO9TMOVM4nKFABqmxAAAAAAAAAAALhh+bELMA4mittmpqq2SNZuyrkaiyQJ/h169WvgXLhKeWSzQU0mEL/LLil1tlY1mhbUVcq7wKmevL68uvqAtNO3ZD3JDtOx5QSR7W3QetkjVXJlqXPr5oZNHZHz+Li3/wD+jiK7DabIsEbn7JMMLlairHuaqXQXLg1J1uAyb0WHPXsnw/dar1AVKqSVK2dJ4Uhm2x2nGjdBGOzXNuXWyXVl1jCfc7WMqJWRzJOxr1RsqIqaaZ++yXXr4dZ8AAAAAAAAAAAAAAAAAAAAAAF12PVjdXXOmoqhtNiGppVgtcsuaMa93v0RU969W5o1V1a1PaZ9biOyT3TGmJritotkrKaONv76WSZyKqNaiqiakRVVy9Y82Pp2pV3Sho1ip77VUqttlXIiLtcia3Mbnqa57c0R3Ci8pmjo75gyz1CXe12682Wtlayppt1JIkU7UVW5ujXOOTLPlTNAPZW4is7rVacJYmrZbTfsn0SI9YV09PQVr0zXRVHcOS5KRuP57dUYwnloZWTTrG1K6SJqtifVImUjmIuvRVU+3MmFtuLsVLa71bKegtUVM1I7VSR1LYXI1js1dE165uydrVy8KkPj+roarF824khfJDGyGqqYGoxlVUIn7yRGpqRFXVq4cs+uBVQAAAAAAAAABrVHvm8hY8H8cl5PQpXKj3zeQseD+OS8noU4jak6nafkXpU1r71M276Reg2ZOp2n5F6VNW+5+1m3/SO6CosmKuqqLxE9Bj/vtz8njPvFXVVF2NBOhD4Tjlz8njEq53Ucal8dek2G+8byGvUcal8dek2G+8byCB9EtT8Wj8UiSWplzpY+QytN/dLHv8oZQAZ7EAAACLkqLw5LmAB+oqOus+IbLHNG+nrKSdqKrJNFyIvYc1eBUXsnx7X8Nd5bb93j9R+YODg1DNeyv2nof6zExG/biZ/7saL+kzEzu3JiP+7X6oiitFopZXQR0dBB76RWI2NvKuWR+bsT19Pc8W3W4UrldBPUOfG5UyzbwIv4EQuvhXPlBha3aE6qmKIpxEMvSaL2eqa5qzMgANW2QAAAB4upFUghQAahswAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAnrFiTea31tuntFHdKKsfHI+Cq00RHsz0XIrVRf4lIEATOIL++/TUa7301vp6KBKeCnptJWsbpK5dblVc1VVIY85FPQAAAAAAAAAAA1qj3zeQsWD+OScnoUrtR75vIWPB/HJeT0KcRtP6nafkXpNW+9TVu8deg2n9TtPyL0mrfOpq3/AEi9BUWLFPVTF4ieg+E47c/J4+k+8VKvtniX/CnQhjav+23LyaPpEq57Ucal8dek2Gf1beQ16jjUvjr0maFc4k8AgZCQoZM4ljz1tX8CPPuKRYpUen1p2Ttt17lWXXcp3qcJgHyx7ZGI9i5op9GzicsAABRZMC0dLX46tlHW07Kmnkc9HRSJm13uHKmacqIdBpcDWyn2Q46iOjgrbDWwzOjY5NJkUreFn1Lnl9adY5rhK7UtjxbQXWsbI6Cnc5XpE1FdraqakVU7Ja8L7IkVlu90ZWsnmtVXPJURNaiK+JznKvAq5ZKi60z4TcaK5p4oppu897OerhH7S1WrovzXNVrlj7z+8NG04DgrbVTXK636C0tuEqx0cT2aSyrmqJ10yz/84SVsOx5SqmIaW+VNNuqjascX71zdqXRzSZ2X8CoqcPYU1bZizC9VYrXQ4moqx01nlWSmfTZKkiZ5ojtfJnycIoMeW6bFd+rrzRzNoLxAlOrYcnPjaiZJ2M80VeDrnZRGjpmmZxP1nq456uPJ11zqpiqOP7dfDH05tO24BbU09bW198hht9PUbmjqKeF06VDky901E/h18PKZ4djSqbebnSV9zZBSW+Jky1EULpHSMdnkrWJr/hXPh4OubdgxvZbVbauxJLdKGgbUulo6mlVu3IxVz0Hov/msw02M7O/FdxudTU32mbLG2KkqYp0dJE1Nao5vA5FXgRc8s/rOMUaPdp5Z6ePx/bljk5TXqs1dXRw+H78881OvltprVdpKOkucVyia1HJNE1W8KZ6KovAqddCNLPjfEVDiW/R1tBTPijjhSJZJURHzKiquk5E1eArBq78URcqiieDZWZqm3E18wAHS7Qw1Mm107l666kMqqiIqquSJ1yMqZ9uk1e8bwes6bte7T2u23TvSwAA1rOAAAAAAAADxeBesegDtFhuOELngW936TAFsa+zsjRY+Hb1VNaquWr8SDocF2fG07q+2XiktNVXK50Fqgp5JI6fRTLQfJkiNVcs/r1ZkFYMTW+14AxNYalk61d0Rm0OY1FYmSa9Jc9X2KXqwbKeG7XZbDTObdaXcEW1T0dKyPaZly1yOVdbtevLNNa6+ACs2rY0ZPYEu18xBHaWyVElNGm53TNa9jlaqvcmpqZtXWv26yQs+C4r7sXLFaqOlq7s+8rTtr2NX+qTLN2kutGZa+A2MN7IOGbTJU1L579SyvrZqmSGFzZIapr3KrWuY7UxcsuDXn11MNLsqU1ssVYy0UUlJW1F3dWpCjGrEkDnIro889SqidZOvqAjLfsdUNzvl3pKXEqS0FnjR1VVspXOVX5rm2NiKquRNFdfZ1IilTxFaaOy3l9FQ3eG6woxr0miYrMs0z0XNXgcnXT/9F9bjDBEeNbhfKJb9bFr4kXbaRWsdBLn7pdDNUejtS6+Bc9WvNK5shYpt+K8QQVtupZI44IEhdNM1rZKhUXPTcjdSAU8AAAAAAAAAAAAAAAA3bPDQ1N9oKe5zrBRSTsZPIi5aDFcma59bV1zSNihmpqe4009ZSJWU8cjXSU6uVqStRdbc01pmB27FlltVstVfEzY3hqLLHTq6ludtmR0rXZe/evCicOa6+DwlUtmxPJV2637uvzKK6XKHbqal3M97dHLNNORNTVVP/FJGmx5gawU9xq8N0F3bVV0Lo0oJpESlhV3XRM1/DPVq1Zm1Q7K9pksdAlyqL5R1tFT7Q+nt8jWw1So3JrlVdbV1JyeEDRoNja2S7HFTWV1yoKS7tqlYtRLUOSOm0VyWF6cGnmi/ahiuux9ZqfYtobxDd6CO4IySaWoWdysqkRrnJFGnBppqTlRSPsOL8PSYRvOH8WQ18ra2rWubNTqjnOeuS5OXVrzRNeWS5rwGCPE2Gq3YoZhe8U1alwoHSyUb4ctrc92loq5c9Se6XNALHdcEzYlxTa7W/eyzObZG1SOooXK16IqJ7vPLXr4deSdkr9z2NnRW6z1tiv1NeYrlVJRacbFY1kq58C5rm1Mlz6+ono9krD7cU0t0WCu2iKxrbXJtTdLbc0XPLS97q4fwIKz4xhosF2GxUEMj7xRXhtY3bNFsLkVVRGq5V1Z6WXBqAkajYpoY99Y6XGNNVVNqpnTVVOyBdNjkaq5e+4Fy4esaFXsb0ttwzBcrpiiCjrKik3ZHA+nesSpkiozbU1aWtNX4ZazqVdT0dqpMX32pw5LZZauhek9XNUtkZUSK1URsaIvAqqma5JmuWopFk2RcL2bDDKRjL1UZUe53Wqpeyamc/LW5HLrRPAmrLrAchPR9WQAAAAAANao9+nIWLB/HJeT0KVuZc5V8BZMH8bl5PQpxG0/qdp+RelTWvnU1b/pF6DYkX/d6nTwL0qa99T/dug+kXoKLDi73N/gf2Wp0GCN2dwrU+VSMX7FPvFivV9vnkz03Rt0s06+Rp00mlck/zKRzfsXMSkKVUcal8dek+6d3C36z5qkyq5k/xr0mNjtF6OIrdB4ioqZoenIZIpnwuzYurrovApvR1kT090ugvh4CNB20XaqOTrqt01c0ykkapmj2r9Y02fLb9pCg7vaZ6nV6iOtNabPlt+0abPlt+0hQPaZ6j1HamtNny2/aNNny2/aQoHtM9R6jtTWmz5bftGmz5bftIUD2meo9R2prTZ8tv2jTZ8tv2kKB7TPUeo7U1psThe37TE+rhYnvtJew0ij0k6irohYsR0yzTVL5tXvW9hDCAY01TVOZd8RERiAAEUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8PQBmlrKueFkM1XPLEz3rHyOc1vIirkhhAAAAAAAB4upMz0wzvybopwqQa7lzcq9ks2E10Zal3YYq/6VKwWLDztrorhJ8mJ3RkQbUzsrHSt/wAGf4mPED9GxW6LLhc532J+p5VOypKWLsMah8YldlSW6LLUjHO6CombrK6swja6tV0nNja1y5qq5tXLhUjKSfKsonqurSWNeRyZGxZZN24QqKNctKB65a+s5PWQaPckSoi5OaqOTwKgkadwboXGdv8AjU1SQu+T67dDfezNR6ekjyKzQyZe5currGyaBljmVup2tCjaB8te13vVzPooAAAAAAAAAAAAAAAAAAAZqSkq6+rjpKGllqqiRcmRQsV73L4ETWphLRgLGEmB8WR3xlC2ubtT4HxK/QVWuyzVrslyXUnW7KAa3tIxl807x9yk9Q9pGMvmnePuUnqOz/0kab5oT/fm/wAg/pI03zQqPvzf5CDjHtIxl807x9yk9Q9pGMvmnePuUnqOz/0kab5oVH35v8g/pI03zQqPvzf5AOMe0jGXzTvH3KT1D2kYy+ad4+5Seo7P/SRpvmhUffm/yD+kjTfNCo+/N/kA4x7SMZfNO8fcpPUPaRjL5p3j7lJ6js/9JGm+aFR9+b/IP6SNN80Kj783+QDjHtIxl807x9yk9Q9pGMvmnePuUnqOz/0kab5oVH35v8g/pI03zQqPvzf5AOMe0jGXzTvH3KT1D2kYy+ad4+5Seo7P/SRpvmhUffm/yD+kjTfNCo+/N/kA4x7SMZfNO8fcpPUPaRjL5p3j7lJ6js/9JGm+aFR9+b/IP6SNN80Kj783+QDjHtIxl807x9yk9Q9pGMvmnePuUnqOz/0kab5oVH35v8g/pI03zQqPvzf5AOMe0jGXzTvH3KT1D2kYy+ad4+5Seo7P/SRpvmhUffm/yD+kjTfNCo+/N/kA4x7SMZfNO8fcpPUPaRjL5p3j7lJ6js/9JGm+aFR9+b/IP6SNN80Kj783+QDjHtIxl807x9yk9Rr1uF8S22kdV3DD1ypKZnvpZqV7GN5VVMkO3/0kab5oVH35v8hE4l2fUveF7jZqXDC0766B1Oss1UkjWNcmSroo1M1y4NfCBw8AFAAAAAAAAAAAAAAAAAAAAeGN8zW6k90pB9vejG5qabnK5yqp65yvXNynyQCdtq7XYatevK5I0+tU9RBEyx21W+lg5ZndCAbErtsrImJwIqJ9hixLJpV8MXaoWovgUyW5izV6OXgQi7pPum6Ty9bSyTkTUXoRI4YrEp7qsEi5R1LdrXl4U9X1n1dKZ1LcZEyya9dJPSQTHujkbIxytc1UVFRclRS5Pcy/WZKljUbUR6nNTgRfUBWpE26n2n+KPNWeFOuhoEg5rmuy1te1fsUxSRJNm+NMnp75vpQitQDgAA+0lenA77T4AGZJ39dEU93QvyfxMAA2N0J8j8RuhPk/ia4A2N0J8n8RuhPk/ia4A2N0J8n8RuhPk/ia4A2N0J8n8RuhPk/ia4A2N0J8n8RuhPk/ia4A2N0J8n8RuhPk/ia4A2N0J8n8RuhPk/ia4A2N0J8n8RuhPk/ia4A2N0J8n8RuhPk/ia4A2N0J8n8RuhPk/ia4A2N0J8n8RuhPk/ia4A2N0J8n8RuhPk/ia4A2N0J8n8RuhPk/ia4A2N0J8n8RuhPk/ia4A2N0J8n8RuhPk/ia4A2N0J8n8RuhPk/ia4A2N0J8n8RuhPk/ia4A2N0J8n8RuhPk/ia4A2N0J8n8RuhPk/ia4A2N0J8n8RuhPk/ia4A2N0J8n8RuhPk/ia4A2N0J8n8RuhPk/ia4A2N0J8n8RuhPk/ia4A2N0J8n8RuhPk/ia4A2N0J8n8TzdHYZ+JgAGfdC9ZqHys8i9dE+oxAD1XOdwqqngAAA+44nSOyampOFV4EA+oI9sk16mprcpuOkV7lcurPUidhOsfCI1GaDPepwr8pTao6daidEy9ynCBtwu3BbJKl2p7kybn2V4CuLrUlLvVpLMlNEv7uLUvhUiygb9ruUttq0lamlG7U9nZT1mgCC4V1DFXwNuFvVHaSZq1P/ADhK+5qtfrza9q8iofFvuVTbptOF2bF98xeBxYmzWi9IiaaU1Sv8Lly+xeBS80Qf7mXVUxZr2xmpfrTrn0lrhm4vWMVfku1L+Jv1NkraZ2bW7Y3spqU01zjXRnhy8ZMiK+HWG4NTNI9JOyhhW0V7eGEk4JKdPeTTQr/geSMU0uWTLxKnjpmBWN7K7tCjeyu7ncXBslYqe5u8a+NEnqMiPuHWuVKvLCnqApe9ld3O4b2V3c7i7adw74Unmk9Q07h3wpPNJ6gKTvZXdzuG9ld3O4u2ncO+FJ5pPUNO4d8aTzSeoCk72V3c7hvZXdzuLtp3DvhSeaT1DTuHfCk80nqApO9ld3O4b2V3c7i7adw74UnmU9Q07h3xpPNJ6gKTvZXdzuG9ld3O4u2ncO+FJ5lPUNO4d8KTzKeoCk72V3c7hvZXdzuLtp3DvhSeZT1DTuHfCk8ynqApO9ld3O4b2V3c7i7adw74UnmU9Q07h3wpPMp6gKTvZXdzuG9ld3O4u2ncO+FJ5lPUNO498KTzSeoCk72V3c7hvZXdzuLtp3DvhSeZT1DTuHfCk8ynqApO9ld3O4b2V3c7i7adw74Unmk9Q07j3wpPNJ6gKTvZXdzuG9ld3O4u2nce+FJ5pPUNsuPfCk80nqApO9ld3O4b2V3c7i7bZcO+FJ5pPUNsuHfCk80nqApO9ld3O4b2V3c7i7bZcO+FJ5pPUNsuPfCk80nqApO9ld3O4b2V3c7i67ZcO+FJ5pPUNsuHfCk80nqApW9ld3O4b2V3c7i67ZcO+FJ5pPUNsuHfCk8ynqApW9ld3O4b2V3c7i67ZcO+FJ5lPUNsuHfCk80nqApW9ld3O4b2V3c7i67Zce+FJ5pPUNsuPfCk80nqApW9ld3O4b2V3c7i67Zce+FJ5pPUNsuPfCk80nqApW9ld3O4b2V3c7i67Zce+FJ5pPUNsuPfCk80nqApW9ld3O4b2V3c7i6bZcO+FJ5pPUNtuHfCk8ynqApe9ld3O4b2V3c7i6bbcO+FJ5lPUNtuPfCk8ynqApe9ld3O4b2V3c7i6bbce+FJ5lPUNtuPfCk8ynqApe9ld3O4b2V3c7i6bbce+FJ5pPUNtuPfCk8ynqApe9ld3O4b2V3c7i6bbce+FJ5lPUNtuPfCk80nqApe9ld3O4b2V3c7i6bbce+FJ5lPUeLLce+FJ5lPUBTN7K7udx6lrrl/sF+0t6y3Dr3SBOSJPUYnzVXC68InixogFYbZ693BCZFstSxM5nMiT/EuXSTEsrV/rbnUSeBFyNCR9Ii5tjV7uy92YGpuSljX+sdO7sMTJPtPHcGjkjGp/A02EbPNqjiVE5MjYZb2RM26slRjPCuQGnT08lQ9GsTJOuvYNqtq46Cn3LTKiyuTJyp/D+phqbsxke00DdFODTVOgh1VVVVVc1XrlR4ACKAAAAAJWixBdKFEZHUbZGn8EqaafiTEWK6KZujcLO1V67oH5fgoBcjOldg6pyV26ady9Z0SL0KbMVBhqpaq09zdq4c4noAEbMeHrdOujT3JXLlnlovQz+1HVmld0gHLALhCTNU3dkv1+o8bhGRy5JXdPqAJhMvUwfKrst3dPqPEwhKvBXdPqAGFeLhGROGu6fUPajJmibu4eX1AFwHtRkzy3dn9vqHtQl7u6fUATCPPalJq/wBu4eX1D2pSZce6fUAMKe1KVG5rXeHr+o89qUuWe7en1AFwmT2pyZce6T32pSZIu7un1ADCvPanJ3d0+oe1OVE470+oAYD2pS929PqPPanKi5bt1/WAMB7VJO7vB1zz2qSZ8d6QBgParJ3b0j2qS929PqAGB4uFZU/vvSPatLlnu3UATCZParLnlu3X9Z4uFpEy/wBu6QC4D2rS55bt6R7V5eFK3P7QBgee1eXLPdvSe+1eXu3pAJgy89rEmr/bek89rEuapu3g5QBgeLhmVHZLWdI9rMqrxzpAGFeLhqXPjnSerhmVP750gDCPFwzKnDWHi4alT++eHrgDAe1uXuzpC4alTUtZryzAGFeJhyVf750nntdl7sAGEPa5L3Z0j2uy55bsAGB57XZe6x7XpUXJasAYHntel7rHtel7r6QBhT2vS8O6zzeCTuvpAGEfL7IyNFdJW5InCuSmBbfbkXJ9evMcAMDVc7D0et1ZI/kiX0mJbrZoU/cUc0q/4lRqAEyrVmxBOqaNNTxU6dlE0l+1SLmnmqH6c0rpHdly5gEViAAAAAf/2Q==" alt="Interface do Simple Notes Pro">
+                <div class="phone-ui">
+                    <div class="pu-status"><span>9:41</span><span>5G ▮▮▮</span></div>
+                    <div class="pu-header">
+                        <div class="pu-title">Notas</div>
+                        <div class="pu-search">Procurar em suas notas...</div>
+                    </div>
+                    <div class="pu-folders">
+                        <span class="pu-folder"><i data-lucide="folder"></i> Trabalho</span>
+                        <span class="pu-folder"><i data-lucide="folder"></i> Estudos</span>
+                        <span class="pu-folder"><i data-lucide="folder"></i> Ideias</span>
+                    </div>
+                    <div class="pu-notas">
+                        <div class="pu-nota">
+                            <div class="pu-nota-top">
+                                <span class="pu-nota-titulo">Lista do mercado</span>
+                                <i data-lucide="pin"></i>
+                            </div>
+                            <div class="pu-nota-texto">Arroz, feijão, café...</div>
+                            <div class="pu-nota-img"><i data-lucide="image"></i></div>
+                        </div>
+                        <div class="pu-nota">
+                            <div class="pu-nota-top">
+                                <span class="pu-nota-titulo">Ideias do app</span>
+                                <i data-lucide="bell"></i>
+                            </div>
+                            <div class="pu-nota-texto">Novo design com tema escuro OLED e azul...</div>
+                        </div>
+                        <div class="pu-nota check">
+                            <div class="pu-nota-top">
+                                <span class="pu-check"><i data-lucide="check"></i></span>
+                                <span class="pu-nota-titulo">Treino concluído</span>
+                                <i data-lucide="alarm-clock"></i>
+                            </div>
+                            <div class="pu-nota-texto">Segunda e quinta, 7h da manhã</div>
+                        </div>
+                    </div>
+                    <div class="pu-fab"><i data-lucide="plus"></i></div>
+                    <div class="pu-tabbar">
+                        <span class="pu-tab ativa"><i data-lucide="notebook-pen"></i>Notas</span>
+                        <span class="pu-tab"><i data-lucide="list-checks"></i>Tarefas</span>
+                        <span class="pu-tab"><i data-lucide="settings"></i>Ajustes</span>
+                    </div>
+                    <div class="pu-home-indicator"></div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- ===== RECURSOS (grade) ===== -->
+    <section id="recursos">
+        <h2 class="section-title" data-aos="fade-up" data-i18n="rec_title">Tudo que você precisa</h2>
+        <p class="section-sub" data-aos="fade-up" data-i18n="rec_sub">Um app completo disfarçado de minimalista — sem anúncios te interrompendo no meio da ideia.</p>
+        <div class="grid">
+            <div class="glass-card feature-card" data-aos="fade-up">
+                <div class="icon-box"><i data-lucide="shield-check" color="#fff" size="30"></i></div>
+                <h3 data-i18n="f1_t">Privacidade de Elite</h3>
+                <p data-i18n="f1_d">Bloqueio por biometria (digital ou rosto) com tempo configurável — de imediato a 30 minutos fora do app.</p>
+            </div>
+            <div class="glass-card feature-card" data-aos="fade-up" data-aos-delay="80">
+                <div class="icon-box"><i data-lucide="cloud-lightning" color="#fff" size="30"></i></div>
+                <h3 data-i18n="f2_t">Backup Instantâneo</h3>
+                <p data-i18n="f2_d">Notas, listas, pastas, tarefas, imagens e áudios salvos automaticamente no seu Google Drive pessoal.</p>
+            </div>
+            <div class="glass-card feature-card" data-aos="fade-up" data-aos-delay="160">
+                <div class="icon-box"><i data-lucide="folder" color="#fff" size="30"></i></div>
+                <h3 data-i18n="f3_t">Pastas &amp; Organização</h3>
+                <p data-i18n="f3_d">Organize em pastas, fixe o importante no topo, selecione múltiplos itens e busque em tudo instantaneamente.</p>
+            </div>
+            <div class="glass-card feature-card" data-aos="fade-up">
+                <div class="icon-box"><i data-lucide="bot" color="#fff" size="30"></i></div>
+                <h3 data-i18n="f4_t">Assistente de IA</h3>
+                <p data-i18n="f4_d">Pergunte sobre suas notas, gere resumos e chat integrado no editor — com a sua chave gratuita do OpenRouter.</p>
+            </div>
+            <div class="glass-card feature-card" data-aos="fade-up" data-aos-delay="80">
+                <div class="icon-box"><i data-lucide="alarm-clock" color="#fff" size="30"></i></div>
+                <h3 data-i18n="f5_t">Alarmes que Disparam</h3>
+                <p data-i18n="f5_d">Lembretes por data, dias da semana ou recorrência — com popup em tela cheia, som no volume máximo e soneca.</p>
+            </div>
+            <div class="glass-card feature-card" data-aos="fade-up" data-aos-delay="160">
+                <div class="icon-box"><i data-lucide="image-plus" color="#fff" size="30"></i></div>
+                <h3 data-i18n="f6_t">Imagens &amp; Áudio nas Notas</h3>
+                <p data-i18n="f6_d">Anexe fotos e grave áudios direto na nota. Arraste anexos entre as linhas do texto com uma linha-guia.</p>
+            </div>
+            <div class="glass-card feature-card" data-aos="fade-up">
+                <div class="icon-box"><i data-lucide="type" color="#fff" size="30"></i></div>
+                <h3 data-i18n="f7_t">Editor Rico</h3>
+                <p data-i18n="f7_d">Negrito, itálico, sublinhado, tachado e listas — modo leitura limpo quando você termina de escrever.</p>
+            </div>
+            <div class="glass-card feature-card" data-aos="fade-up" data-aos-delay="80">
+                <div class="icon-box"><i data-lucide="globe" color="#fff" size="30"></i></div>
+                <h3 data-i18n="f8_t">3 Idiomas</h3>
+                <p data-i18n="f8_d">Português, English y Español — o app inteiro, incluindo o assistente de IA, no seu idioma.</p>
+            </div>
+            <div class="glass-card feature-card" data-aos="fade-up" data-aos-delay="160">
+                <div class="icon-box"><i data-lucide="palette" color="#fff" size="30"></i></div>
+                <h3 data-i18n="f9_t">Modo OLED &amp; Claro</h3>
+                <p data-i18n="f9_d">Tema escuro puro que economiza bateria em telas OLED, e um tema claro elegante para o dia.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== DIFERENCIAIS (abas interativas) ===== -->
+    <section id="diferenciais" style="padding-top: 40px;">
+        <h2 class="section-title" data-aos="fade-up" data-i18n="dif_title">Feito nos detalhes</h2>
+        <p class="section-sub" data-aos="fade-up" data-i18n="dif_sub">Explore o que torna o Simple Notes diferente dos bloquinhos genéricos.</p>
+        <div class="tabs-wrap" data-aos="fade-up">
+            <div class="tabs-nav" role="tablist">
+                <button class="tab-btn ativo" data-tab="nuvem"><i data-lucide="cloud" size="17"></i> <span data-i18n="tab_nuvem">Na nuvem</span></button>
+                <button class="tab-btn" data-tab="seguranca"><i data-lucide="lock" size="17"></i> <span data-i18n="tab_seg">Segurança</span></button>
+                <button class="tab-btn" data-tab="ia"><i data-lucide="bot" size="17"></i> <span data-i18n="tab_ia">IA</span></button>
+                <button class="tab-btn" data-tab="tarefas"><i data-lucide="alarm-clock" size="17"></i> <span data-i18n="tab_alm">Alarmes</span></button>
+            </div>
+
+            <div class="glass-card tab-panel ativo" id="tab-nuvem">
+                <h3><i data-lucide="refresh-cw" size="20" style="vertical-align:-3px; color: var(--primary-strong)"></i> <span data-i18n="tab_nuvem_t">Sincronização sem esforço</span></h3>
+                <p data-i18n="tab_nuvem_p">Tudo vai para a pasta privada do Simple Notes no seu Drive — invisível para outros apps e para outras pessoas.</p>
+                <ul>
+                    <li><i data-lucide="check" size="17"></i> <span data-i18n="tab_nuvem_l1">Trocou de celular? Entre com a conta Google e tudo volta — inclusive imagens e áudios das notas.</span></li>
+                    <li><i data-lucide="check" size="17"></i> <span data-i18n="tab_nuvem_l2">Notas criadas sem login são migradas automaticamente para a conta quando você entra.</span></li>
+                    <li><i data-lucide="check" size="17"></i> <span data-i18n="tab_nuvem_l3">Barra de armazenamento mostra o espaço usado no Drive em tempo real.</span></li>
+                    <li><i data-lucide="check" size="17"></i> <span data-i18n="tab_nuvem_l4">Apagou sem querer? O backup da conta é a sua rede de segurança.</span></li>
+                </ul>
+            </div>
+
+            <div class="glass-card tab-panel" id="tab-seguranca">
+                <h3><i data-lucide="fingerprint" size="20" style="vertical-align:-3px; color: var(--primary-strong)"></i> <span data-i18n="tab_seg_t">Seus dados, seus apenas</span></h3>
+                <p data-i18n="tab_seg_p">Bloqueio por biometria com animação de cadeado estilizada e desbloqueio suave.</p>
+                <ul>
+                    <li><i data-lucide="check" size="17"></i> <span data-i18n="tab_seg_l1">Bloqueio automático: imediato ou após 1 a 30 minutos fora do app.</span></li>
+                    <li><i data-lucide="check" size="17"></i> <span data-i18n="tab_seg_l2">Notas protegidas individualmente por senha.</span></li>
+                    <li><i data-lucide="check" size="17"></i> <span data-i18n="tab_seg_l3">Na tela de bloqueio do celular, o app não vaza conteúdo.</span></li>
+                    <li><i data-lucide="check" size="17"></i> <span data-i18n="tab_seg_l4">Botão de emergência para apagar tudo do aparelho com confirmação.</span></li>
+                </ul>
+            </div>
+
+            <div class="glass-card tab-panel" id="tab-ia">
+                <h3><i data-lucide="message-square" size="20" style="vertical-align:-3px; color: var(--primary-strong)"></i> <span data-i18n="tab_ia_t">IA que conhece suas notas</span></h3>
+                <p data-i18n="tab_ia_p">Assistente integrado ao editor — sem assinatura extra, com a sua chave gratuita do OpenRouter.</p>
+                <ul>
+                    <li><i data-lucide="check" size="17"></i> <span data-i18n="tab_ia_l1">Pergunte: "quanto gastei no mercado?" e a IA busca nas suas notas.</span></li>
+                    <li><i data-lucide="check" size="17"></i> <span data-i18n="tab_ia_l2">Resumo automático da nota com um toque.</span></li>
+                    <li><i data-lucide="check" size="17"></i> <span data-i18n="tab_ia_l3">Sem chave? A IA responde com buscas locais nas suas notas.</span></li>
+                    <li><i data-lucide="check" size="17"></i> <span data-i18n="tab_ia_l4">A IA responde no idioma do app — pt, en ou es.</span></li>
+                </ul>
+            </div>
+
+            <div class="glass-card tab-panel" id="tab-tarefas">
+                <h3><i data-lucide="bell-ring" size="20" style="vertical-align:-3px; color: var(--primary-strong)"></i> <span data-i18n="tab_alm_t">Alarme de verdade, não notificação</span></h3>
+                <p data-i18n="tab_alm_p">Popup em tela cheia que abre por cima de tudo — mesmo com o celular bloqueado.</p>
+                <ul>
+                    <li><i data-lucide="check" size="17"></i> <span data-i18n="tab_alm_l1">Som no volume máximo de alarme, com sons personalizados do seu aparelho.</span></li>
+                    <li><i data-lucide="check" size="17"></i> <span data-i18n="tab_alm_l2">Soneca de 5 a 60 minutos direto no popup.</span></li>
+                    <li><i data-lucide="check" size="17"></i> <span data-i18n="tab_alm_l3">Lembretes de revisão nas notas: data, a cada X dias ou dias da semana.</span></li>
+                    <li><i data-lucide="check" size="17"></i> <span data-i18n="tab_alm_l4">Tela de permissões guiada para Xiaomi/MIUI e Android 14+.</span></li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== PREMIUM ===== -->
+    <section id="premium" style="padding-bottom: 100px;">
+        <div class="glass-card pricing-card" data-aos="zoom-in">
+            <span class="tag-premium" data-i18n="prem_tag">Acesso Vitalício</span>
+            <h2>Premium Experience</h2>
+            <p class="price-value">R$ 5,99</p>
+            <p class="price-note" data-i18n="prem_note">Menos que um café por um app sem anúncios para sempre.</p>
+
+            <ul class="benefits-list">
+                <li><i data-lucide="check-circle" color="#34C759" size="22"></i> <span data-i18n="prem_b1">Zero anúncios ou interrupções.</span></li>
+                <li><i data-lucide="check-circle" color="#34C759" size="22"></i> <span data-i18n="prem_b2">Pague uma vez e nunca mais!</span></li>
+                <li><i data-lucide="check-circle" color="#34C759" size="22"></i> <span data-i18n="prem_b3">Vinculado à sua conta Google — volta em qualquer aparelho.</span></li>
+            </ul>
+        </div>
+    </section>
+
+    <!-- ===== FAQ ===== -->
+    <section id="faq" style="padding-top: 20px;">
+        <h2 class="section-title" data-aos="fade-up" data-i18n="faq_title">Perguntas frequentes</h2>
+        <p class="section-sub" data-aos="fade-up" data-i18n="faq_sub">Tudo que você precisa saber antes de baixar.</p>
+        <div class="faq-wrap" data-aos="fade-up">
+            <details>
+                <summary><span data-i18n="faq1_q">O app é gratuito?</span> <i data-lucide="plus" size="19"></i></summary>
+                <div class="faq-body" data-i18n="faq1_a">Sim! Você cria notas, listas, pastas, usa alarmes, biometria e backup no Drive de graça. O plano gratuito mostra alguns anúncios em momentos específicos (como ao concluir uma edição) — que somem para sempre com a compra única do Premium.</div>
+            </details>
+            <details>
+                <summary><span data-i18n="faq2_q">Meus dados ficam salvos na nuvem?</span> <i data-lucide="plus" size="19"></i></summary>
+                <div class="faq-body" data-i18n="faq2_a">Sim — na pasta privada do seu próprio Google Drive (appDataFolder), visível apenas pelo Simple Notes. Notas, listas, pastas, tarefas, imagens e áudios. Trocou de celular? Basta entrar com a mesma conta Google.</div>
+            </details>
+            <details>
+                <summary><span data-i18n="faq3_q">Preciso de conta Google para usar?</span> <i data-lucide="plus" size="19"></i></summary>
+                <div class="faq-body" data-i18n="faq3_a">Não. Você pode usar tudo offline, sem login. Quando entrar com uma conta Google, o que você criou deslogado é transferido automaticamente para a conta.</div>
+            </details>
+            <details>
+                <summary><span data-i18n="faq4_q">Como funciona o Premium vitalício?</span> <i data-lucide="plus" size="19"></i></summary>
+                <div class="faq-body" data-i18n="faq4_a">Pagamento único pela Play Store — sem assinatura mensal. O Premium fica vinculado à sua conta Google: em qualquer aparelho em que você entrar com ela, os anúncios continuam removidos.</div>
+            </details>
+            <details>
+                <summary><span data-i18n="faq5_q">O alarme funciona com o app fechado?</span> <i data-lucide="plus" size="19"></i></summary>
+                <div class="faq-body" data-i18n="faq5_a">Sim. O alarme dispara popup em tela cheia com som mesmo com o app fechado e o celular bloqueado. Em aparelhos Xiaomi existe uma tela de permissões guiada dentro do app para garantir que funcione.</div>
+            </details>
+            <details>
+                <summary><span data-i18n="faq6_q">Minhas notas são privadas?</span> <i data-lucide="plus" size="19"></i></summary>
+                <div class="faq-body" data-i18n="faq6_a">Você pode ativar bloqueio por biometria no app inteiro e proteger notas individuais por senha. Com o bloqueio ativo, o conteúdo não aparece na tela de bloqueio do celular.</div>
+            </details>
+        </div>
+    </section>
+
+    <!-- ===== FOOTER ===== -->
+    <footer>
+        <div class="footer-links">
+            <a href="#recursos" data-i18n="nav_recursos">Recursos</a>
+            <a href="#premium" data-i18n="nav_premium">Premium</a>
+            <a href="#faq" data-i18n="nav_faq">FAQ</a>
+        </div>
+        <p><span data-i18n="foot_made">Orgulhosamente criado no Brasil</span>  <i data-lucide="heart" size="15" style="fill: #FF453A; color: #FF453A; display: inline-block; vertical-align: -2px;"></i></p>
+        <p style="margin-top: 10px; font-size: 0.8rem;">&copy; 2026 Simple Notes Pro. Todos os direitos reservados.</p>
+    </footer>
+
+    <script src="https://unpkg.com/aos@next/dist/aos.js"></script>
+    <script>
+        AOS.init({
+            duration: 900,
+            easing: 'cubic-bezier(0.25, 0.1, 0.25, 1)',
+            once: false,
+            mirror: true,
+            offset: 100
+        });
+
+        lucide.createIcons({ attrs: { 'stroke-width': 2.5 } });
+
+        // Abas interativas (Diferenciais)
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('ativo'));
+                document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('ativo'));
+                btn.classList.add('ativo');
+                const painel = document.getElementById('tab-' + btn.dataset.tab);
+                if (painel) painel.classList.add('ativo');
+            });
+        });
+
+        // Mockup: usa o print real (embutido via data URI ou print.png ao lado).
+        // Se a imagem carregar, ela substitui a UI CSS fake — se falhar, a UI assume.
+        (function () {
+            var img = document.querySelector('#phoneMock img');
+            if (!img) return;
+            var teste = new Image();
+            teste.onload = function () { img.parentElement.classList.add('usar-print'); };
+            teste.onerror = function () { img.parentElement.classList.remove('usar-print'); };
+            teste.src = img.getAttribute('src');
+        })();
+    </script>
+
+    <script>
+    // ===== i18n: pt / en / es com detecção automática do navegador =====
+    var I18N = {
+      pt: {
+        title: 'Simple Notes Pro | Notas minimalistas com backup no Google Drive',
+        nav_recursos: 'Recursos', nav_dif: 'Diferenciais', nav_premium: 'Premium', nav_faq: 'FAQ', nav_baixar: 'Baixar',
+        hero_badge: 'Backup no Google Drive · IA · Biometria',
+        hero_sub: 'O bloco de notas que redefine o minimalismo no seu Android. Notas, listas e pastas com backup automático na sua conta Google.',
+        cta_download: 'Baixar na Play Store', cta_features: 'Ver recursos',
+        rec_title: 'Tudo que você precisa',
+        rec_sub: 'Um app completo disfarçado de minimalista — sem anúncios te interrompendo no meio da ideia.',
+        f1_t: 'Privacidade de Elite', f1_d: 'Bloqueio por biometria (digital ou rosto) com tempo configurável — de imediato a 30 minutos fora do app.',
+        f2_t: 'Backup Instantâneo', f2_d: 'Notas, listas, pastas, tarefas, imagens e áudios salvos automaticamente no seu Google Drive pessoal.',
+        f3_t: 'Pastas & Organização', f3_d: 'Organize em pastas, fixe o importante no topo, selecione múltiplos itens e busque em tudo instantaneamente.',
+        f4_t: 'Assistente de IA', f4_d: 'Pergunte sobre suas notas, gere resumos e chat integrado no editor — com a sua chave gratuita do OpenRouter.',
+        f5_t: 'Alarmes que Disparam', f5_d: 'Lembretes por data, dias da semana ou recorrência — com popup em tela cheia, som no volume máximo e soneca.',
+        f6_t: 'Imagens & Áudio nas Notas', f6_d: 'Anexe fotos e grave áudios direto na nota. Arraste anexos entre as linhas do texto com uma linha-guia.',
+        f7_t: 'Editor Rico', f7_d: 'Negrito, itálico, sublinhado, tachado e listas — modo leitura limpo quando você termina de escrever.',
+        f8_t: '3 Idiomas', f8_d: 'Português, English, Español — o app inteiro, incluindo o assistente de IA, no seu idioma.',
+        f9_t: 'Modo OLED & Claro', f9_d: 'Tema escuro puro que economiza bateria em telas OLED, e um tema claro elegante para o dia.',
+        dif_title: 'Feito nos detalhes', dif_sub: 'Explore o que torna o Simple Notes diferente dos bloquinhos genéricos.',
+        tab_nuvem: 'Na nuvem', tab_seg: 'Segurança', tab_ia: 'IA', tab_alm: 'Alarmes',
+        tab_nuvem_t: 'Sincronização sem esforço',
+        tab_nuvem_p: 'Tudo vai para a pasta privada do Simple Notes no seu Drive — invisível para outros apps e para outras pessoas.',
+        tab_nuvem_l1: 'Trocou de celular? Entre com a conta Google e tudo volta — inclusive imagens e áudios das notas.',
+        tab_nuvem_l2: 'Notas criadas sem login são migradas automaticamente para a conta quando você entra.',
+        tab_nuvem_l3: 'Barra de armazenamento mostra o espaço usado no Drive em tempo real.',
+        tab_nuvem_l4: 'Apagou sem querer? O backup da conta é a sua rede de segurança.',
+        tab_seg_t: 'Seus dados, seus apenas',
+        tab_seg_p: 'Bloqueio por biometria com animação de cadeado estilizada e desbloqueio suave.',
+        tab_seg_l1: 'Bloqueio automático: imediato ou após 1 a 30 minutos fora do app.',
+        tab_seg_l2: 'Notas protegidas individualmente por senha.',
+        tab_seg_l3: 'Na tela de bloqueio do celular, o app não vaza conteúdo.',
+        tab_seg_l4: 'Botão de emergência para apagar tudo do aparelho com confirmação.',
+        tab_ia_t: 'IA que conhece suas notas',
+        tab_ia_p: 'Assistente integrado ao editor — sem assinatura extra, com a sua chave gratuita do OpenRouter.',
+        tab_ia_l1: 'Pergunte: "quanto gastei no mercado?" e a IA busca nas suas notas.',
+        tab_ia_l2: 'Resumo automático da nota com um toque.',
+        tab_ia_l3: 'Sem chave? A IA responde com buscas locais nas suas notas.',
+        tab_ia_l4: 'A IA responde no idioma do app — pt, en ou es.',
+        tab_alm_t: 'Alarme de verdade, não notificação',
+        tab_alm_p: 'Popup em tela cheia que abre por cima de tudo — mesmo com o celular bloqueado.',
+        tab_alm_l1: 'Som no volume máximo de alarme, com sons personalizados do seu aparelho.',
+        tab_alm_l2: 'Soneca de 5 a 60 minutos direto no popup.',
+        tab_alm_l3: 'Lembretes de revisão nas notas: data, a cada X dias ou dias da semana.',
+        tab_alm_l4: 'Tela de permissões guiada para Xiaomi/MIUI e Android 14+.',
+        prem_tag: 'Acesso Vitalício', prem_note: 'Menos que um café por um app sem anúncios para sempre.',
+        prem_b1: 'Zero anúncios ou interrupções.', prem_b2: 'Pague uma vez e nunca mais!',
+        prem_b3: 'Vinculado à sua conta Google — volta em qualquer aparelho.',
+        faq_title: 'Perguntas frequentes', faq_sub: 'Tudo que você precisa saber antes de baixar.',
+        faq1_q: 'O app é gratuito?',
+        faq1_a: 'Sim! Você cria notas, listas, pastas, usa alarmes, biometria e backup no Drive de graça. O plano gratuito mostra alguns anúncios em momentos específicos (como ao concluir uma edição) — que somem para sempre com a compra única do Premium.',
+        faq2_q: 'Meus dados ficam salvos na nuvem?',
+        faq2_a: 'Sim — na pasta privada do seu próprio Google Drive (appDataFolder), visível apenas pelo Simple Notes. Notas, listas, pastas, tarefas, imagens e áudios. Trocou de celular? Basta entrar com a mesma conta Google.',
+        faq3_q: 'Preciso de conta Google para usar?',
+        faq3_a: 'Não. Você pode usar tudo offline, sem login. Quando entrar com uma conta Google, o que você criou deslogado é transferido automaticamente para a conta.',
+        faq4_q: 'Como funciona o Premium vitalício?',
+        faq4_a: 'Pagamento único pela Play Store — sem assinatura mensal. O Premium fica vinculado à sua conta Google: em qualquer aparelho em que você entrar com ela, os anúncios continuam removidos.',
+        faq5_q: 'O alarme funciona com o app fechado?',
+        faq5_a: 'Sim. O alarme dispara popup em tela cheia com som mesmo com o app fechado e o celular bloqueado. Em aparelhos Xiaomi existe uma tela de permissões guiada dentro do app para garantir que funcione.',
+        faq6_q: 'Minhas notas são privadas?',
+        faq6_a: 'Você pode ativar bloqueio por biometria no app inteiro e proteger notas individuais por senha. Com o bloqueio ativo, o conteúdo não aparece na tela de bloqueio do celular.',
+        foot_made: 'Orgulhosamente criado no Brasil'
+      },
+      en: {
+        title: 'Simple Notes Pro | Minimalist notes with Google Drive backup',
+        nav_recursos: 'Features', nav_dif: 'Highlights', nav_premium: 'Premium', nav_faq: 'FAQ', nav_baixar: 'Download',
+        hero_badge: 'Google Drive backup · AI · Biometrics',
+        hero_sub: 'The notepad that redefines minimalism on your Android. Notes, lists and folders with automatic backup to your Google account.',
+        cta_download: 'Download on Play Store', cta_features: 'See features',
+        rec_title: 'Everything you need',
+        rec_sub: 'A complete app disguised as minimalist — no ads interrupting your flow.',
+        f1_t: 'Elite Privacy', f1_d: 'Biometric lock (fingerprint or face) with configurable timing — from instant up to 30 minutes away from the app.',
+        f2_t: 'Instant Backup', f2_d: 'Notes, lists, folders, tasks, images and audio saved automatically to your personal Google Drive.',
+        f3_t: 'Folders & Organization', f3_d: 'Organize into folders, pin what matters, select multiple items and search everything instantly.',
+        f4_t: 'AI Assistant', f4_d: 'Ask about your notes, generate summaries and chat inside the editor — with your free OpenRouter key.',
+        f5_t: 'Alarms That Fire', f5_d: 'Reminders by date, weekdays or recurrence — with a full-screen popup, max-volume sound and snooze.',
+        f6_t: 'Images & Audio in Notes', f6_d: 'Attach photos and record audio right in the note. Drag attachments between text lines with a guide line.',
+        f7_t: 'Rich Editor', f7_d: 'Bold, italic, underline, strikethrough and lists — clean reading mode when you are done writing.',
+        f8_t: '3 Languages', f8_d: 'Português, English, Español — the whole app, including the AI assistant, in your language.',
+        f9_t: 'OLED & Light Mode', f9_d: 'A pure dark theme that saves battery on OLED screens, plus an elegant light theme for the day.',
+        dif_title: 'Crafted in the details', dif_sub: 'Explore what makes Simple Notes different from generic notepads.',
+        tab_nuvem: 'Cloud', tab_seg: 'Security', tab_ia: 'AI', tab_alm: 'Alarms',
+        tab_nuvem_t: 'Effortless syncing',
+        tab_nuvem_p: 'Everything goes to the Simple Notes private folder on your Drive — invisible to other apps and other people.',
+        tab_nuvem_l1: 'Switched phones? Sign in with your Google account and everything comes back — including note images and audio.',
+        tab_nuvem_l2: 'Notes created without login are automatically migrated to your account when you sign in.',
+        tab_nuvem_l3: 'The storage bar shows your Drive usage in real time.',
+        tab_nuvem_l4: 'Deleted by accident? Your account backup is your safety net.',
+        tab_seg_t: 'Your data, yours only',
+        tab_seg_p: 'Biometric lock with a stylish padlock animation and smooth unlock.',
+        tab_seg_l1: 'Auto-lock: instant or 1 to 30 minutes after leaving the app.',
+        tab_seg_l2: 'Individual notes protected by password.',
+        tab_seg_l3: 'On the phone lock screen, the app leaks nothing.',
+        tab_seg_l4: 'Emergency button to wipe everything on the device, with confirmation.',
+        tab_ia_t: 'AI that knows your notes',
+        tab_ia_p: 'Assistant built into the editor — no extra subscription, with your free OpenRouter key.',
+        tab_ia_l1: 'Ask: "how much did I spend at the market?" and the AI searches your notes.',
+        tab_ia_l2: 'One-tap automatic note summary.',
+        tab_ia_l3: 'No key? The AI answers with local searches in your notes.',
+        tab_ia_l4: 'The AI answers in the app language — pt, en or es.',
+        tab_alm_t: 'A real alarm, not a notification',
+        tab_alm_p: 'A full-screen popup that opens over everything — even with the phone locked.',
+        tab_alm_l1: 'Sound at max alarm volume, with your device\u2019s custom sounds.',
+        tab_alm_l2: '5 to 60 minute snooze right in the popup.',
+        tab_alm_l3: 'Review reminders in notes: by date, every X days or weekdays.',
+        tab_alm_l4: 'Guided permissions screen for Xiaomi/MIUI and Android 14+.',
+        prem_tag: 'Lifetime Access', prem_note: 'Less than a coffee for an ad-free app forever.',
+        prem_b1: 'Zero ads or interruptions.', prem_b2: 'Pay once, never again!',
+        prem_b3: 'Linked to your Google account — comes back on any device.',
+        faq_title: 'Frequently asked questions', faq_sub: 'Everything you need to know before downloading.',
+        faq1_q: 'Is the app free?',
+        faq1_a: 'Yes! You create notes, lists and folders, and use alarms, biometrics and Drive backup for free. The free plan shows a few ads at specific moments (like finishing an edit) — gone forever with the single Premium purchase.',
+        faq2_q: 'Is my data saved to the cloud?',
+        faq2_a: 'Yes — in the private folder of your own Google Drive (appDataFolder), visible only to Simple Notes. Notes, lists, folders, tasks, images and audio. New phone? Just sign in with the same Google account.',
+        faq3_q: 'Do I need a Google account to use it?',
+        faq3_a: 'No. You can use everything offline, without signing in. When you sign in with a Google account, what you created while logged out is transferred automatically.',
+        faq4_q: 'How does lifetime Premium work?',
+        faq4_a: 'One-time payment via the Play Store — no monthly subscription. Premium is linked to your Google account: on any device you sign in with it, ads stay removed.',
+        faq5_q: 'Does the alarm work with the app closed?',
+        faq5_a: 'Yes. The alarm fires a full-screen popup with sound even with the app closed and the phone locked. On Xiaomi devices there is a guided permissions screen inside the app to make sure it works.',
+        faq6_q: 'Are my notes private?',
+        faq6_a: 'You can enable biometric lock for the whole app and protect individual notes with a password. With the lock active, content never appears on the phone lock screen.',
+        foot_made: 'Proudly made in Brazil'
+      },
+      es: {
+        title: 'Simple Notes Pro | Notas minimalistas con respaldo en Google Drive',
+        nav_recursos: 'Funciones', nav_dif: 'Destacados', nav_premium: 'Premium', nav_faq: 'FAQ', nav_baixar: 'Descargar',
+        hero_badge: 'Respaldo en Google Drive · IA · Biometría',
+        hero_sub: 'La libreta que redefine el minimalismo en tu Android. Notas, listas y carpetas con respaldo automático en tu cuenta de Google.',
+        cta_download: 'Descargar en Play Store', cta_features: 'Ver funciones',
+        rec_title: 'Todo lo que necesitas',
+        rec_sub: 'Una app completa disfrazada de minimalista — sin anuncios que interrumpan tus ideas.',
+        f1_t: 'Privacidad de élite', f1_d: 'Bloqueo biométrico (huella o rostro) con tiempo configurable — desde inmediato hasta 30 minutos fuera de la app.',
+        f2_t: 'Respaldo instantáneo', f2_d: 'Notas, listas, carpetas, tareas, imágenes y audios guardados automáticamente en tu Google Drive personal.',
+        f3_t: 'Carpetas y organización', f3_d: 'Organiza en carpetas, fija lo importante, selecciona varios elementos y busca todo al instante.',
+        f4_t: 'Asistente de IA', f4_d: 'Pregunta sobre tus notas, genera resúmenes y chatea dentro del editor — con tu clave gratuita de OpenRouter.',
+        f5_t: 'Alarmas que suenan', f5_d: 'Recordatorios por fecha, días de la semana o recurrentes — con pantalla completa, sonido al máximo y recuento.',
+        f6_t: 'Imágenes y audio en notas', f6_d: 'Adjunta fotos y graba audios en la nota. Arrastra adjuntos entre las líneas de texto con una línea guía.',
+        f7_t: 'Editor enriquecido', f7_d: 'Negrita, cursiva, subrayado, tachado y listas — modo lectura limpio al terminar de escribir.',
+        f8_t: '3 idiomas', f8_d: 'Português, English, Español — la app entera, incluida la IA, en tu idioma.',
+        f9_t: 'Modo OLED y claro', f9_d: 'Tema oscuro puro que ahorra batería en pantallas OLED, y un tema claro elegante para el día.',
+        dif_title: 'Hecho en los detalles', dif_sub: 'Explora lo que hace diferente a Simple Notes de las libretas genéricas.',
+        tab_nuvem: 'Nube', tab_seg: 'Seguridad', tab_ia: 'IA', tab_alm: 'Alarmas',
+        tab_nuvem_t: 'Sincronización sin esfuerzo',
+        tab_nuvem_p: 'Todo va a la carpeta privada de Simple Notes en tu Drive — invisible para otras apps y otras personas.',
+        tab_nuvem_l1: '¿Cambiaste de celular? Entra con tu cuenta de Google y todo vuelve — incluidas las imágenes y audios de las notas.',
+        tab_nuvem_l2: 'Las notas creadas sin sesión se migran automáticamente a la cuenta cuando inicias sesión.',
+        tab_nuvem_l3: 'La barra de almacenamiento muestra el espacio usado en Drive en tiempo real.',
+        tab_nuvem_l4: '¿Borraste sin querer? El respaldo de tu cuenta es tu red de seguridad.',
+        tab_seg_t: 'Tus datos, solo tuyos',
+        tab_seg_p: 'Bloqueo biométrico con una animación de candado estilizada y desbloqueo suave.',
+        tab_seg_l1: 'Bloqueo automático: inmediato o tras 1 a 30 minutos fuera de la app.',
+        tab_seg_l2: 'Notas individuales protegidas con contraseña.',
+        tab_seg_l3: 'En la pantalla de bloqueo del teléfono, la app no filtra contenido.',
+        tab_seg_l4: 'Botón de emergencia para borrar todo del dispositivo, con confirmación.',
+        tab_ia_t: 'IA que conoce tus notas',
+        tab_ia_p: 'Asistente integrado al editor — sin suscripción extra, con tu clave gratuita de OpenRouter.',
+        tab_ia_l1: 'Pregunta: "¿cuánto gasté en el mercado?" y la IA busca en tus notas.',
+        tab_ia_l2: 'Resumen automático de la nota con un toque.',
+        tab_ia_l3: '¿Sin clave? La IA responde con búsquedas locales en tus notas.',
+        tab_ia_l4: 'La IA responde en el idioma de la app — pt, en o es.',
+        tab_alm_t: 'Alarma de verdad, no notificación',
+        tab_alm_p: 'Pantalla completa que se abre sobre todo — incluso con el celular bloqueado.',
+        tab_alm_l1: 'Sonido al volumen máximo de alarma, con sonidos personalizados de tu equipo.',
+        tab_alm_l2: 'Recuento de 5 a 60 minutos directo en la ventana.',
+        tab_alm_l3: 'Recordatorios de revisión en notas: por fecha, cada X días o días de la semana.',
+        tab_alm_l4: 'Pantalla de permisos guiada para Xiaomi/MIUI y Android 14+.',
+        prem_tag: 'Acceso vitalicio', prem_note: 'Menos que un café por una app sin anuncios para siempre.',
+        prem_b1: 'Cero anuncios ni interrupciones.', prem_b2: '¡Paga una vez y nunca más!',
+        prem_b3: 'Vinculado a tu cuenta de Google — vuelve en cualquier dispositivo.',
+        faq_title: 'Preguntas frecuentes', faq_sub: 'Todo lo que necesitas saber antes de descargar.',
+        faq1_q: '¿La app es gratuita?',
+        faq1_a: '¡Sí! Creas notas, listas y carpetas, y usas alarmas, biometría y respaldo en Drive gratis. El plan gratuito muestra algunos anuncios en momentos específicos (como al concluir una edición) — que desaparecen para siempre con la compra única de Premium.',
+        faq2_q: '¿Mis datos se guardan en la nube?',
+        faq2_a: 'Sí — en la carpeta privada de tu propio Google Drive (appDataFolder), visible solo para Simple Notes. Notas, listas, carpetas, tareas, imágenes y audios. ¿Nuevo celular? Solo entra con la misma cuenta de Google.',
+        faq3_q: '¿Necesito una cuenta de Google?',
+        faq3_a: 'No. Puedes usar todo sin conexión, sin iniciar sesión. Al entrar con una cuenta de Google, lo que creaste sin sesión se transfiere automáticamente.',
+        faq4_q: '¿Cómo funciona el Premium vitalicio?',
+        faq4_a: 'Pago único por Play Store — sin suscripción mensual. Premium queda vinculado a tu cuenta de Google: en cualquier dispositivo donde entres con ella, los anuncios siguen eliminados.',
+        faq5_q: '¿La alarma funciona con la app cerrada?',
+        faq5_a: 'Sí. La alarma abre pantalla completa con sonido incluso con la app cerrada y el celular bloqueado. En Xiaomi hay una pantalla de permisos guiada dentro de la app para garantizarlo.',
+        faq6_q: '¿Mis notas son privadas?',
+        faq6_a: 'Puedes activar el bloqueo biométrico para toda la app y proteger notas individuales con contraseña. Con el bloqueo activo, el contenido no aparece en la pantalla de bloqueo del teléfono.',
+        foot_made: 'Orgullosamente creado en Brasil'
+      }
+    };
+
+    function aplicarIdioma(idioma) {
+      var d = I18N[idioma] || I18N.pt;
+      document.querySelectorAll('[data-i18n]').forEach(function (el) {
+        var v = d[el.getAttribute('data-i18n')];
+        if (v) el.textContent = v;
+      });
+      document.documentElement.lang = (idioma === 'pt') ? 'pt-BR' : idioma;
+      document.title = d.title;
+      document.querySelectorAll('#langSwitch button').forEach(function (b) {
+        b.classList.toggle('ativo', b.getAttribute('data-lang') === idioma);
+      });
+      try { localStorage.setItem('snpro-lang', idioma); } catch (e) {}
+    }
+    (function () {
+      var salva = null;
+      try { salva = localStorage.getItem('snpro-lang'); } catch (e) {}
+      var nav = (navigator.language || 'pt-BR').toLowerCase();
+      var auto = nav.indexOf('pt') === 0 ? 'pt' : (nav.indexOf('es') === 0 ? 'es' : 'en');
+      aplicarIdioma(salva || auto);
+      document.querySelectorAll('#langSwitch button').forEach(function (b) {
+        b.addEventListener('click', function () { aplicarIdioma(b.getAttribute('data-lang')); });
+      });
+    })();
+    </script>
+</body>
+</html>

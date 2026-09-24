@@ -36,6 +36,11 @@ yarn-error.*
 # freebuff tool state
 .freebuff/
 
+# desktop OAuth — contém secrets, não vai pro git
+/desktop/client_secret.txt
+/desktop/client_id.txt
+/desktop/sessao.json
+
 # typescript
 *.tsbuildinfo
 

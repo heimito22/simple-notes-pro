@@ -16,5 +16,5 @@ android {
 
 // Google Play Billing (compra in-app "Remover anúncios")
 dependencies {
-  implementation 'com.android.billingclient:billing:7.1.1'
+  implementation 'com.android.billingclient:billing:8.0.0'
 }

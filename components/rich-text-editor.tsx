@@ -2,6 +2,17 @@ import React, { forwardRef, memo, useEffect, useImperativeHandle, useMemo, useRe
 import { Platform, View } from 'react-native';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
 import { Paths } from 'expo-file-system';
+import { idiomaAtual, tIdioma } from '../context/idiomas';
+import { WebViewWeb } from './webview-web';
+
+// Na WEB o react-native-webview não existe (stub "does not support this
+// platform"). WebViewWeb implementa a MESMA interface (source.html,
+// onMessage, injetar JS, recarregar) com um <iframe> real — é o que faz o
+// editor de notas funcionar no desktop.
+const WebViewImpl: any = Platform.OS === 'web' ? WebViewWeb : WebView;
+
+// Rótulo acessível do arraste de áudio, traduzido no momento do uso.
+const rotuloGripAudio = () => tIdioma(idiomaAtual, 'Mover áudio');
 
 export interface FormatoAtivo {
   bold: boolean;
@@ -73,14 +84,14 @@ const escaparHtml = (valor: string) => valor
 const audioInlineHtml = (uri: string, nome: string) => {
   const uriHtml = escaparHtml(uri);
   const nomeHtml = escaparHtml(nome);
-  return `<span class="anexo-audio-inline" data-audio-uri="${uriHtml}" data-audio-name="${nomeHtml}"><span class="anexo-audio-grip" contenteditable="false" aria-label="Mover áudio">⋮</span><audio controls src="${uriHtml}" class="anexo-audio"></audio></span>`;
+  return `<span class="anexo-audio-inline" data-audio-uri="${uriHtml}" data-audio-name="${nomeHtml}"><span class="anexo-audio-grip" contenteditable="false" aria-label="${rotuloGripAudio()}">⋮</span><audio controls src="${uriHtml}" class="anexo-audio"></audio></span>`;
 };
 
 // Remove as apresentações antigas (texto, player circular ou card) e preserva
 // somente o controle nativo do Android dentro do conteúdo da nota.
 const normalizarAudioInline = (html: string) => html.replace(
   /<span\b[^>]*class=["'][^"']*anexo-audio-inline[^"']*["'][^>]*>[\s\S]*?(<audio\b[^>]*\bsrc=["']([^"']+)["'][^>]*>[\s\S]*?<\/audio>)[\s\S]*?<\/span>/gi,
-  (_bloco, audioTag: string, uri: string) => `<span class="anexo-audio-inline" data-audio-uri="${uri}"><span class="anexo-audio-grip" contenteditable="false" aria-label="Mover áudio">⋮</span>${audioTag}</span>`
+  (_bloco, audioTag: string, uri: string) => `<span class="anexo-audio-inline" data-audio-uri="${uri}"><span class="anexo-audio-grip" contenteditable="false" aria-label="${rotuloGripAudio()}">⋮</span>${audioTag}</span>`
 );
 
 // Converte marcadores de anexos antigos ("[Imagem anexada: x.jpg]") em tags reais.
@@ -231,8 +242,15 @@ const buildDoc = (
   el.innerHTML = initial;
   var savedRange = null;
 
+  // Ponte para o host: WebView nativo usa ReactNativeWebView; na WEB (desktop)
+  // o iframe srcDoc fala com o parent via postMessage ({snEditor: msg}).
+  var ponte = function(msg) {
+    if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(msg);
+    else try { window.parent.postMessage({ snEditor: msg }, '*'); } catch (e) {}
+  };
+
   function notify() {
-    window.ReactNativeWebView.postMessage(el.innerHTML);
+    ponte(el.innerHTML);
   }
   function cmdState(c) {
     try { return !!document.queryCommandState(c); } catch (e) { return false; }
@@ -262,7 +280,7 @@ const buildDoc = (
   }
   var fmtTimer = null;
   function notifyFormats() {
-    window.ReactNativeWebView.postMessage('__fmt__' + JSON.stringify(currentFormats()));
+    ponte('__fmt__' + JSON.stringify(currentFormats()));
   }
   function scheduleFormats() {
     if (fmtTimer) return;
@@ -273,7 +291,6 @@ const buildDoc = (
   // sobrescrevam a seleção do usuário. Sem isso, o Android colapsa a seleção no meio
   // do comando e os botões da toolbar ficam alternando modos sozinhos.
   var aplicandoComando = false;
-
   
   el.addEventListener('input', notify);
   el.addEventListener('blur', function() {
@@ -290,7 +307,11 @@ const buildDoc = (
 
   window.editorSetContent = function(html) {
     el.innerHTML = html;
-    notify();
+    // SEM notify() aqui: o host que chamou setContent JÁ conhece esse html.
+    // O eco fazia o postMessage devolver o html (possivelmente defasado —
+    // salvo antes das últimas teclas em voo chegarem) e o handleMessage
+    // SOBRESCREVIA o ref com conteúdo antigo: ao alternar para leitura o
+    // recarregamento aplicava esse html velho e a alteração recente "sumia".
     scheduleFormats();
     return true;
   };
@@ -429,7 +450,7 @@ const buildDoc = (
     var y = Math.max(window.pageYOffset || 0, de.scrollTop || 0, be.scrollTop || 0);
     var h = Math.max(de.scrollHeight || 0, be.scrollHeight || 0, de.offsetHeight || 0, be.offsetHeight || 0);
     var max = Math.max(0, h - window.innerHeight);
-    window.ReactNativeWebView.postMessage('__scroll__' + Math.round(y) + '|' + Math.round(max));
+    ponte('__scroll__' + Math.round(y) + '|' + Math.round(max));
   }
   // Rola até o FIM REAL (incluindo o padding extra que libera o texto da toolbar).
   function rolarParaOFim() {
@@ -505,13 +526,6 @@ const buildDoc = (
   }
   function eAlcaGrip(t) {
     return t && t.classList && t.classList.contains('anexo-audio-grip');
-  }
-  function eAudio(t) {
-    if (!t) return false;
-    // Click on the audio element or its container span
-    var el2 = t.closest ? t.closest('.anexo-audio-inline') : null;
-    if (el2) return true;
-    return t.tagName === 'AUDIO' && t.classList && t.classList.contains('anexo-audio');
   }
   function subirBloco(node) {
     if (!node) return null;
@@ -731,7 +745,7 @@ const buildDoc = (
       if (eAlcaGrip(t)) {
         iniciarArraste(alvo, e.clientX, e.clientY); // alça dedicada: na hora
       } else {
-        armarPendente(alvo, e.clientX, e.clientY);  // foto: segure para ativar
+        armarPendente(alvo, e.clientX, e.clientY); // foto: segure para ativar
       }
     });
     document.addEventListener('pointermove', function(e) {
@@ -865,7 +879,7 @@ const RichTextEditor = memo(
     },
     ref
   ) {
-    const webviewRef = useRef<WebView>(null);
+    const webviewRef = useRef<any>(null);
     const loadedRef = useRef(false);
     const pendingContent = useRef<string | null>(null);
 
@@ -934,8 +948,8 @@ const RichTextEditor = memo(
       },
     }));
 
-    const handleMessage = (event: WebViewMessageEvent) => {
-      const data = event.nativeEvent.data;
+    const handleMessage = (event: any) => {
+      const data = event?.nativeEvent?.data;
       if (typeof data === 'string' && data.startsWith('__scroll__')) {
         const partes = data.slice(9).split('|');
         onScrollPos?.(Number(partes[0]) || 0, Number(partes[1]) || 0);
@@ -984,7 +998,7 @@ const RichTextEditor = memo(
 
     return (
       <View style={[{ flex: 1 }, style]}>
-        <WebView
+        <WebViewImpl
           ref={webviewRef}
           source={source}
           onMessage={handleMessage}

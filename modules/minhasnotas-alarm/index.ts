@@ -48,13 +48,19 @@ export const comprarRemoverAnuncios = async (): Promise<{ ok: boolean; erro?: st
   }
 };
 
-/** Restaura compras (chamada ao abrir o app / na tela de config). */
-export const restaurarComprasRemoverAnuncios = async (): Promise<boolean> => {
-  if (!billingModule) return false;
+/**
+ * Restaura compras (chamada ao abrir o app / na tela de config).
+ * Retorna true/false quando a Play respondeu, e null quando o Billing está
+ * indisponível/offline (não deve ser tratado como "sem compra" / reembolso).
+ */
+export const restaurarComprasRemoverAnuncios = async (): Promise<boolean | null> => {
+  if (!billingModule) return null;
   try {
-    return !!(await billingModule.restaurarCompras());
+    const r: boolean | null = await billingModule.restaurarCompras();
+    if (r === null || r === undefined) return null;
+    return !!r;
   } catch {
-    return false;
+    return null;
   }
 };
 
@@ -71,10 +77,12 @@ export const obterPrecoRemoverAnuncios = async (): Promise<string | null> => {
 
 /**
  * Escuta o evento de compra concluída/cancelada.
- * payload: { comprado: boolean; cancelado?: boolean; erro?: string }
+ * payload: { comprado: boolean; cancelado?: boolean; erro?: string; restaurado?: boolean }
+ * restaurado=true quando é a reconciliação de uma compra já existente (ao
+ * abrir o app), e não uma compra nova feita agora.
  */
 export const ouvirCompraAtualizada = (
-  callback: (info: { comprado: boolean; cancelado?: boolean; erro?: string }) => void
+  callback: (info: { comprado: boolean; cancelado?: boolean; erro?: string; restaurado?: boolean }) => void
 ): { remove: () => void } => {
   if (!billingModule) return { remove: () => {} };
   return billingModule.addListener('onCompraAtualizada', callback);

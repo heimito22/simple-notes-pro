@@ -2,7 +2,7 @@
   "expo": {
     "name": "Simple Notes",
     "slug": "MinhasNotas",
-    "version": "1.1.0",
+    "version": "1.2.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "simplesnotes",
@@ -12,7 +12,7 @@
     },
     "android": {
       "package": "com.seuusuario.simplesnotes",
-      "versionCode": 10,
+      "versionCode": 15,
       "softwareKeyboardLayoutMode": "resize",
       "googleServicesFile": "./google-services.json",
       "predictiveBackGestureEnabled": true,
@@ -43,7 +43,7 @@
         "expo-notifications",
         {
           "icon": "./assets/images/icon.png",
-          "color": "#BF5AF2"
+          "color": "#0A84FF"
         }
       ],
       "@react-native-google-signin/google-signin",
@@ -74,7 +74,7 @@
       [
         "react-native-google-mobile-ads",
         {
-          "androidAppId": "ca-app-pub-3940256099942544~3347511713",
+          "androidAppId": "ca-app-pub-3606563609683859~7378749338",
           "iosAppId": "ca-app-pub-3940256099942544~1458002511"
         }
       ]

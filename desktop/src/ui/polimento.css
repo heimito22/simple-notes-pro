@@ -1,0 +1,151 @@
+/* ============================================================================
+   POLIMENTO VISUAL v2 — Simple Notes Pro Desktop
+   Animações SÓ em transform/opacity (compositor, 60fps sem pesar) e zero
+   reflow em hover: nada de animar width/height/top/left. Respeita
+   prefers-reduced-motion. Carregado DEPOIS do styles.css (sobrepõe).
+   ============================================================================ */
+
+/* ---------- 1. Profundidade: elevação consistente ---------- */
+:root{
+  --sombra-1:0 1px 2px rgba(0,0,0,.30), 0 2px 8px rgba(0,0,0,.18);
+  --sombra-2:0 4px 14px rgba(0,0,0,.32), 0 2px 4px rgba(0,0,0,.22);
+  --sombra-3:0 16px 44px rgba(0,0,0,.48), 0 4px 12px rgba(0,0,0,.30);
+  --ez:cubic-bezier(.16,1,.3,1); /* spring suave, sem overshoot exagerado */
+  --rapido:.18s;
+  --medio:.28s;
+}
+html[data-tema="light"]{
+  --sombra-1:0 1px 2px rgba(16,24,40,.05), 0 1px 3px rgba(16,24,40,.06);
+  --sombra-2:0 4px 14px rgba(16,24,40,.09), 0 2px 4px rgba(16,24,40,.05);
+  --sombra-3:0 16px 44px rgba(16,24,40,.16), 0 4px 12px rgba(16,24,40,.08);
+}
+.card{box-shadow:var(--sombra-1)}
+.card:hover{box-shadow:var(--sombra-2)}
+.config-group,.tarefa-card,.tarefa-form,.lista-progress-card,.lista-row,.conta{box-shadow:var(--sombra-1)}
+.modal-card,.bloqueio-card{box-shadow:var(--sombra-3)}
+.pin-card{box-shadow:var(--sombra-3)}
+
+/* ---------- 2. Cards: lift + border glow no hover (sem reflow) ---------- */
+.card{
+  transition:transform var(--rapido) var(--ez),
+             border-color var(--rapido) ease,
+             box-shadow var(--medio) ease;
+  will-change:transform;
+}
+.card:hover{transform:translateY(-4px);border-color:rgba(10,132,255,.45)}
+.card:active{transform:translateY(-1px) scale(.985);transition-duration:.08s}
+.card.selecionado{transform:none} /* selecionado não flutua — fica firme */
+.card.fixada:hover{border-color:rgba(10,132,255,.55)}
+
+/* badge "Fixada" com brilho sutil */
+.card.fixada .badge{border-color:rgba(10,132,255,.4);color:#9AC8FF}
+html[data-tema="light"] .card.fixada .badge{color:var(--azul)}
+
+/* ---------- 3. Sidebar: micro-lift nos itens + transição do ativo ---------- */
+.nav-item,.pasta-row{transition:background var(--rapido) ease,color var(--rapido) ease,transform var(--rapido) var(--ez)}
+.nav-item:hover,.pasta-row:hover{transform:translateX(2px)}
+.nav-item:active,.pasta-row:active{transform:translateX(2px) scale(.985)}
+.nav-item.ativo{position:relative}
+.nav-item.ativo::before{
+  content:"";position:absolute;left:-8px;top:50%;transform:translateY(-50%);
+  width:3px;height:0;border-radius:0 3px 3px 0;background:var(--azul);
+  animation:navIndicador var(--medio) var(--ez) forwards;
+}
+@keyframes navIndicador{from{height:0;opacity:0}to{height:60%;opacity:1}}
+
+/* avatar com anel de foco suave */
+.conta:hover .avatar{box-shadow:0 0 0 3px rgba(10,132,255,.25)}
+.avatar{transition:box-shadow var(--medio) ease}
+
+/* ---------- 4. Botões: press físico ---------- */
+.btn{
+  transition:transform .12s var(--ez),background var(--rapido) ease,
+             border-color var(--rapido) ease,box-shadow var(--rapido) ease;
+}
+.btn:hover{transform:translateY(-1px)}
+.btn:active{transform:translateY(0) scale(.96);transition-duration:.06s}
+.btn.prim{box-shadow:0 2px 10px rgba(10,132,255,.28)}
+.btn.prim:hover{box-shadow:0 4px 16px rgba(10,132,255,.38)}
+
+/* ---------- 5. Switch com mola ---------- */
+.switch{transition:background var(--medio) ease,border-color var(--medio) ease}
+.switch i{transition:left var(--medio) var(--ez),transform var(--medio) var(--ez)}
+.switch:active i{transform:scaleX(1.15)} /* dedo "esticando" o knob */
+.switch.on i{left:calc(100% - 22px)}
+
+/* ---------- 6. Modais e overlays: entrada com mola ---------- */
+.modal-overlay,.bloqueio-overlay,.pin-overlay{animation:fadeIn var(--rapido) ease}
+.modal-card,.bloqueio-card,.pin-card{animation:popIn var(--medio) var(--ez)}
+@keyframes popIn{
+  from{opacity:0;transform:translateY(14px) scale(.96)}
+  to{opacity:1;transform:translateY(0) scale(1)}
+}
+
+/* ---------- 7. Chat IA: bolhas entram deslizando ---------- */
+.ia-msg{animation:msgIn .25s var(--ez)}
+@keyframes msgIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+/* ---------- 8. Toast: sobe com mola ---------- */
+.toast{transition:opacity var(--medio) var(--ez),transform var(--medio) var(--ez);opacity:0;transform:translateX(-50%) translateY(10px)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+/* .toast.show usa display:block no base — a transição de opacity funciona
+   porque show é adicionado junto com display; primeira renderização pode
+   pular a transição, aceitável (não pesa). */
+
+/* ---------- 9. Entrada das views (fade+rise rápido, sem custo) ---------- */
+.main{animation:fadeIn .22s ease}
+#painelConfig .config-wrap{animation:fadeIn .25s ease}
+.grid{animation:fadeIn .25s ease}
+
+/* ---------- 10. Foco visível mas discreto (inputs) ---------- */
+.busca input,.editor-head input,.ia-input-row input,
+.config-row input[type="text"],.config-row input[type="password"],
+.modal-card input,.tarefa-form-row input[type="text"],.lista-add-row input{
+  transition:border-color var(--rapido) ease,box-shadow var(--rapido) ease;
+}
+.busca:focus-within,.ia-input-row input:focus,
+.config-row input[type="text"]:focus,.config-row input[type="password"]:focus,
+.modal-card input:focus,.tarefa-form-row input[type="text"]:focus,.lista-add-row input:focus{
+  border-color:rgba(10,132,255,.6);
+  box-shadow:0 0 0 3px rgba(10,132,255,.14);
+}
+
+/* ---------- 11. Barra de progresso com brilho ---------- */
+.tarefa-progress i,.lista-progress-bar i{
+  background:linear-gradient(90deg,var(--azul),var(--azul2));
+  position:relative;overflow:hidden;
+}
+.tarefa-progress i::after,.lista-progress-bar i::after{
+  content:"";position:absolute;inset:0;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.35),transparent);
+  background-size:200% 100%;
+  animation:shimmer 2.4s linear infinite;
+}
+
+/* ---------- 12. Checkboxes: pop ao concluir ---------- */
+.check,.tarefa-check,.card-check{transition:transform .15s var(--ez),background var(--rapido) ease,border-color var(--rapido) ease}
+.check:active,.tarefa-check:active,.card-check:active{transform:scale(.85)}
+.check.on,.tarefa-check.on{animation:checkPop .3s var(--ez)}
+@keyframes checkPop{0%{transform:scale(.7)}60%{transform:scale(1.12)}100%{transform:scale(1)}}
+
+/* ---------- 13. Editor: toolbar com feedback ---------- */
+.editor-toolbar button{transition:background .12s ease,color .12s ease,transform .12s var(--ez),border-color .12s ease}
+.editor-toolbar button:hover{transform:translateY(-1px)}
+.editor-toolbar button:active{transform:scale(.9)}
+.editor-toolbar button.ativo{box-shadow:0 2px 8px rgba(10,132,255,.35)}
+
+/* ---------- 14. Título da view: entrada suave ---------- */
+.main-head h1{animation:titleIn .3s var(--ez)}
+@keyframes titleIn{from{opacity:0;transform:translateX(-6px)}to{opacity:1;transform:none}}
+
+/* ---------- 15. Pin keys: ripple de foco ---------- */
+.pin-key{transition:transform .12s var(--ez),background .12s ease,border-color .12s ease,box-shadow .12s ease}
+.pin-key.ok{animation:checkPop .25s var(--ez)}
+
+/* ---------- 16. Reduced-motion: mantém as animações (o usuário pediu animações) ---------- */
+/* Sem regra global que zera tudo: as animações de entrada/hover ficam ativas.
+   Apenas animações contínuas (flutuar/pulse infinitos) já são tratadas
+   individualmente em movimento.js e beleza.css. */
+
+/* ---------- 17. Antialiasing das transições (GPU, sem blur de texto) ---------- */
+.card,.btn,.nav-item,.pasta-row,.switch i,.modal-card,.pin-key{backface-visibility:hidden}

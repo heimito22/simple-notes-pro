@@ -17,12 +17,13 @@ import {
     Keyboard, KeyboardAvoidingView, LayoutAnimation, Modal, Platform, ScrollView,
     StyleSheet, Text, TextInput, TouchableOpacity, UIManager, View
 } from 'react-native';
-import { responderPergunta, resumirNotaComIA, type MensagemChat } from '../context/ia-service';
+import { responderPergunta, resumirNotaComIA, extrairPropostaEdicao, conteudoAplicadoDaProposta, midiasDaNotaAberta, type MensagemChat, type PropostaEdicao } from '../context/ia-service';
 import { useNotas } from '../context/NotasContext';
 import { useTarefas } from '../context/TarefasContext';
 import { useTheme } from '../context/ThemeContext';
 import { bloqueioEstado } from '../context/bloqueio-estado';
 import { DIAS_SEMANA, resumoLembrete, type LembreteNota, type TipoLembrete } from '../context/lembrete-notas';
+import { idiomaAtual, tIdioma } from '../context/idiomas';
 import { useMonetizacao } from '../context/monetizacao';
 import { appColors } from '../constants/theme';
 import RichTextEditor, { FormatoAtivo, RichTextEditorHandle } from '../components/rich-text-editor';
@@ -205,6 +206,17 @@ export default function EditorScreen() {
     const [chatPensando, setChatPensando] = useState(false);
     const [resumoPensando, setResumoPensando] = useState(false);
     const [resumoIA, setResumoIA] = useState<string | null>(null);
+    // Proposta de edição da IA: aguardando confirmação do usuário (nunca aplica sozinha)
+    const [propostaIA, setPropostaIA] = useState<PropostaEdicao | null>(null);
+    const [aplicandoProposta, setAplicandoProposta] = useState(false);
+    // A IA respondeu só com texto mesmo sendo uma ordem de edição: oferece aplicar
+    // o próprio texto na nota (fallback para quando o modelo não devolve o JSON).
+    const [sugestaoIA, setSugestaoIA] = useState<string | null>(null);
+    // Foto da nota ANTES da edição — permite cancelar (desfazer) depois de aplicada.
+    const [desfazerIA, setDesfazerIA] = useState<{ titulo: string; conteudo: string } | null>(null);
+    // Mídias (imagens/áudios) da nota no momento da proposta: garante que a
+    // aplicação devolva exatamente essas, mesmo se o usuário pedir outra coisa antes.
+    const [midiasProposta, setMidiasProposta] = useState<string[]>([]);
     // Deslocamento da sheet da IA quando o teclado abre (Android)
     // Animações: botão de enviar da IA, entrada da sheet do lembrete e da faixa do lembrete
     const [animaEnviarIA] = useState(() => new Animated.Value(1));
@@ -432,7 +444,7 @@ export default function EditorScreen() {
             .replace(/>/g, '&gt;');
         const nomeHtml = escaparHtml(nome);
         const uriHtml = escaparHtml(uri);
-        const html = `<br><span class="anexo-audio-inline" data-audio-uri="${uriHtml}" data-audio-name="${nomeHtml}"><span class="anexo-audio-grip" contenteditable="false" aria-label="Mover áudio">⋮</span><audio controls src="${uriHtml}" class="anexo-audio"></audio></span><br>`;
+        const html = `<br><span class="anexo-audio-inline" data-audio-uri="${uriHtml}" data-audio-name="${nomeHtml}"><span class="anexo-audio-grip" contenteditable="false" aria-label="${tIdioma(idiomaAtual, 'Mover áudio')}">⋮</span><audio controls src="${uriHtml}" class="anexo-audio"></audio></span><br>`;
         conteudoRef.current += html;
         setAudios(prev => [...prev, { uri, nome }]);
         // O áudio já nasce dentro do fluxo textual do WebView e não devolve o
@@ -441,6 +453,13 @@ export default function EditorScreen() {
     }, []);
 
     const iniciarGravacao = async () => {
+        // WEB (desktop): o expo-audio tem recorder web (MediaRecorder), mas o
+        // arquivo fica num blob: temporário que o app não consegue salvar/mostrar
+        // depois — gravação de áudio fica desabilitada na web por enquanto.
+        if (Platform.OS === 'web') {
+            Alert.alert(t('Áudio'), t('Gravação de áudio ainda não disponível no desktop.'));
+            return;
+        }
         // O WebView mantém o foco no Android e o teclado pode reaparecer quando
         // o diálogo/permissão de áudio fecha. Desfoca antes de iniciar e fixa o
         // layout fechado para a toolbar não oscilar.
@@ -512,7 +531,7 @@ export default function EditorScreen() {
             }
         } else {
             if (audioRecorder.isRecording) setGravando(true);
-            Alert.alert("Erro", "Nada foi gravado.");
+            Alert.alert(t('Erro'), t('Nada foi gravado.'));
         }
     };
 
@@ -555,8 +574,19 @@ export default function EditorScreen() {
         setPerguntaIA('');
         setChatPensando(true);
             try {
-                const resposta = await responderPergunta(texto, notas || [], config?.chaveIA || '', mensagensIA, tarefas || [], config?.idioma ?? 'pt');
-                setMensagensIA(prev => [...prev, { papel: 'ia', texto: resposta.texto }]);
+                const resposta = await responderPergunta(texto, notas || [], config?.chaveIA || '', mensagensIA, tarefas || [], config?.idioma ?? 'pt',
+                    // Contexto de edição: a nota aberta — a IA pode propor alterações (com confirmação)
+                    notaExistente
+                        ? { titulo, conteudo: conteudoRef.current, tipo: 'nota' }
+                        : { titulo, tipo: 'lista' });
+                // A resposta pode conter proposta de edição (bloco ```json) —
+                // separa o texto da conversa da proposta aplicável.
+                const { proposta, textoLimpo } = extrairPropostaEdicao(resposta.texto);
+                setMensagensIA(prev => [...prev, { papel: 'ia', texto: textoLimpo || resposta.texto }]);
+                if (proposta) { setSugestaoIA(null); setMidiasProposta(midiasDaNotaAberta()); setPropostaIA(proposta); }
+                // Sem bloco JSON, mas foi claramente uma ordem de edição: oferece
+                // aplicar o texto que a IA escreveu (nunca aplica sozinho).
+                else if (resposta.ordemEdicao) setSugestaoIA(textoLimpo || resposta.texto);
         } catch (e) {
             setMensagensIA(prev => [...prev, { papel: 'ia', texto: t('Desculpe, não consegui responder agora. Tente de novo.'), erro: true }]);
         } finally {
@@ -579,6 +609,60 @@ export default function EditorScreen() {
         } finally {
             setResumoPensando(false);
         }
+    };
+
+    // Aplica a proposta de edição da IA na nota aberta — SEMPRE após confirmação
+    // explícita do usuário no cartão de confirmação (a IA nunca edita sozinha).
+
+    /** Aplica conteúdo+título na nota, guardando a versão anterior para desfazer. */
+    const aplicarNaNota = (novoTitulo: string, novoConteudo: string) => {
+        setDesfazerIA({ titulo, conteudo: conteudoRef.current });
+        conteudoRef.current = novoConteudo;
+        editorRef.current?.setContent(novoConteudo);
+        setTitulo(novoTitulo);
+        mudouRef.current = true;
+    };
+
+    const aplicarPropostaIA = () => {
+        if (!propostaIA || aplicandoProposta) return;
+        setAplicandoProposta(true);
+        try {
+            const novoTitulo = propostaIA.titulo?.trim() || titulo;
+            // Helper do ia-service: devolve a mídia original, remove falas da IA
+            // ("Pronto", "A nota foi alterada"), não repete o título no corpo e
+            // garante HTML — sem isso a nota perdia imagem e parágrafos.
+            const novoConteudo = propostaIA.conteudo?.trim()
+                ? conteudoAplicadoDaProposta(propostaIA.conteudo, novoTitulo, titulo, midiasProposta)
+                : conteudoRef.current;
+            aplicarNaNota(novoTitulo, novoConteudo);
+            setMensagensIA(prev => [...prev, { papel: 'ia', texto: t('✅ Edição aplicada na nota.') }]);
+            setPropostaIA(null);
+        } finally {
+            setAplicandoProposta(false);
+        }
+    };
+
+    const aplicarSugestaoIA = () => {
+        if (!sugestaoIA || aplicandoProposta) return;
+        setAplicandoProposta(true);
+        try {
+            aplicarNaNota(titulo, conteudoAplicadoDaProposta(sugestaoIA, titulo));
+            setMensagensIA(prev => [...prev, { papel: 'ia', texto: t('✅ Conteúdo aplicado na nota.') }]);
+            setSugestaoIA(null);
+        } finally {
+            setAplicandoProposta(false);
+        }
+    };
+
+    /** Cancela a alteração já aplicada, restaurando a nota como estava antes. */
+    const cancelarEdicaoIA = () => {
+        if (!desfazerIA) return;
+        conteudoRef.current = desfazerIA.conteudo;
+        editorRef.current?.setContent(desfazerIA.conteudo);
+        setTitulo(desfazerIA.titulo);
+        mudouRef.current = true;
+        setDesfazerIA(null);
+        setMensagensIA(prev => [...prev, { papel: 'ia', texto: t('↩️ Alteração cancelada — a nota voltou ao que era.') }]);
     };
 
     // Garante a permissão de notificação (obrigatória no Android 13+ e iOS),
@@ -770,7 +854,7 @@ export default function EditorScreen() {
             if (protegida) {
                 const autenticado = await LocalAuthentication.authenticateAsync({
                     promptMessage: t('Confirme para remover a proteção desta nota'),
-                    fallbackLabel: 'Usar senha',
+                    fallbackLabel: t('Usar senha'),
                 });
                 if (autenticado.success) setProtegida(false);
             } else {
@@ -797,6 +881,10 @@ export default function EditorScreen() {
         if (salvandoRef.current) return;
         salvandoRef.current = true;
         if (salvarNota) {
+            // Mesma drenagem do "Pronto": espera o lote final do WebView chegar
+            // para o conteúdo salvo incluir as últimas teclas digitadas.
+            try { editorRef.current?.blur(); } catch {}
+            await new Promise(r => setTimeout(r, 120));
             const idFinal = params.id ? String(params.id) : idNotaCriada;
             salvarNota(titulo, conteudoRef.current, idFinal, protegida, pastaId);
         }
@@ -812,6 +900,13 @@ export default function EditorScreen() {
         if (salvandoRef.current) return; // já está salvando/navegando
         salvandoRef.current = true;
         if (editando && salvarNota) {
+            // Drena mensagens em voo antes de salvar: o postMessage do WebView no
+            // Android entrega o HTML da digitação em LOTE/assíncrono — as últimas
+            // teclas podem ainda não ter chegado ao conteudoRef. Sem essa espera,
+            // "Pronto" salvava o html defasado (glitch: alteração sumia; voltar a
+            // Editar→Pronto salvava certo porque aí as mensagens já haviam chegado).
+            try { editorRef.current?.blur(); } catch {}
+            await new Promise(r => setTimeout(r, 120));
             // Nota nova sem lembrete: sem id → o contexto cria a nota.
             // Nota criada pelo sino / nota existente: passa o id → atualiza
             // (evita criar nota duplicada ao finalizar).
@@ -853,7 +948,7 @@ export default function EditorScreen() {
     const selecionarImagem = async () => {
         // O seletor de fotos do sistema abre por cima do app (background). Sem
         // suspender o bloqueio, a biometria travaria ao voltar do seletor.
-        bloqueioEstado.ativar();
+        if (Platform.OS !== 'web') bloqueioEstado.ativar();
         try {
             const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
             if (status !== 'granted') return Alert.alert(t('Erro'), t('Permissão necessária.'));
@@ -870,7 +965,10 @@ export default function EditorScreen() {
                     const manip = await ImageManipulator.manipulateAsync(
                         resultado.assets[0].uri,
                         [{ resize: { width: 800 } }],
-                        { compress: 0.5, format: ImageManipulator.SaveFormat.JPEG }
+                        // WEB: base64=true devolve o data URI permanente (o blob:
+                        // do createObjectURL morre ao recarregar; o data URI vai
+                        // salvo dentro da nota e sobrevive no backup do Drive).
+                        { compress: 0.5, format: ImageManipulator.SaveFormat.JPEG, base64: Platform.OS === 'web' }
                     );
                     const nomeImagem = `img_${Date.now()}.jpg`;
                     if (DIR_IMAGENS) {
@@ -878,6 +976,10 @@ export default function EditorScreen() {
                         await new File(manip.uri).move(destino, { overwrite: true });
 
                         anexarImagem(destino.uri, nomeImagem);
+                    } else if (Platform.OS === 'web') {
+                        // WEB (desktop): sem sistema de arquivos — a imagem entra
+                        // no conteúdo como data URI (vai junto no backup/sync).
+                        anexarImagem(`data:image/jpeg;base64,${manip.base64}`, nomeImagem);
                     }
                 } catch (e) {
                     Alert.alert(t('Erro'), t('Não foi possível carregar a imagem.'));
@@ -886,7 +988,7 @@ export default function EditorScreen() {
                 }
             }
         } finally {
-            bloqueioEstado.liberar();
+            if (Platform.OS !== 'web') bloqueioEstado.liberar();
         }
     };
 
@@ -954,6 +1056,7 @@ export default function EditorScreen() {
 
     return (
         <KeyboardAvoidingView
+            testID="sn-screen-editor"
             style={[
                 styles.container,
                 { backgroundColor: tema.fundo },
@@ -1058,7 +1161,7 @@ export default function EditorScreen() {
                     onChange={handleConteudoChange}
                     onFormatoChange={handleFormatoChange}
                     editavel={editando}
-                    placeholder={editando ? "Comece a escrever..." : ""}
+                    placeholder={editando ? t('Comece a escrever...') : ""}
                     textColor={tema.texto}
                     placeholderColor={tema.placeholder}
                     backgroundColor={tema.editorFundo}
@@ -1212,7 +1315,7 @@ export default function EditorScreen() {
                                     <Ionicons name="calendar-outline" size={20} color={tema.accent} />
                                     <Text style={[styles.opcaoLabel, { color: tema.opcaoLabel }]}>{t('Data')}</Text>
                                     <Text style={[styles.opcaoValor, { color: tema.accent }]}>
-                                        {rData ? new Date(rData + 'T00:00:00').toLocaleDateString('pt-BR') : t('Escolher')}
+                                        {rData ? new Date(rData + 'T00:00:00').toLocaleDateString(idiomaAtual === 'pt' ? 'pt-BR' : idiomaAtual === 'en' ? 'en-US' : 'es-ES') : t('Escolher')}
                                     </Text>
                                 </TouchableOpacity>
                                 {Platform.OS === 'android' && mostrarData && (
@@ -1388,6 +1491,90 @@ export default function EditorScreen() {
                                         <View style={[styles.bolhaChat, { alignSelf: 'flex-start', backgroundColor: tema.chipFundo, borderColor: tema.chipBorda, borderWidth: 1 }]}>
                                             <TypingDots cor={tema.sheetSub} />
                                         </View>
+                                    )}
+
+                                    {/* Cartão de confirmação: a IA propôs uma edição — só aplica com toque */}
+                                    {propostaIA && (
+                                        <View style={{
+                                            alignSelf: 'stretch', marginTop: 10, padding: 14, borderRadius: 16,
+                                            backgroundColor: tema.chipFundo, borderWidth: 1.5, borderColor: tema.accent,
+                                        }}>
+                                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                                                <Ionicons name="create-outline" size={18} color={tema.accent} />
+                                                <Text style={{ color: tema.sheetTitulo, fontWeight: '700', fontSize: 14.5, flex: 1 }}>
+                                                    {t('Quero editar esta nota')}
+                                                </Text>
+                                            </View>
+                                            {!!propostaIA.explicacao && (
+                                                <Text style={{ color: tema.sheetSub, fontSize: 13.5, lineHeight: 19, marginBottom: 10 }}>
+                                                    {propostaIA.explicacao}
+                                                </Text>
+                                            )}
+                                            {propostaIA.titulo && (
+                                                <Text style={{ color: tema.sheetSub, fontSize: 13, marginBottom: 6 }}>
+                                                    {t('Título novo:')} <Text style={{ color: tema.sheetTitulo, fontWeight: '600' }}>{propostaIA.titulo}</Text>
+                                                </Text>
+                                            )}
+                                            {propostaIA.conteudo && (
+                                                <Text style={{ color: tema.sheetSub, fontSize: 13, marginBottom: 10 }} numberOfLines={4}>
+                                                    {String(propostaIA.conteudo).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 220) + '…'}
+                                                </Text>
+                                            )}
+                                            <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
+                                                <TouchableOpacity
+                                                    style={{ flex: 1, backgroundColor: tema.accent, borderRadius: 12, paddingVertical: 11, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 6, opacity: aplicandoProposta ? 0.6 : 1 }}
+                                                    onPress={aplicarPropostaIA} disabled={aplicandoProposta} activeOpacity={0.8}>
+                                                    <Ionicons name="checkmark" size={17} color={tema.onPrimary} />
+                                                    <Text style={{ color: tema.onPrimary, fontWeight: '700', fontSize: 14 }}>{aplicandoProposta ? t('Aplicando…') : t('Aplicar edição')}</Text>
+                                                </TouchableOpacity>
+                                                <TouchableOpacity
+                                                    style={{ flex: 1, backgroundColor: 'transparent', borderRadius: 12, paddingVertical: 11, alignItems: 'center', borderWidth: 1, borderColor: tema.chipBorda }}
+                                                    onPress={() => setPropostaIA(null)} disabled={aplicandoProposta} activeOpacity={0.8}>
+                                                    <Text style={{ color: tema.sheetSub, fontWeight: '600', fontSize: 14 }}>{t('Não permitir')}</Text>
+                                                </TouchableOpacity>
+                                            </View>
+                                        </View>
+                                    )}
+
+                                    {/* Sem bloco JSON: a IA escreveu só o texto — oferece aplicar na nota */}
+                                    {sugestaoIA && !propostaIA && (
+                                        <View style={{
+                                            alignSelf: 'stretch', marginTop: 10, padding: 14, borderRadius: 16,
+                                            backgroundColor: tema.chipFundo, borderWidth: 1.5, borderColor: tema.chipBorda,
+                                        }}>
+                                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                                                <Ionicons name="sparkles-outline" size={18} color={tema.accent} />
+                                                <Text style={{ color: tema.sheetTitulo, fontWeight: '700', fontSize: 14.5, flex: 1 }}>
+                                                    {t('Aplicar este texto na nota?')}
+                                                </Text>
+                                            </View>
+                                            <Text style={{ color: tema.sheetSub, fontSize: 13, lineHeight: 19, marginBottom: 10 }} numberOfLines={5}>
+                                                {sugestaoIA.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 240)}
+                                            </Text>
+                                            <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
+                                                <TouchableOpacity
+                                                    style={{ flex: 1, backgroundColor: tema.accent, borderRadius: 12, paddingVertical: 11, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 6, opacity: aplicandoProposta ? 0.6 : 1 }}
+                                                    onPress={aplicarSugestaoIA} disabled={aplicandoProposta} activeOpacity={0.8}>
+                                                    <Ionicons name="checkmark" size={17} color={tema.onPrimary} />
+                                                    <Text style={{ color: tema.onPrimary, fontWeight: '700', fontSize: 14 }}>{t('Permitir')}</Text>
+                                                </TouchableOpacity>
+                                                <TouchableOpacity
+                                                    style={{ flex: 1, backgroundColor: 'transparent', borderRadius: 12, paddingVertical: 11, alignItems: 'center', borderWidth: 1, borderColor: tema.chipBorda }}
+                                                    onPress={() => setSugestaoIA(null)} disabled={aplicandoProposta} activeOpacity={0.8}>
+                                                    <Text style={{ color: tema.sheetSub, fontWeight: '600', fontSize: 14 }}>{t('Não permitir')}</Text>
+                                                </TouchableOpacity>
+                                            </View>
+                                        </View>
+                                    )}
+
+                                    {/* Já aplicado: botão de cancelar que desfaz a alteração */}
+                                    {desfazerIA && (
+                                        <TouchableOpacity
+                                            style={{ alignSelf: 'stretch', marginTop: 10, paddingVertical: 11, paddingHorizontal: 14, borderRadius: 14, backgroundColor: tema.chipFundo, borderWidth: 1, borderColor: tema.chipBorda, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+                                            onPress={cancelarEdicaoIA} activeOpacity={0.8}>
+                                            <Ionicons name="arrow-undo-outline" size={17} color={tema.sheetSub} />
+                                            <Text style={{ color: tema.sheetSub, fontWeight: '600', fontSize: 13.5 }}>{t('Cancelar alteração da IA')}</Text>
+                                        </TouchableOpacity>
                                     )}
                                 </ScrollView>
 

@@ -9,6 +9,7 @@ import {
   AppStateStatus,
   Easing,
   Modal,
+  Platform,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -24,6 +25,7 @@ import Svg, {
   Rect,
   Stop,
 } from 'react-native-svg';
+import { Alert } from 'react-native';
 import AlarmeOverlay from '../components/alarme-overlay';
 import { alarmeEstado } from '../context/alarme-estado';
 import { bloqueioEstado } from '../context/bloqueio-estado';
@@ -119,9 +121,21 @@ function ConteudoApp() {
   }, [autenticado]);
 
   // Valida a biometria e RETORNA se desbloqueou — não seta estado (a animação
-  // decide quando concluir). Sem biometria cadastrada, desbloqueia direto.
-  const autenticar = useCallback(async (): Promise<boolean> => {
+  // decide quando concluir).
+  // DESKTOP (web): usa o PIN de 4 dígitos do próprio app (config.pinDesbloqueio).
+  // A TelaBloqueio pergunta o PIN e chama `aoDesbloquear` com ele; aqui validamos.
+  // Sem biometria cadastrada (mobile), desbloqueia direto.
+  const autenticar = useCallback(async (pin?: string): Promise<boolean> => {
     if (pedindoRef.current) return false; // evita prompts simultâneos (toque duplo)
+
+    if (Platform.OS === 'web') {
+      // Web: PIN do app. Sem PIN configurado, desbloqueia direto (toggle exigiria PIN).
+      if (!config?.pinDesbloqueio) return true;
+      const ok = pin === config.pinDesbloqueio;
+      if (ok) tempoSaida.current = null;
+      return ok;
+    }
+
     const compativel = await LocalAuthentication.hasHardwareAsync();
     const cadastrado = await LocalAuthentication.isEnrolledAsync();
 
@@ -145,12 +159,14 @@ function ConteudoApp() {
     } finally {
       pedindoRef.current = false;
     }
-  }, [t]);
+  }, [t, config?.pinDesbloqueio]);
 
   // Dispara a animação de desbloqueio na TelaBloqueio (incrementa o contador).
-  const desbloquear = useCallback(async () => {
-    const ok = await autenticar();
+  // RETORNA ok para o PIN saber se errou (a TelaBloqueio limpa/treme os pontos).
+  const desbloquear = useCallback(async (pin?: string): Promise<boolean> => {
+    const ok = await autenticar(pin);
     if (ok) setPedidoDesbloqueio(n => n + 1);
+    return ok;
   }, [autenticar]);
 
   useEffect(() => {
@@ -248,6 +264,7 @@ function ConteudoApp() {
           pedidoDesbloqueio={pedidoDesbloqueio}
           tempoBloqueio={config?.tempoBloqueio ?? 0}
           paleta={paleta}
+          pinAtivo={Platform.OS === 'web' && !!config?.pinDesbloqueio}
         />
       </Modal>
       {/* Alarme em Modal nativo por cima de tudo — toca e é visível mesmo bloqueado. */}
@@ -257,6 +274,45 @@ function ConteudoApp() {
 }
 
 /**
+ * Tecla do teclado PIN (desktop): círculo grande com feedback de press
+ * (escala encolhe e volta com mola) — visual de teclado de desbloqueio.
+ */
+const TeclaPin = ({
+  digito,
+  aoPressionar,
+  paleta,
+  disabled,
+}: {
+  digito: string;
+  aoPressionar: (d: string) => void;
+  paleta: ReturnType<typeof appColors>;
+  disabled?: boolean;
+}) => {
+  const escala = useRef(new Animated.Value(1)).current;
+  const aoTocar = () => {
+    Animated.sequence([
+      Animated.spring(escala, { toValue: 0.86, friction: 8, tension: 300, useNativeDriver: true }),
+      Animated.spring(escala, { toValue: 1, friction: 5, tension: 220, useNativeDriver: true }),
+    ]).start();
+    aoPressionar(digito);
+  };
+  return (
+    <Animated.View style={{ transform: [{ scale: escala }] }}>
+      <TouchableOpacity
+        style={[styles.teclaPin, { backgroundColor: paleta.surface, borderColor: paleta.border }]}
+        onPress={aoTocar}
+        activeOpacity={0.7}
+        disabled={disabled}
+        accessibilityRole="button"
+        accessibilityLabel={digito}
+      >
+        <Text style={[styles.teclaPinTexto, { color: paleta.text }]}>{digito}</Text>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+};
+
+/**
  * Tela de bloqueio com animação de desbloqueio REFINADA (v2):
  * - ENTRADA coreografada: o cadeado entra com spring + brilho que varre o arco
  *   (shine), e título/subtítulo/botão/chip entram em cascata com fades curtos.
@@ -264,7 +320,9 @@ function ConteudoApp() {
  * - DESBLOQUEIO em 4 atos:
  *     1. Tremor do mecanismo (o corpo vibra 3x antes de soltar);
  *     2. Corpo dá um "clique" (pop de escala) com bounce;
- *     3. Arco sobe com spring e gira — o cadeado "abre" e fica aberto;
+ *     3. ABERTURA COMO CADEADO REAL: SÓ o arco sobe e gira 180° em 3D
+ *        (rotateY + perspectiva) ao redor do eixo vertical da perna ESQUERDA —
+ *        que fica plantada no corpo — e a perna livre termina do lado de fora;
  *     4. ONDA de sucesso: dois anéis verdes se expandem em sequência a partir
  *        do cadeado e o conteúdo sobe com fade enquanto o FUNDO dá fade com
  *        leve zoom — revelando o app por baixo (Modal transparente).
@@ -276,14 +334,21 @@ function TelaBloqueio({
   pedidoDesbloqueio,
   tempoBloqueio,
   paleta,
+  pinAtivo,
 }: {
-  aoDesbloquear: () => Promise<void>;
+  aoDesbloquear: (pin?: string) => Promise<boolean | void>;
   aoConcluir: () => void;
   pedidoDesbloqueio: number;
   tempoBloqueio: number;
   paleta: ReturnType<typeof appColors>;
+  /** DESKTOP: bloqueio por PIN de 4 dígitos (em vez do botão de biometria). */
+  pinAtivo?: boolean;
 }) {
   const { t } = useTheme();
+  // --- PIN (desktop): 4 dígitos digitados + animação de erro/sucesso ---
+  const [pinDigitado, setPinDigitado] = useState('');
+  const [pinErro, setPinErro] = useState(false);
+  const verificandoRef = useRef(false);
   // --- Entrada (cascata) ---
   const entrada = useRef(new Animated.Value(0)).current;
   const shine = useRef(new Animated.Value(0)).current; // brilho que varre o arco
@@ -294,8 +359,8 @@ function TelaBloqueio({
   const pulso = useRef(new Animated.Value(0)).current;
   // --- Desbloqueio ---
   const tremor = useRef(new Animated.Value(0)).current; // vibração do mecanismo
-  const arcoSubida = useRef(new Animated.Value(0)).current; // 0 encaixado → 1 aberto
-  const arcoGiro = useRef(new Animated.Value(0)).current; // graus do arco ao abrir
+  const arcoSubida = useRef(new Animated.Value(0)).current; // 0 encaixado → 1 levantado
+  const virada3d = useRef(new Animated.Value(0)).current; // 0 → 1: giro 3D de 180° do cadeado
   const corpoPop = useRef(new Animated.Value(0)).current; // escala do corpo
   const ripple1 = useRef(new Animated.Value(0)).current; // primeiro anel verde
   const ripple2 = useRef(new Animated.Value(0)).current; // segundo anel (atrasado)
@@ -368,8 +433,16 @@ function TelaBloqueio({
   }, [entrada, shine, cascata1, cascata2, cascata3, pulso]);
 
   // --- Sequência de desbloqueio ---
+  // Guarda o valor de `pedidoDesbloqueio` já CONSUMIDO por esta montagem. A tela
+  // remonta toda vez que o Modal reaparece (voltar ao app), e o contador fica
+  // > 0 do desbloqueio anterior — sem este guard, a animação antiga disparava
+  // sozinha ao reabrir o app (cadeado "já abrindo" sem pedir biometria) e o
+  // `aoConcluir` dela entrava direto no app. Só toca a animação quando o
+  // contador CRESCE depois da montagem — ou seja, após um desbloqueio real.
+  const ultimoPedidoConsumidoRef = useRef(pedidoDesbloqueio);
   useEffect(() => {
-    if (pedidoDesbloqueio <= 0 || desbloqueandoRef.current) return;
+    if (pedidoDesbloqueio <= ultimoPedidoConsumidoRef.current || desbloqueandoRef.current) return;
+    ultimoPedidoConsumidoRef.current = pedidoDesbloqueio;
     desbloqueandoRef.current = true;
     setDesbloqueando(true);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
@@ -400,36 +473,38 @@ function TelaBloqueio({
         useNativeDriver: true,
       }),
     ]).start();
+    // 3) ABERTURA REAL: SÓ o arco sobe e gira 180° em 3D ao redor do eixo da
+    // perna esquerda (o corpo fica parado). A perna livre varre para fora.
     Animated.parallel([
       Animated.spring(arcoSubida, {
         toValue: 1,
-        friction: 7,
-        tension: 82,
-        delay: 175,
+        friction: 6,
+        tension: 92,
+        delay: 160,
         useNativeDriver: true,
       }),
-      Animated.timing(arcoGiro, {
+      Animated.timing(virada3d, {
         toValue: 1,
-        duration: 360,
-        delay: 175,
-        easing: Easing.out(Easing.cubic),
+        duration: 560,
+        delay: 160,
+        easing: Easing.inOut(Easing.cubic),
         useNativeDriver: true,
       }),
     ]).start();
 
-    // 4) ONDA de sucesso: dois anéis verdes se expandem do cadeado em sequência
-    // (sem bola/check — o anel em si é o sinal de desbloqueio).
+    // 4) ONDA de sucesso: os anéis verdes explodem SÓ depois de o arco terminar
+    // a abertura (sem bola/check — o anel é o sinal de desbloqueio).
     Animated.timing(ripple1, {
       toValue: 1,
-      duration: 640,
-      delay: 300,
+      duration: 620,
+      delay: 700,
       easing: Easing.out(Easing.quad),
       useNativeDriver: true,
     }).start();
     Animated.timing(ripple2, {
       toValue: 1,
       duration: 680,
-      delay: 430,
+      delay: 830,
       easing: Easing.out(Easing.quad),
       useNativeDriver: true,
     }).start();
@@ -438,14 +513,14 @@ function TelaBloqueio({
     Animated.timing(saidaConteudo, {
       toValue: 1,
       duration: 360,
-      delay: 780,
+      delay: 1080,
       easing: Easing.in(Easing.quad),
       useNativeDriver: true,
     }).start();
     Animated.timing(saidaFundo, {
       toValue: 1,
       duration: 420,
-      delay: 950,
+      delay: 1210,
       easing: Easing.in(Easing.quad),
       useNativeDriver: true,
     }).start(({ finished }) => {
@@ -456,7 +531,7 @@ function TelaBloqueio({
     aoConcluir,
     tremor,
     arcoSubida,
-    arcoGiro,
+    virada3d,
     corpoPop,
     ripple1,
     ripple2,
@@ -479,10 +554,14 @@ function TelaBloqueio({
 
   // --- Desbloqueio ---
   const tremorX = tremor.interpolate({ inputRange: [-1, 0, 1], outputRange: [-3.5, 0, 3.5] });
-  const arcoY = arcoSubida.interpolate({ inputRange: [0, 1], outputRange: [0, -16] });
-  const arcoRot = arcoGiro.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '-12deg'] });
-  // O arco NÃO some: sobe e fica levantado (cadeado aberto de verdade) — sem
-  // fade do arco, sem "piscada" de elemento sumindo.
+  // Abertura COMO CADEADO REAL: SÓ o arco gira em 3D (rotateY 0° → 180°) ao
+  // redor do eixo vertical da perna ESQUERDA (o wrapper do giro é centralizado
+  // nessa perna) enquanto SOBE — a perna esquerda fica plantada no corpo e a
+  // livre varre para o lado de fora. O corpo NÃO gira (sem carta, sem diagonal).
+  const arcoY = arcoSubida.interpolate({ inputRange: [0, 1], outputRange: [0, -20] });
+  const viradaY = virada3d.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] });
+  // O arco NÃO some: sobe e fica levantado (cadeado aberto) — sem fade do arco,
+  // sem "piscada" de elemento sumindo.
   const arcoOpac = 1;
   const corpoEscala = corpoPop.interpolate({ inputRange: [0, 1], outputRange: [1, 1.09] });
   // Onda: cada anel parte pequeno, perto do cadeado, e expande até bem maior
@@ -499,6 +578,47 @@ function TelaBloqueio({
     tempoBloqueio === 0
       ? t('Bloqueio automático: imediato ao sair do app')
       : t('Bloqueio automático: após {n} min fora do app', { n: tempoBloqueio });
+
+  // --- PIN (desktop): cada dígito preenche um ponto; ao 4º, valida. Erro =
+  // tremor dos pontos + limpa. Sucesso = chama aoDesbloquear(pin) → animação.
+  const digitarPin = (digito: string) => {
+    if (desbloqueandoRef.current || verificandoRef.current) return;
+    if (pinDigitado.length >= 4) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    const novo = pinDigitado + digito;
+    setPinDigitado(novo);
+    setPinErro(false);
+    if (novo.length === 4) {
+      verificandoRef.current = true;
+      // Pequena pausa para o 4º ponto "assentar" antes de validar (feedback visual).
+      setTimeout(async () => {
+        const ok = await aoDesbloquear(novo);
+        // aoDesbloquear retorna undefined quando disparou a animação de sucesso;
+        // se o PIN estava errado, nada acontece e limpamos com tremor.
+        if (ok === false) {
+          setPinErro(true);
+          Animated.sequence([
+            Animated.timing(tremor, { toValue: -1, duration: 55, useNativeDriver: true }),
+            Animated.timing(tremor, { toValue: 1, duration: 55, useNativeDriver: true }),
+            Animated.timing(tremor, { toValue: -0.8, duration: 55, useNativeDriver: true }),
+            Animated.timing(tremor, { toValue: 0, duration: 55, useNativeDriver: true }),
+          ]).start();
+          setTimeout(() => {
+            setPinDigitado('');
+            setPinErro(false);
+            verificandoRef.current = false;
+          }, 420);
+        } else {
+          verificandoRef.current = false;
+        }
+      }, 160);
+    }
+  };
+  const apagarPin = () => {
+    if (verificandoRef.current) return;
+    setPinDigitado(pinDigitado.slice(0, -1));
+    setPinErro(false);
+  };
 
   // Blocos da cascata: cada um usa sua própria animação (delays escalonados).
   // `width: '100%'` + alignItems center garantem que título/subtítulo/botão
@@ -570,19 +690,39 @@ function TelaBloqueio({
           />
 
           {/* Cadeado com gradiente metálico: arco (U) + corpo com fechadura */}
-          <View style={styles.cadeadoWrap}>
+          {/* ABERTURA COMO CADEADO REAL: apenas o ARCO gira em 3D (rotateY, 180°)
+              ao redor do EIXO VERTICAL da perna ESQUERDA — a perna esquerda fica
+              plantada no corpo e a perna livre varre 180° para o lado, terminando
+              do lado de fora. O corpo fica parado (não é carta virando, não
+              inclina na diagonal e não achata/estica o desenho: o wrapper do giro
+              é centralizado na perna esquerda, eixo da rotação). */}
+          <Animated.View
+            style={[
+              styles.cadeadoWrap,
+              {
+                transform: [{ translateX: tremorX }],
+              },
+            ]}
+          >
             <Animated.View
               style={[
-                styles.arcoWrap,
+                styles.arcoGiroWrap,
                 {
-                  transform: [{ translateX: tremorX }, { translateY: arcoY }, { rotate: arcoRot }],
+                  transform: [
+                    { perspective: 700 },
+                    { rotateY: viradaY },
+                    { translateY: arcoY },
+                  ],
                   opacity: arcoOpac,
                 },
               ]}
             >                {/* Arco em U em SVG: o gradiente metálico vive dentro da forma,
                     o buraco é construído no próprio caminho e o brilho é
-                    recortado pelo clipPath — nada vaza para o fundo. */}
-              <Svg width={58} height={66} style={styles.arcoSvg}>
+                    recortado pelo clipPath — nada vaza para o fundo. O SVG fica
+                    deslocado para a direita dentro do wrapper de giro de modo que
+                    a perna esquerda (centro x≈5.5) coincida com o CENTRO do
+                    wrapper — assim o rotateY gira em torno dela. */}
+              <Svg width={58} height={66} style={styles.arcoSvgNoGiro}>
                 <Defs>
                   <GradienteSvg id="gradArco" x1="0" y1="0" x2="1" y2="1">
                     <Stop offset="0" stopColor={clarear(paleta.primary, 0.52)} />
@@ -626,7 +766,7 @@ function TelaBloqueio({
               style={[
                 styles.corpoWrap,
                 {
-                  transform: [{ translateX: tremorX }, { scale: corpoEscala }],
+                  transform: [{ scale: corpoEscala }],
                 },
               ]}
             >
@@ -651,7 +791,7 @@ function TelaBloqueio({
                 <Circle cx="36" cy="23.5" r="1.2" fill={paleta.muted} opacity={0.35} />
               </Svg>
             </Animated.View>
-          </View>
+          </Animated.View>
 
         </View>
 
@@ -665,20 +805,72 @@ function TelaBloqueio({
           cascata1
         )}
 
-        {blocoCascata(
-          <TouchableOpacity
-            style={[styles.btnAutenticar, { backgroundColor: paleta.primary }]}
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-              aoDesbloquear();
-            }}
-            activeOpacity={0.85}
-            disabled={desbloqueando}
-          >
-            <Ionicons name="finger-print" size={22} color={paleta.onPrimary} style={{ marginRight: 10 }} />
-            <Text style={[styles.btnText, { color: paleta.onPrimary }]}>{t('Desbloquear')}</Text>
-          </TouchableOpacity>,
-          cascata2
+        {pinAtivo ? (
+          /* DESKTOP: PIN de 4 dígitos — pontos + teclado numérico com animações */
+          blocoCascata(
+            <View style={{ alignItems: 'center' }}>
+              {/* Pontos: preenchem conforme digita; tremem em erro */}
+              <Animated.View
+                style={[
+                  styles.pinPontos,
+                  { transform: [{ translateX: tremor.interpolate({ inputRange: [-1, 0, 1], outputRange: [-6, 0, 6] }) }] },
+                ]}
+              >
+                {[0, 1, 2, 3].map(i => (
+                  <View
+                    key={i}
+                    style={[
+                      styles.pinPonto,
+                      pinErro && styles.pinPontoErro,
+                      {
+                        backgroundColor:
+                          pinErro ? paleta.danger
+                          : i < pinDigitado.length ? paleta.primary
+                          : 'transparent',
+                        borderColor: pinErro ? paleta.danger : i < pinDigitado.length ? paleta.primary : paleta.muted,
+                      },
+                    ]}
+                  />
+                ))}
+              </Animated.View>
+              <Text style={[styles.pinDica, { color: paleta.muted }]}>{t('Digite o PIN de 4 dígitos')}</Text>
+              {/* Teclado 3×4: dígitos sobem com leve fade ao tocar (press) */}
+              <View style={styles.pinTeclado}>
+                {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map(d => (
+                  <TeclaPin key={d} digito={d} aoPressionar={digitarPin} paleta={paleta} disabled={desbloqueando} />
+                ))}
+                <View style={styles.teclaPin} pointerEvents="none" />
+                <TeclaPin digito="0" aoPressionar={digitarPin} paleta={paleta} disabled={desbloqueando} />
+                <TouchableOpacity
+                  style={styles.teclaPin}
+                  onPress={apagarPin}
+                  activeOpacity={0.7}
+                  disabled={desbloqueando}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('Apagar')}
+                >
+                  <Ionicons name="backspace-outline" size={24} color={paleta.text} />
+                </TouchableOpacity>
+              </View>
+            </View>,
+            cascata2
+          )
+        ) : (
+          blocoCascata(
+            <TouchableOpacity
+              style={[styles.btnAutenticar, { backgroundColor: paleta.primary }]}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                aoDesbloquear();
+              }}
+              activeOpacity={0.85}
+              disabled={desbloqueando}
+            >
+              <Ionicons name="finger-print" size={22} color={paleta.onPrimary} style={{ marginRight: 10 }} />
+              <Text style={[styles.btnText, { color: paleta.onPrimary }]}>{t('Desbloquear')}</Text>
+            </TouchableOpacity>,
+            cascata2
+          )
         )}
 
         {blocoCascata(
@@ -701,6 +893,45 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 40,
+  },
+  // ---- PIN (desktop) ----
+  pinPontos: {
+    flexDirection: 'row',
+    gap: 18,
+    marginBottom: 10,
+  },
+  pinPonto: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 2,
+  },
+  pinPontoErro: {
+    // cor/background/borda vêm do render (paleta.danger)
+  },
+  pinDica: {
+    fontSize: 13,
+    marginBottom: 18,
+  },
+  pinTeclado: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    width: 264, // 3 teclas de 72 + 2 gaps de 24
+    gap: 24,
+    marginTop: 4,
+  },
+  teclaPin: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  teclaPinTexto: {
+    fontSize: 26,
+    fontWeight: '600',
   },
   lockIconWrap: {
     width: 128,
@@ -748,23 +979,29 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-start',
     paddingTop: 2,
   },
-  // Wrapper do arco: anima (sobe/gira). Tem ESPAÇO EXTRA acima (top -26, altura
-  // 92) para o arco subir 20px sem ser cortado — antes o overflow cortava o topo
-  // do arco durante a abertura, causando a "piscada".
-  arcoWrap: {
+  // Wrapper de GIRO do arco: é aqui que o rotateY (abertura 3D como cadeado
+  // real) acontece. Ele é largo (100) e deslocado para a esquerda (left -23.5)
+  // de modo que seu CENTRO (eixo da rotação) coincida com a PERNA ESQUERDA do
+  // arco (x≈26.5 no cadeado) — assim a perna esquerda fica plantada no corpo e
+  // a perna livre varre 180° para o lado. Espaço extra acima (top -26, altura
+  // 92) para o arco subir sem ser cortado (a "piscada" antiga era corte).
+  arcoGiroWrap: {
     position: 'absolute',
     top: -26,
-    left: (100 - 58) / 2,
-    width: 58,
+    left: -23.5,
+    width: 100,
     height: 92,
     zIndex: 2,
+    // O giro da abertura leva o arco para fora da caixa — nunca cortar.
+    overflow: 'visible',
   },
-  // SVG do arco: fica no topo do wrapper (que tem folga de -26 para o arco
-  // subir na abertura sem ser cortado). Toda a forma/brilho é desenhada no SVG.
-  arcoSvg: {
+  // SVG do arco dentro do wrapper de giro: deslocado à direita (left 44.5) para
+  // que o arco ocupe x 21..79 no cadeado (como antes) e a perna esquerda fique
+  // exatamente no centro do wrapper (eixo do rotateY).
+  arcoSvgNoGiro: {
     position: 'absolute',
     top: 26,
-    left: 0,
+    left: 44.5,
   },
   // Wrapper do corpo: anima o "clique" (scale) junto com o tremor. Top 40 faz o
   // corpo cobrir a base das pernas do arco (que descem até y=66). A sombra do

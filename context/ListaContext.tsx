@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { registrarApagado } from './tombstones';
 
 export interface ItemLista {
   id: string;
@@ -102,6 +103,7 @@ export const ListaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 };
 
   const excluirLista = (id: string) => {
+    registrarApagado(id); // tombstone: exclusão sincroniza com o PC
     setListas(prev => {
       const novas = prev.filter(l => l.id !== id);
       persistirDados(novas);

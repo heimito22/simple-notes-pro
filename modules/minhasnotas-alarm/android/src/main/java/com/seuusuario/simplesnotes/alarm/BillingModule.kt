@@ -86,7 +86,8 @@ class BillingModule : Module() {
       val params = QueryProductDetailsParams.newBuilder().setProductList(productList).build()
 
       val resultado = suspendCancellableCoroutine<BillingResult> { cont ->
-        client.queryProductDetailsAsync(params) { result, details ->
+        client.queryProductDetailsAsync(params) { result, res ->
+          val details = res.productDetailsList
           if (result.responseCode == BillingClient.BillingResponseCode.OK && !details.isNullOrEmpty()) {
             val flowParams = BillingFlowParams.newBuilder()
               .setProductDetailsParamsList(
@@ -115,13 +116,14 @@ class BillingModule : Module() {
     }
 
     // Verifica se o usuário já comprou a remoção de anúncios (restauração ao abrir)
+    // Retorna null quando o Billing está indisponível/offline (não é "sem compra").
     AsyncFunction("temCompraAtiva") Coroutine { ->
-      if (!conectarSeNecessario()) return@Coroutine false
+      if (!conectarSeNecessario()) return@Coroutine null
       consultarCompra()
     }
 
     AsyncFunction("restaurarCompras") Coroutine { ->
-      if (!conectarSeNecessario()) return@Coroutine false
+      if (!conectarSeNecessario()) return@Coroutine null
       consultarCompra()
     }
 
@@ -137,7 +139,8 @@ class BillingModule : Module() {
       )
       val params = QueryProductDetailsParams.newBuilder().setProductList(productList).build()
       val preco = suspendCancellableCoroutine<String?> { cont ->
-        client.queryProductDetailsAsync(params) { result, details ->
+        client.queryProductDetailsAsync(params) { result, res ->
+          val details = res.productDetailsList
           val p = if (result.responseCode == BillingClient.BillingResponseCode.OK && !details.isNullOrEmpty()) {
             details[0].oneTimePurchaseOfferDetails?.formattedPrice
           } else null
@@ -185,7 +188,14 @@ class BillingModule : Module() {
               if (conectado) {
                 appContext.modulesQueue.launch {
                   if (consultarCompra()) {
-                    sendEvent("onCompraAtualizada", mapOf("comprado" to true))
+                    // "restaurado": true distingue a reconciliação de uma compra
+                    // JÁ existente (ao conectar/abrir o app) de uma compra NOVA
+                    // feita agora — só a nova deve vincular o premium ao email
+                    // logado no momento do pagamento.
+                    sendEvent(
+                      "onCompraAtualizada",
+                      mapOf("comprado" to true, "restaurado" to true)
+                    )
                   }
                 }
               }

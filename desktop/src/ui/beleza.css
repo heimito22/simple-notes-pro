@@ -1,0 +1,283 @@
+/* ============================================================================
+   BELEZA v4 — Simple Notes Pro Desktop  ·  FOCO EM ANIMAÇÕES
+   Animações expressivas e suaves: spring loops sutil, cards com stagger
+   primavera, modais sheet, toast elástico, editor com entrada por slide,
+   checklist pop, navegação com underline deslizante. Paleta fiel ao celular
+   (OLED #000, superfície #1C1C1E, azul #0A84FF) e modo claro coeso.
+   Carregada POR ÚLTIMO (sobrepõe styles.css / polimento.css).
+   ============================================================================ */
+
+:root{
+  --azul:#0A84FF; --azul-strong:#409CFF; --azul-soft:#152A42;
+  --superficie:#1C1C1E; --superficie2:#2C2C2E;
+  --elev-1:0 2px 10px rgba(0,0,0,.28);
+  --elev-2:0 12px 30px rgba(0,0,0,.42);
+  --sombra-azul:0 6px 18px rgba(10,132,255,.33);
+  --spring-forte:cubic-bezier(.34,1.56,.64,1);  /* overshoot charmoso */
+  --spring:cubic-bezier(.34,1.38,.42,1);
+  --suave:cubic-bezier(.16,1,.3,1);
+  --hairline:rgba(255,255,255,.07);
+}
+html[data-tema="light"]{
+  --azul:#007AFF; --azul-strong:#0069E0; --azul-soft:#E5F1FF;
+  --superficie:#FFFFFF; --superficie2:#F2F2F7;
+  --elev-1:0 2px 10px rgba(16,24,40,.07), 0 1px 3px rgba(16,24,40,.05);
+  --elev-2:0 12px 30px rgba(16,24,40,.14), 0 2px 8px rgba(16,24,40,.06);
+  --sombra-azul:0 6px 18px rgba(0,122,255,.22);
+  --hairline:#E9E9EF;
+}
+
+/* ========== 1. ANIMAÇÕES-CHAVE ========== */
+@keyframes cardEntra{                                     /* cards entram: sobe + desfaz escala */
+  0%{opacity:0;transform:translateY(22px) scale(.94)}
+  60%{opacity:1;transform:translateY(-3px) scale(1.008)}
+  100%{opacity:1;transform:translateY(0) scale(1)}
+}
+@keyframes navUnder{                                       /* trilho azul que desliza no nav ativo */
+  0%{width:0;opacity:0} 100%{width:100%;opacity:1}
+}
+@keyframes viewSobe{                                       /* views sobem do fundo */
+  0%{opacity:0;transform:translateY(20px)} 100%{opacity:1;transform:translateY(0)}
+}
+@keyframes sheetSobe{                                      /* modal = sheet do celular */
+  0%{opacity:0;transform:translateY(34px) scale(.95)}
+  100%{opacity:1;transform:translateY(0) scale(1)}
+}
+@keyframes toastSobe{                                      /* toast com "bobble" */
+  0%{opacity:0;transform:translateX(-50%) translateY(24px) scale(.9)}
+  60%{opacity:1;transform:translateX(-50%) translateY(-3px) scale(1.01)}
+  100%{opacity:1;transform:translateX(-50%) translateY(0) scale(1)}
+}
+@keyframes editorEntra{                                    /* editor desliza da direita */
+  0%{opacity:0;transform:translateX(48px)} 100%{opacity:1;transform:translateX(0)}
+}
+@keyframes overlayFade{                                    /* backdrop some/aparece */
+  from{opacity:0} to{opacity:1}
+}
+@keyframes dotPulsa{                                       /* sync dot respirando */
+  0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(52,199,89,.4)}
+  50%{opacity:.75;box-shadow:0 0 0 5px rgba(52,199,89,0)}
+}
+@keyframes checkPopAnim{                                   /* check explode ao marcar */
+  0%{transform:scale(.5)} 60%{transform:scale(1.2)} 100%{transform:scale(1)}
+}
+@keyframes avatarRespiro{                                  /* avatar respira */
+  0%,100%{box-shadow:0 0 0 2px rgba(10,132,255,.35)}
+  50%{box-shadow:0 0 0 4px rgba(10,132,255,.18)}
+}
+@keyframes msgSobe{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+@keyframes cardHoverGlow{from{box-shadow:0 4px 14px rgba(0,0,0,.3)}to{box-shadow:0 14px 34px rgba(0,0,0,.45), 0 0 0 1px rgba(10,132,255,.25)}}
+
+/* ========== 2. MODO GRADE = sobe + levanta no hover (entrada feita pela GSAP) ========== */
+.grid .card{
+  border-radius:22px; background:var(--superficie); border:1px solid transparent;
+  box-shadow:var(--elev-1);
+  transition:transform .24s var(--suave), box-shadow .3s ease, border-color .2s ease, background .2s ease;
+}
+.grid .card:hover{
+  transform:translateY(-5px) scale(1.012);
+  box-shadow:var(--elev-2);
+  border-color:rgba(255,255,255,.09);
+  background:var(--superficie2);
+}
+.grid .card.fixada{
+  border-color:rgba(10,132,255,.45);
+  box-shadow:0 0 0 1px rgba(10,132,255,.28), var(--elev-1);
+}
+.grid .card.fixada:hover{border-color:rgba(10,132,255,.6)}
+.grid .card:active{transform:translateY(-1px) scale(.977);transition-duration:.08s}
+
+/* ========== 3. MODO LISTA — elegante e legível ========== */
+.grid.lista{gap:6px}
+.grid.lista .card{
+  border-radius:16px;
+  padding:14px 18px;
+  border-left:0; box-shadow:var(--elev-1);
+  animation:none;                                     /* sem stagger pesado */
+  transition:background .18s ease, transform .18s var(--suave), box-shadow .22s ease, border-color .18s ease;
+}
+.grid.lista .card:hover{
+  transform:translateX(4px);
+  background:var(--superficie2);
+  box-shadow:var(--elev-1), inset 3px 0 0 var(--azul);        /* trilho azul do celular */
+}
+.grid.lista .card:active{transform:translateX(2px) scale(.995)}
+.grid.lista .card .card-check{width:20px;height:20px;top:10px;right:12px}
+.grid.lista .card h3{font-size:.94rem;padding-right:28px}
+.grid.lista .card p{display:block !important;font-size:.82rem;margin-top:2px;
+
+      -webkit-line-clamp:2;color:var(--tx2)}
+.grid.lista .card .meta{margin-top:6px;padding-top:8px;font-size:.74rem}
+
+/* Em lista, minha thumb fica redondinha à esquerda */
+.grid.lista .card .card-thumb{
+  width:46px;height:46px;object-fit:cover;border-radius:12px;
+  flex-shrink:0;box-shadow:var(--elev-1);
+}
+
+/* ========== 4. NAV: item ativo com barra deslizante ========== */
+.sidebar .nav-item{
+  position:relative; border-radius:12px; overflow:hidden;
+  transition:background .2s ease, color .18s ease, transform .22s var(--suave);
+}
+.sidebar .nav-item::after{
+  content:"";position:absolute;left:0;top:0;bottom:0;width:3px;
+  background:var(--azul);border-radius:0 3px 3px 0;opacity:0;transform:scaleY(.2);
+  transition:opacity .22s ease, transform .24s var(--spring);
+}
+.sidebar .nav-item.ativo{background:rgba(10,132,255,.13);color:var(--tx)}
+html[data-tema="light"] .sidebar .nav-item.ativo{background:rgba(0,122,255,.13)}
+.sidebar .nav-item.ativo::after{opacity:1;transform:scaleY(1);animation:navUnder .3s var(--suave)}
+.sidebar .nav-item:hover{transform:translateX(2px)}
+.sidebar .nav-item:active{transform:translateX(2px) scale(.985)}
+
+/* ========== 5. BUSCA + HOVER busca ========== */
+.busca{border-radius:999px;box-shadow:none;transition:border-color .22s ease, box-shadow .25s ease, transform .2s var(--suave)}
+.busca:focus-within{border-color:var(--azul);box-shadow:0 0 0 3px rgba(10,132,255,.2);transform:translateY(-1px)}
+.busca input{transition:none}
+
+/* ========== 6. PASTAS ========== */
+.lista-pastas{gap:3px;padding:4px 8px 10px}
+.pasta-row{border-radius:10px;padding:8px 11px;transition:background .18s ease,color .18s ease,transform .18s var(--suave)}
+.pasta-ico{width:15px;height:15px;flex-shrink:0;color:var(--tx3,#6E6E73);transition:color .18s ease}
+.pasta-row:hover .pasta-ico{color:var(--azul)}
+.pasta-nome{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:.85rem}
+.pasta-row.ativo{background:rgba(10,132,255,.13);color:var(--tx)}
+html[data-tema="light"] .pasta-row.ativo{background:rgba(0,122,255,.12)}
+.pasta-row.ativo .pasta-ico{color:var(--azul)}
+.pasta-row .cnt{font-size:.72rem;min-width:22px;text-align:center;padding:2px 7px;border-radius:999px;background:rgba(255,255,255,.07);color:var(--tx2)}
+html[data-tema="light"] .pasta-row .cnt{background:rgba(0,0,0,.06)}
+.pasta-row.ativo .cnt{background:rgba(10,132,255,.22);color:#9AC8FF}
+html[data-tema="light"] .pasta-row.ativo .cnt{color:var(--azul)}
+
+/* ========== 7. CONTA + AVATAR ========== */
+.conta{background:rgba(255,255,255,.045);border:1px solid var(--hairline);border-radius:16px;box-shadow:var(--elev-1);
+  transition:transform .2s var(--suave),box-shadow .28s ease}
+html[data-tema="light"] .conta{background:#FFFFFF}
+.conta:hover{transform:translateY(-2px);box-shadow:var(--elev-2)}
+.avatar{width:36px;height:36px;border-radius:50%;background:var(--azul-soft);color:#fff;font-size:.88rem;font-weight:700;
+  box-shadow:0 0 0 2px rgba(10,132,255,.35);
+  animation:avatarRespiro 3.2s ease-in-out infinite}
+html[data-tema="light"] .avatar{color:var(--azul)}
+
+/* ========== 8. BOTÕES ========== */
+.btn{border-radius:12px;transition:transform .16s var(--spring),background .2s ease,border-color .2s ease,box-shadow .2s ease}
+.btn:hover{transform:translateY(-1px)}
+.btn:active{transform:scale(.95);transition-duration:.06s}
+.btn.prim{background:var(--azul);border-color:var(--azul);box-shadow:var(--sombra-azul)}
+.btn.prim:hover{background:var(--azul-strong);border-color:var(--azul-strong);box-shadow:0 8px 22px rgba(10,132,255,.4)}
+.btn.prim::after{content:"";position:absolute;inset:0;background:linear-gradient(120deg,transparent,rgba(255,255,255,.18),transparent);
+  transform:translateX(-120%);transition:transform .5s ease}
+.btn.prim:hover::after{transform:translateX(120%)}
+.btn.prim{position:relative;overflow:hidden}
+
+/* ========== 9. SWITCH com mola animada ========== */
+.switch{border-radius:999px;transition:background .26s ease,border-color .26s ease,box-shadow .2s ease}
+.switch i{width:22px;height:22px;top:1px;left:2px;box-shadow:0 1px 4px rgba(0,0,0,.35);
+  transition:left .26s var(--spring-forte),transform .26s var(--spring-forte)}
+.switch.on{background:var(--azul);border-color:var(--azul);box-shadow:0 0 12px rgba(10,132,255,.32)}
+.switch.on i{left:calc(100% - 24px)}
+.switch:active i{transform:scaleX(1.22)}
+
+/* ========== 10. SYNC DOT ========== */
+.sync-dot{animation:dotPulsa 2.6s ease-in-out infinite}
+
+/* ========== 11. VIEWS + MAIN ========== */
+.main{animation:viewSobe .32s var(--suave)}
+#painelConfig .config-wrap{animation:viewSobe .32s var(--suave)}
+.grid{animation:viewSobe .26s var(--suave)}
+
+/* ========== 12. EDITOR entra como painel= direita -> esquerda ========== */
+.editor{
+  border-left:1px solid var(--hairline);
+  animation:editorEntra .38s var(--suave);
+}
+.editor-toolbar{background:var(--superficie);border-bottom:1px solid var(--hairline)}
+.editor-toolbar button{transition:background .15s ease,color .15s ease,transform .15s var(--spring)}
+.editor-toolbar button:hover{transform:translateY(-1px)}
+.editor-toolbar button:active{transform:scale(.88)}
+.rich-editable img{transition:transform .22s var(--suave), box-shadow .26s ease}
+.rich-editable img:hover{transform:scale(1.015);box-shadow:var(--elev-2)}
+
+/* ========== 13. TAREFAS + CHECK ========== */
+.tarefa-card{border-radius:18px;transition:background .18s ease,border-color .18s ease,transform .2s var(--suave),box-shadow .22s ease}
+.tarefa-card:hover{transform:translateY(-1px);box-shadow:var(--elev-1)}
+.check,.tarefa-check{border-radius:8px;transition:background .2s ease,border-color .2s ease,color .18s ease,transform .18s var(--spring-forte)}
+.check:active,.tarefa-check:active{transform:scale(.8)}
+.check.on,.tarefa-check.on{background:var(--azul);border-color:var(--azul);animation:checkPopAnim .32s var(--spring-forte)}
+
+/* Progress bars animadas suavemente */
+.tarefa-progress i,.lista-progress-bar i{transition:width .5s var(--suave)}
+
+/* ========== 14. CHIPS DE DIA (tarefa-form) ========== */
+.tarefa-dia{border-radius:999px;transition:background .2s ease,color .18s ease,transform .18s var(--spring-forte),border-color .2s ease}
+.tarefa-dia:hover{transform:scale(1.05)}
+.tarefa-dia.ativo{background:var(--azul);border-color:var(--azul);color:#fff;transform:scale(1.04)}
+.tarefa-dia.on,.tarefa-dia.ativo{animation:checkPopAnim .3s var(--spring-forte)}
+
+/* ========== 15. Modais — sheet do celular + backdrop ========== */
+.modal-overlay,.bloqueio-overlay,.pin-overlay,.alarm-toast{animation:overlayFade .22s ease}
+.modal-card{background:var(--superficie);border:1px solid var(--hairline);
+  animation:sheetSobe .38s var(--spring-forte)}
+html[data-tema="light"] .modal-card{background:#FFFFFF}
+.pin-card,.bloqueio-card{background:var(--superficie);border:1px solid var(--hairline);animation:sheetSobe .34s var(--spring-forte)}
+html[data-tema="light"] .pin-card,html[data-tema="light"] .bloqueio-card{background:#FFFFFF}
+/* PIN dots rebound */
+.pin-dot{transition:transform .22s var(--spring-forte),background .22s ease,border-color .22s ease}
+.pin-dot.on{background:var(--azul);border-color:var(--azul);transform:scale(1.28);box-shadow:0 0 0 4px rgba(10,132,255,.22)}
+.pin-key{border-radius:999px;transition:background .14s ease,border-color .14s ease,transform .18s var(--spring-forte)}
+.pin-key:active{transform:scale(.85)}
+.pin-key.ok{animation:checkPopAnim .28s var(--spring-forte)}
+
+/* ========== 16. Toast elástico ========== */
+.toast{background:rgba(28,28,30,.93);border:1px solid var(--hairline);box-shadow:var(--elev-2);
+  animation:toastSobe .42s var(--spring-forte) both}
+html[data-tema="light"] .toast{background:rgba(28,28,30,.96)}
+
+/* ========== 17. IA messages sobem suave ========== */
+.ia-msg{animation:msgSobe .3s var(--suave)}
+.ia-msg.user{background:var(--azul);color:#fff}
+
+/* ========== 18. Empty state com flutuação ========== */
+.empty b{animation:none}
+.empty{animation:viewSobe .4s var(--suave)}
+
+/* ========== 19. Modo claro refinado ========== */
+html[data-tema="light"] .card{background:#FFFFFF}
+html[data-tema="light"] .grid .card{border:1px solid var(--hairline)}
+html[data-tema="light"] .grid .card:hover{background:#F2F2F7;border-color:#E2E2E7}
+html[data-tema="light"] .conta{background:#FFFFFF}
+html[data-tema="light"] .sidebar{background:#F2F2F7}
+html[data-tema="light"] .view-toggle{background:#FFFFFF}
+html[data-tema="light"] .view-toggle button.ativo{background:#E5E5EA;color:#333}
+html[data-tema="light"] .btn.prim{background:var(--azul);border-color:var(--azul)}
+html[data-tema="light"] .btn.prim:hover{background:var(--azul-strong)}
+html[data-tema="light"] .busca{background:#FFFFFF}
+html[data-tema="light"] .busca:focus-within{border-color:var(--azul)}
+html[data-tema="light"] .editor-toolbar{background:#FFFFFF}
+html[data-tema="light"] .check{border-color:#C7C7D0}
+html[data-tema="light"] .check.on{background:var(--azul);border-color:var(--azul)}
+html[data-tema="light"] .tarefa-card{background:#FFFFFF}
+html[data-tema="light"] .tarefa-check.on{background:var(--azul);border-color:var(--azul)}
+html[data-tema="light"] .lista-row{background:#FFFFFF}
+html[data-tema="light"] .lista-row.feito .lista-txt{color:var(--tx2)}
+html[data-tema="light"] .switch{background:#E9E9EF;border-color:#C7C7D0}
+html[data-tema="light"] .switch.on{background:var(--azul);border-color:var(--azul)}
+html[data-tema="light"] .ia-msg.ia{background:#FFFFFF;color:var(--tx)}
+html[data-tema="light"] .ia-msg.user{background:var(--azul);color:#fff}
+html[data-tema="light"] .modal-card{background:#FFFFFF;border-color:#E5E5EA}
+
+/* ========== 19. Transição do split editor (main encolhe suavemente) ========== */
+.main{transition:flex .42s var(--suave), max-width .42s var(--suave)}
+.shell.editor-aberto .main{flex:0 0 44%;max-width:56%}
+
+/* Barra de seleção entra deslizando */
+.barra-selecao{animation:none}
+.barra-selecao.visivel{animation:viewSobe .28s var(--suave)}
+
+/* ========== 20. Reduced motion ========== */
+/* Mantém as animações (o usuário pediu animações); reduz só o contínuo.
+   A entrada de cards/views/editor fica ligada mesmo em prefers-reduced-motion. */
+@media (prefers-reduced-motion: reduce){
+  .sync-dot,.avatar{animation:none}
+}

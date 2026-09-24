@@ -1,0 +1,5 @@
+client_secret.txt
+sessao.json
+release/
+app-dist/
+node_modules/

@@ -1,0 +1,77 @@
+{
+  "name": "simple-notes-pro-desktop",
+  "version": "1.1.10",
+  "description": "Simple Notes Pro para desktop — vinculado ao celular via Google Drive",
+  "main": "src/main.js",
+  "author": "Simple Notes Pro",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win --publish never",
+    "dist:portable": "electron-builder --win portable --publish never",
+    "publicar": "node scripts/publicar.js",
+    "publicar-desktop": "node scripts/publicar.js",
+    "publicar-github": "node scripts/publicar-github.js"
+  },
+  "build": {
+    "appId": "com.seuusuario.simplesnotes.desktop",
+    "productName": "Simple Notes Pro",
+    "directories": {
+      "output": "release"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "heimito22",
+      "repo": "simple-notes-pro",
+      "releaseType": "release"
+    },
+    "files": [
+      "src/main.js",
+      "src/preload.js",
+      "src/store.js",
+      "src/google-auth.js",
+      "src/lib/**/*",
+      "src/ui/**/*",
+      "src/shell/icone.png",
+      "client_id.txt",
+      "client_secret.txt",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "src/shell/icone.png",
+      "verifyUpdateCodeSignature": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Simple Notes Pro",
+      "artifactName": "Simple-Notes-Pro-Setup-v${version}.exe"
+    },
+    "portable": {
+      "artifactName": "Simple-Notes-Pro-Portable-v${version}.${ext}"
+    },
+    "forceCodeSigning": false
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0"
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.9"
+  }
+}

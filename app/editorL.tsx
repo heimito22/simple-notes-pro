@@ -20,6 +20,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { appColors } from '../constants/theme';
 import { ItemLista, useListas } from '../context/ListaContext';
+import { useMonetizacao } from '../context/monetizacao';
 import { useTheme } from '../context/ThemeContext';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -40,6 +41,9 @@ export default function EditorL() {
   const { isDark, t } = useTheme();
   const insets = useSafeAreaInsets();
   const { listas, salvarLista } = useListas();
+  const { mostrarAnuncio } = useMonetizacao();
+  // Garante que o anúncio apareça no máximo uma vez por visita ao editor.
+  const anuncioFeitoRef = React.useRef(false);
 
   const [titulo, setTitulo] = useState('');
   const [itens, setItens] = useState<ItemLista[]>([]);
@@ -115,7 +119,26 @@ export default function EditorL() {
     setItens(prev => prev.filter(item => item.id !== itemId));
   };
 
+  // Só vale como "alteração" se algo mudou em relação ao que estava salvo
+  // quando a tela abriu (ou, em lista nova, em relação ao estado vazio).
+  const houveAlteracaoReal = () => {
+    const tituloBase = (listaExistente?.titulo ?? '').trim();
+    const itensBase = listaExistente?.itens ?? [];
+    if (titulo.trim() !== tituloBase) return true;
+    if (itens.length !== itensBase.length) return true;
+    return itens.some((item, i) => {
+      const base = itensBase[i];
+      return !base || item.texto !== base.texto || !!item.concluido !== !!base.concluido;
+    });
+  };
+
   const salvarETotalizar = useCallback(() => {
+    // Anúncio ao terminar de editar a lista (seta, check ou back do celular) —
+    // só quando houve alteração real nesta visita; premium nunca recebe.
+    if (houveAlteracaoReal() && !anuncioFeitoRef.current) {
+      anuncioFeitoRef.current = true;
+      mostrarAnuncio();
+    }
     salvarLista({
       id: (id as string) || Date.now().toString(),
       titulo: titulo.trim() || t('Nova Lista'),
@@ -126,7 +149,7 @@ export default function EditorL() {
       pastaId: pastaId ? String(pastaId) : listaExistente?.pastaId,
     });
     router.back();
-  }, [id, titulo, itens, listaExistente, pastaId, salvarLista, router, t]);
+  }, [id, titulo, itens, listaExistente, pastaId, salvarLista, router, t, mostrarAnuncio, houveAlteracaoReal]);
 
   // Salvar ao apertar o botão voltar do celular
   useFocusEffect(

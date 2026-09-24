@@ -1,9 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
+import Constants from 'expo-constants';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { useRouter } from 'expo-router';
 import { MotiView } from 'moti';
 import React, { useEffect, useRef, useState } from 'react';
-import { Alert, Linking, Modal, Platform, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Linking, Modal, Platform, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import PreviewSom from '../../components/preview-som';
 import { useMonetizacao } from '../../context/monetizacao';
@@ -16,7 +17,7 @@ import { alarmeNativoDisponivel, obterPrecoRemoverAnuncios, pararSomAlarme, prev
 export default function SettingsScreen() {
   const { isDark, toggleTheme, config, atualizarConfig, t } = useTheme();
   const insets = useSafeAreaInsets();
-  const { anunciosRemovidos, premiumPorEmail, comprando, comprarRemoverAnuncios } = useMonetizacao();
+  const { anunciosRemovidos, premiumPorEmail, comprando, comprarRemoverAnuncios, emailLogado, emailDonoCompra, solicitarLoginParaCompra, cancelarCompraPendente } = useMonetizacao();
   const router = useRouter();
   // Preço exibido: lido do Play Console (fallback enquanto o produto não é publicado)
   const [precoAnuncios, setPrecoAnuncios] = useState('R$ 5,99');
@@ -29,6 +30,11 @@ export default function SettingsScreen() {
   const [chaveEditando, setChaveEditando] = useState(config.chaveIA || '');
   const [chaveVisivel, setChaveVisivel] = useState(false);
   const [tutorialIA, setTutorialIA] = useState(false);
+  // DESKTOP: modal de definir/trocar o PIN de 4 dígitos (bloqueio do app)
+  const [modalPinVisivel, setModalPinVisivel] = useState(false);
+  const [pinNovo, setPinNovo] = useState('');
+  const [pinConfirma, setPinConfirma] = useState('');
+  const [pinEtapa, setPinEtapa] = useState<'criar' | 'confirmar'>('criar');
   const timerChave = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Salva a chave automaticamente (com debounce de 600ms)
@@ -98,6 +104,17 @@ export default function SettingsScreen() {
   }, []);
 
   const handleToggleBiometriaApp = async (valor: boolean) => {
+    if (Platform.OS === 'web') {
+      // DESKTOP: bloqueio por PIN do próprio app. Ligar exige cadastrar o PIN
+      // (modal); desligar limpa o PIN guardado.
+      if (valor) {
+        setModalPinVisivel(true);
+      } else {
+        atualizarConfig('pinDesbloqueio', '');
+        atualizarConfig('exigirBiometriaApp', false);
+      }
+      return;
+    }
     if (valor) {
       const temHardware = await LocalAuthentication.hasHardwareAsync();
       const temBiometriaSalva = await LocalAuthentication.isEnrolledAsync();
@@ -120,6 +137,13 @@ export default function SettingsScreen() {
     }
     
     atualizarConfig('exigirBiometriaApp', valor);
+  };
+
+  const fecharModalPin = () => {
+    setModalPinVisivel(false);
+    setPinNovo('');
+    setPinConfirma('');
+    setPinEtapa('criar');
   };
 
   const selecionarTempo = () => {
@@ -168,8 +192,40 @@ export default function SettingsScreen() {
     if (previewTimer.current) clearTimeout(previewTimer.current);
   };
 
+  // Compra de premium: o pagamento só abre com conta Google logada (o premium
+  // fica vinculado ao email da conta). Sem conta → orienta a entrar; com conta
+  // de outro dono → avisa qual email tem o premium comprado.
+  const tentarComprarPremium = async () => {
+    if (anunciosRemovidos || comprando) return;
+    const res = await comprarRemoverAnuncios();
+    if (res === 'aberta') return; // janela de pagamento abriu (ou já liberado)
+    if (res === 'indisponivel') {
+      Alert.alert(t('Erro'), t('Pagamento indisponível neste aparelho.'));
+      return;
+    }
+    if (res === 'outraConta') {
+      Alert.alert(
+        t('Premium'),
+        emailDonoCompra
+          ? t('Este aparelho já tem Premium comprado pelo email {email}. Entre com essa conta para usar sem anúncios.', { email: emailDonoCompra })
+          : t('Este aparelho já tem Premium comprado. Entre com a conta que fez a compra para usar sem anúncios.')
+      );
+      return;
+    }
+    // precisaLogin: pede a conta ANTES de abrir o pagamento.
+    Alert.alert(
+      t('Premium'),
+      t('Para comprar o Premium, primeiro entre na sua conta Google. O Premium fica vinculado ao email da conta que fez a compra.'),
+      [
+        { text: t('Cancelar'), style: 'cancel', onPress: () => cancelarCompraPendente() },
+        { text: t('Entrar'), onPress: () => solicitarLoginParaCompra() },
+      ]
+    );
+  };
+
   return (
     <ScrollView
+      testID="sn-screen-ajustes"
       style={[styles.container, { backgroundColor: cores.fundo }]}
       contentContainerStyle={styles.contentContainer}
       showsVerticalScrollIndicator={false}
@@ -226,7 +282,8 @@ export default function SettingsScreen() {
         </View>
       </View>
 
-      {/* SEÇÃO ALARME */}
+      {/* SEÇÃO ALARME — só no celular (alarme nativo não existe no PC) */}
+      {Platform.OS !== 'web' && (
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: cores.textoSecundario } ]}>{t('Alarme')}</Text>
         <View style={[styles.group, { backgroundColor: cores.itemFundo, borderColor: cores.borda, borderWidth: 1 }]}>
@@ -284,6 +341,7 @@ export default function SettingsScreen() {
           </TouchableOpacity>
         </View>
       </View>
+      )}
 
       {/* SEÇÃO ANÚNCIOS / REMOVER ANÚNCIOS */}
       <View style={styles.section}>
@@ -299,7 +357,9 @@ export default function SettingsScreen() {
                 <Text style={[styles.subText, { color: cores.textoSecundario } ]}>
                   {premiumPorEmail
                     ? t('Premium liberado por convite do desenvolvedor')
-                    : t('Obrigado pelo apoio! Sem anúncios para sempre')}
+                    : emailDonoCompra
+                      ? t('Premium comprado · vinculado a {email}', { email: emailDonoCompra })
+                      : t('Obrigado pelo apoio! Sem anúncios para sempre')}
                 </Text>
               </View>
               {premiumPorEmail ? (
@@ -314,7 +374,7 @@ export default function SettingsScreen() {
           ) : (
             <TouchableOpacity
               style={[styles.innerItem, { borderBottomWidth: 0 }]}
-              onPress={comprarRemoverAnuncios}
+              onPress={tentarComprarPremium}
               activeOpacity={0.6}
               disabled={comprando}
             >
@@ -325,7 +385,11 @@ export default function SettingsScreen() {
                 <Text style={[styles.itemText, { color: cores.textoPrincipal }]}>
                   {t('Remover anúncios para sempre')}
                 </Text>
-                <Text style={[styles.subText, { color: cores.textoSecundario } ]}>{t('Pagamento único pela Play Store')}</Text>
+                <Text style={[styles.subText, { color: cores.textoSecundario } ]}>
+                  {emailLogado
+                    ? t('Pagamento único pela Play Store')
+                    : t('Entre na sua conta para comprar — o Premium fica vinculado ao seu email')}
+                </Text>
               </View>
               <View
                 style={{
@@ -433,7 +497,9 @@ export default function SettingsScreen() {
           <View style={[styles.innerItem, { borderBottomColor: cores.borda, borderBottomWidth: config.exigirBiometriaApp ? 1 : 0 }]}>
             <View style={{ flex: 1 }}>
               <Text style={[styles.itemText, { color: cores.textoPrincipal }]}>{t('Bloquear App')}</Text>
-              <Text style={[styles.subText, { color: cores.textoSecundario } ]}>{t('Exigir biometria ao abrir o aplicativo')}</Text>
+              <Text style={[styles.subText, { color: cores.textoSecundario } ]}>
+                {Platform.OS === 'web' ? t('Exigir PIN de 4 dígitos ao abrir o aplicativo') : t('Exigir biometria ao abrir o aplicativo')}
+              </Text>
             </View>
             <Switch 
               value={config.exigirBiometriaApp} 
@@ -441,6 +507,22 @@ export default function SettingsScreen() {
               trackColor={{ false: '#767577', true: cores.accent }}
             />
           </View>
+
+          {config.exigirBiometriaApp && Platform.OS === 'web' && (
+            /* DESKTOP: definir/trocar o PIN de 4 dígitos do próprio app */
+            <TouchableOpacity
+              style={[styles.innerItem, { borderBottomColor: cores.borda, borderBottomWidth: 1 }]}
+              onPress={() => setModalPinVisivel(true)}
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.itemText, { color: cores.textoPrincipal }]}>{t('PIN de Desbloqueio')}</Text>
+                <Text style={[styles.subText, { color: cores.textoSecundario } ]}>
+                  {config.pinDesbloqueio ? t('PIN configurado — toque para alterar') : t('Defina um PIN de 4 dígitos')}
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={cores.textoSecundario} />
+            </TouchableOpacity>
+          )}
 
           {config.exigirBiometriaApp && (
             <TouchableOpacity style={[styles.innerItem, { borderBottomWidth: 0 }]} onPress={selecionarTempo}>
@@ -455,6 +537,66 @@ export default function SettingsScreen() {
           )}
         </View>
       </View>
+
+      {/* DESKTOP: modal do PIN de desbloqueio (definir/trocar) */}
+      <Modal visible={modalPinVisivel} transparent animationType="fade" onRequestClose={() => fecharModalPin()}>
+        <KeyboardAvoidingView behavior="padding" style={styles.modalFundoPin}>
+          <TouchableOpacity style={styles.modalDismissPin} activeOpacity={1} onPress={() => fecharModalPin()} />
+          <View style={[styles.pinCard, { backgroundColor: cores.itemFundo, borderColor: cores.borda }]}>
+            <Ionicons name="lock-closed-outline" size={30} color={cores.accent} style={{ marginBottom: 12 }} />
+            <Text style={[styles.pinTitulo, { color: cores.textoPrincipal }]}>
+              {pinEtapa === 'criar' ? t('Defina o PIN') : t('Confirme o PIN')}
+            </Text>
+            <Text style={[styles.pinSub, { color: cores.textoSecundario }]}>{t('4 dígitos numéricos')}</Text>
+            <TextInput
+              style={[styles.pinInput, { borderColor: cores.borda, color: cores.textoPrincipal }]}
+              value={pinEtapa === 'criar' ? pinNovo : pinConfirma}
+              onChangeText={(txt) => {
+                const apenas = txt.replace(/[^0-9]/g, '').slice(0, 4);
+                if (pinEtapa === 'criar') setPinNovo(apenas); else setPinConfirma(apenas);
+              }}
+              placeholder="••••"
+              placeholderTextColor={cores.textoSecundario}
+              keyboardType="number-pad"
+              secureTextEntry
+              maxLength={4}
+              autoFocus
+              textAlign="center"
+            />
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
+              <TouchableOpacity
+                style={[styles.pinBotao, { backgroundColor: cores.itemFundo, borderColor: cores.borda }]}
+                onPress={() => fecharModalPin()}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.pinBotaoTexto, { color: cores.textoPrincipal }]}>{t('Cancelar')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.pinBotao, { backgroundColor: cores.accent, borderColor: cores.accent }]}
+                onPress={() => {
+                  if (pinEtapa === 'criar') {
+                    if (pinNovo.length !== 4) return;
+                    setPinEtapa('confirmar');
+                  } else {
+                    if (pinConfirma.length !== 4) return;
+                    if (pinConfirma !== pinNovo) {
+                      Alert.alert(t('Erro'), t('Os PINs não conferem. Tente novamente.'));
+                      setPinConfirma('');
+                      return;
+                    }
+                    atualizarConfig('pinDesbloqueio', pinNovo);
+                    atualizarConfig('exigirBiometriaApp', true);
+                    fecharModalPin();
+                  }
+                }}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.pinBotaoTexto, { color: '#FFFFFF' }]}>{pinEtapa === 'criar' ? t('Continuar') : t('Salvar')}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
 
       {/* TUTORIAL DA CHAVE DA IA */}
       <Modal
@@ -509,7 +651,7 @@ export default function SettingsScreen() {
       </Modal>
 
       <View style={styles.footer}>
-        <Text style={[styles.footerText, { color: cores.textoSecundario }]}>{t('Versão do App')}: 1.1.0</Text>
+        <Text style={[styles.footerText, { color: cores.textoSecundario }]}>{t('Versão do App')}: {Constants.expoConfig?.version ?? '1.2.1'}</Text>
       </View>
 
       {/* SELETOR DE SOM DO ALARME (modal OLED) */}
@@ -665,7 +807,7 @@ export default function SettingsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  contentContainer: { paddingTop: 70, paddingHorizontal: 20, paddingBottom: 60 },
+  contentContainer: { paddingTop: 60, paddingHorizontal: 25, paddingBottom: 60 },
   title: { fontSize: 34, fontWeight: '900', marginBottom: 30 },
   section: { marginBottom: 25 },
   sectionTitle: { fontSize: 12, textTransform: 'uppercase', marginBottom: 8, marginLeft: 10, letterSpacing: 1 },
@@ -813,4 +955,40 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  // ---- Modal do PIN (desktop) ----
+  modalFundoPin: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalDismissPin: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
+  pinCard: {
+    width: 360,
+    maxWidth: '90%',
+    borderRadius: 22,
+    borderWidth: 1,
+    padding: 26,
+    alignItems: 'center',
+  },
+  pinTitulo: { fontSize: 20, fontWeight: '800' },
+  pinSub: { fontSize: 13, marginTop: 4, marginBottom: 16 },
+  pinInput: {
+    width: 160,
+    height: 52,
+    borderRadius: 14,
+    borderWidth: 1,
+    fontSize: 24,
+    fontWeight: '800',
+    letterSpacing: 8,
+  },
+  pinBotao: {
+    flex: 1,
+    height: 46,
+    borderRadius: 13,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pinBotaoTexto: { fontSize: 15, fontWeight: '700' },
 });

@@ -1,8 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { Alert, AppState, Platform } from 'react-native';
 import { useTheme } from './ThemeContext';
+import { registrarApagado } from './tombstones';
 import {
   agendarAlarmeAndroid,
   alarmeNativoDisponivel,
@@ -62,6 +64,20 @@ const proximoDisparo = (recorrencia: Recorrencia, horario: string): number => {
 };
 
 const TarefasContext = createContext<any>({});
+
+// --- VÍNCULO COM A CONTA ---
+// Deslogado: chave legada (mantém os dados locais de quem nunca logou).
+// Logado: uma chave POR CONTA — trocar de conta troca o conjunto de tarefas,
+// e cada conta tem suas tarefas incluídas no próprio backup na nuvem.
+const CHAVE_TAREFAS_LOCAL = '@minhas_tarefas_v1';
+const getChaveTarefas = async (): Promise<string> => {
+  try {
+    const user = await GoogleSignin.getCurrentUser();
+    return user ? `@tarefas_user_${user.user.id}` : CHAVE_TAREFAS_LOCAL;
+  } catch {
+    return CHAVE_TAREFAS_LOCAL;
+  }
+};
 
 export default function TarefasProvider({ children }: any) {
   const { config, t } = useTheme();
@@ -171,15 +187,18 @@ export default function TarefasProvider({ children }: any) {
     };
   }, [verificarEResetarTarefas]);
 
-  // --- PERSISTÊNCIA ---
+  // --- PERSISTÊNCIA (por conta) ---
   useEffect(() => {
     async function carregarDados() {
       try {
-        const guardado = await AsyncStorage.getItem('@minhas_tarefas_v1');
+        const chave = await getChaveTarefas();
+        const guardado = await AsyncStorage.getItem(chave);
         if (guardado) {
           const dadosParseados = JSON.parse(guardado);
           // Aplica o reset assim que carrega os dados do storage
           setTarefas(verificarEResetarTarefas(dadosParseados));
+        } else {
+          setTarefas([]);
         }
       } catch (e) {
         console.error(e);
@@ -190,9 +209,36 @@ export default function TarefasProvider({ children }: any) {
     carregarDados();
   }, [verificarEResetarTarefas]);
 
+  // Troca de conta: quando o usuário logado muda (login/logout), recarrega o
+  // conjunto de tarefas da chave correspondente. O ref evita recarregar na
+  // primeira montagem (o carregamento inicial já cobre isso).
+  const usuarioAnteriorRef = useRef<string | null>(null);
+  const recarregarTarefas = useCallback(async (forcar = false) => {
+    try {
+      const user = await GoogleSignin.getCurrentUser();
+      const userId = user ? user.user.id : 'local';
+      if (!forcar && usuarioAnteriorRef.current === userId) return;
+      usuarioAnteriorRef.current = userId;
+      const chave = await getChaveTarefas();
+      const guardado = await AsyncStorage.getItem(chave);
+      const dados = guardado ? JSON.parse(guardado) : [];
+      setTarefas(verificarEResetarTarefas(Array.isArray(dados) ? dados : []));
+    } catch (e) {
+      console.error('[Tarefas] Falha ao recarregar após troca de conta:', e);
+    }
+  }, [verificarEResetarTarefas]);
+
+  useEffect(() => {
+    const intervalo = setInterval(() => { recarregarTarefas(); }, 1500);
+    return () => clearInterval(intervalo);
+  }, [recarregarTarefas]);
+
   useEffect(() => {
     if (!carregado) return;
-    AsyncStorage.setItem('@minhas_tarefas_v1', JSON.stringify(tarefas)).catch(e => console.error(e));
+    (async () => {
+      const chave = await getChaveTarefas();
+      AsyncStorage.setItem(chave, JSON.stringify(tarefas)).catch(e => console.error(e));
+    })();
   }, [tarefas, carregado]);
 
   // Migração/re-sync do alarme nativo (Android): garante que tarefas existentes
@@ -330,8 +376,51 @@ export default function TarefasProvider({ children }: any) {
 
   const excluirTarefa = useCallback(async (id: string) => {
     await cancelarNotificacoesTarefa(id);
+    registrarApagado(id); // tombstone: exclusão sincroniza com o PC
     setTarefas(prev => prev.filter(t => t.id !== id));
   }, [cancelarNotificacoesTarefa]);
+
+  /**
+   * APAGAR TUDO: cancela TODOS os alarmes de tarefas (principais + sonecas,
+   * nativos e expo) e limpa as tarefas do estado e do storage — de TODAS as
+   * contas que já logaram nesta instalação. Usado pela função de apagamento
+   * total no modal do perfil.
+   */
+  const apagarTodasTarefas = useCallback(async () => {
+    for (const t of tarefasRef.current) {
+      await cancelarNotificacoesTarefa(t.id).catch(() => {});
+    }
+    extrasRef.current = [];
+    setTarefas([]);
+    try {
+      const todas = await AsyncStorage.getAllKeys();
+      const chaves = todas.filter(k => k === CHAVE_TAREFAS_LOCAL || k.startsWith('@tarefas_user_'));
+      if (chaves.length) await AsyncStorage.multiRemove(chaves);
+    } catch (e) {
+      console.error('[Tarefas] Falha ao apagar chaves de tarefas:', e);
+    }
+  }, [cancelarNotificacoesTarefa]);
+
+  /**
+   * Substitui o conjunto de tarefas (estado + storage da conta atual). Usado
+   * pela restauração do backup na nuvem — o backup é a fonte da verdade.
+   * Re-agenda os alarmes: tarefas que vieram do backup (ex.: outro aparelho)
+   * precisam de alarmes ativos neste aparelho.
+   */
+  const definirTarefas = useCallback(async (novas: Tarefa[]) => {
+    const lista = Array.isArray(novas) ? verificarEResetarTarefas(novas) : [];
+    setTarefas(lista);
+    const chave = await getChaveTarefas();
+    await AsyncStorage.setItem(chave, JSON.stringify(lista)).catch(e => console.error(e));
+    // Re-agenda alarmes nativos para as tarefas não concluídas (idempotente).
+    if (Platform.OS === 'android' && alarmeNativoDisponivel()) {
+      for (const tarefa of lista) {
+        if (!tarefa.horario) continue;
+        if (tarefa.recorrencia === 'Uma vez' && tarefa.concluida) continue;
+        await agendarAlarmeAndroid(tarefa.id, tarefa.id, tarefa.titulo, proximoDisparo(tarefa.recorrencia, tarefa.horario), tarefa.recorrencia, tarefa.horario).catch(() => {});
+      }
+    }
+  }, [verificarEResetarTarefas]);
 
   const alternarTarefa = useCallback((id: string) => {
     const alvo = tarefasRef.current.find(t => t.id === id);
@@ -381,7 +470,7 @@ export default function TarefasProvider({ children }: any) {
   }, [agendarNotificacaoExpo]);
 
   return (
-    <TarefasContext.Provider value={{ tarefas, adicionarTarefa, alternarTarefa, excluirTarefa, sonecaAlarme }}>
+    <TarefasContext.Provider value={{ tarefas, adicionarTarefa, alternarTarefa, excluirTarefa, apagarTodasTarefas, recarregarTarefas, definirTarefas, sonecaAlarme }}>
       {children}
     </TarefasContext.Provider>
   );

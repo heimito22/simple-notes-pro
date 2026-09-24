@@ -307,7 +307,7 @@ export default function PastaScreen() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <View style={[styles.container, { backgroundColor: cores.fundo }]}>
+      <View testID="sn-screen-pasta" style={[styles.container, { backgroundColor: cores.fundo }]}>
         {/* Cabeçalho */}
         <View style={styles.header}>
           <View style={styles.topRow}>

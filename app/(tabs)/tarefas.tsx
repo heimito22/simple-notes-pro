@@ -114,7 +114,7 @@ export default function TarefasScreen() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <View style={[styles.container, { backgroundColor: cores.fundo }]}>
+      <View testID="sn-screen-tarefas" style={[styles.container, { backgroundColor: cores.fundo }]}>
         
         <View style={styles.tituloArea}>
           <View>
@@ -190,10 +190,10 @@ export default function TarefasScreen() {
 
         <ScrollView contentContainerStyle={styles.scrollList} showsVerticalScrollIndicator={false}>
           <AnimatePresence>
-            {pendentes.map((t: any) => (
+            {pendentes.map((tarefaItem: any) => (
               <TaskCard 
-                key={t.id} 
-                task={t} 
+                key={tarefaItem.id} 
+                task={tarefaItem} 
                 tr={t} 
                 cores={cores} 
                 onToggle={alternarTarefa} 
@@ -214,10 +214,10 @@ export default function TarefasScreen() {
               </MotiView>
             )}
 
-            {concluidas.map((t: any) => (
+            {concluidas.map((tarefaItem: any) => (
               <TaskCard 
-                key={t.id} 
-                task={t} 
+                key={tarefaItem.id} 
+                task={tarefaItem} 
                 tr={t} 
                 cores={cores} 
                 onToggle={alternarTarefa} 
@@ -267,14 +267,14 @@ const styles = StyleSheet.create({
   progressoLabel: { fontSize: 14, fontWeight: '700' },
   progressoTrack: { height: 5, borderRadius: 3, marginHorizontal: 20, marginBottom: 18, overflow: 'hidden' },
   progressoFill: { height: '100%', borderRadius: 3, minWidth: 0 },
-  inputSection: { paddingHorizontal: 16, marginBottom: 15 },
+  inputSection: { paddingHorizontal: 20, marginBottom: 15 },
   inputContainer: { flexDirection: 'row', alignItems: 'center', padding: 8, borderRadius: 22, borderWidth: 1.5 },
   input: { flex: 1, fontSize: 17, paddingLeft: 12 },
   relogioBtn: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, height: 40, borderRadius: 12, marginRight: 8 },
   relogioTexto: { marginLeft: 6, fontWeight: '700', fontSize: 13 },
   btnAdd: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
   diaBtn: { paddingHorizontal: 16, height: 38, borderRadius: 12, justifyContent: 'center', marginRight: 8, borderWidth: 1.5 },
-  scrollList: { paddingHorizontal: 16, paddingBottom: 40 },
+  scrollList: { paddingHorizontal: 20, paddingBottom: 40 },
   headerConcluidas: { flexDirection: 'row', alignItems: 'center', marginTop: 25, marginBottom: 15 },
   linhaDivisora: { flex: 1, height: 1, marginLeft: 10, opacity: 0.3 },
   secaoTitulo: { fontSize: 12, fontWeight: '800', letterSpacing: 1 },

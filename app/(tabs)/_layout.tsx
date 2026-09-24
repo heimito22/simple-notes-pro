@@ -114,6 +114,7 @@ const BarraAbasAnimada = ({ state, navigation, insets }: BottomTabBarProps) => {
 
   return (
     <View
+      testID="sn-tabbar"
       style={[
         styles.barra,
         {

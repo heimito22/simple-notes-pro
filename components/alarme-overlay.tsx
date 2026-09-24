@@ -3,6 +3,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { setAudioModeAsync, useAudioPlayer } from 'expo-audio';
 import * as Notifications from 'expo-notifications';
+import { useRouter } from 'expo-router';
 import { MotiView } from 'moti';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, BackHandler, Modal, Platform, StyleSheet, Text, TouchableOpacity, View, Vibration } from 'react-native';
@@ -36,6 +37,7 @@ interface AlarmeInfo {
  * não pede biometria — o alarme é visível; as anotações só abrem após desbloquear.
  */
 export default function AlarmeOverlay() {
+  const router = useRouter();
   const { alternarTarefa, sonecaAlarme } = useTarefas();
   const { isDark, config, t } = useTheme();
   const insets = useSafeAreaInsets();
@@ -296,10 +298,19 @@ export default function AlarmeOverlay() {
             <TouchableOpacity
               style={[styles.botao, { backgroundColor: '#34C759' }]}
               activeOpacity={0.85}
-              onPress={() => { if (!ehLembrete) alternarTarefa(alarme.id); fechar(); }}
+              onPress={() => {
+                if (ehLembrete) {
+                  // Lembrete de revisão de nota: vai DIRETO para a nota do lembrete
+                  fechar();
+                  router.push({ pathname: '/editor', params: { id: alarme.id } });
+                } else {
+                  alternarTarefa(alarme.id);
+                  fechar();
+                }
+              }}
             >
               <Ionicons name="checkmark-circle" size={26} color={tema.botaoTexto} />
-              <Text style={[styles.botaoTexto, { color: tema.botaoTexto }]}>{ehLembrete ? t('Revisado') : t('Vou fazer')}</Text>
+              <Text style={[styles.botaoTexto, { color: tema.botaoTexto }]}>{ehLembrete ? t('Revisar nota') : t('Vou fazer')}</Text>
             </TouchableOpacity>
           </MotiView>
 

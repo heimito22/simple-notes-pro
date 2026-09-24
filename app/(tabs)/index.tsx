@@ -1,6 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { Directory, Paths } from 'expo-file-system';
+import { LinearGradient } from 'expo-linear-gradient';
 import * as Network from 'expo-network';
 import { useRouter } from 'expo-router';
 import { MotiView } from 'moti';
@@ -9,6 +11,8 @@ import {
   Alert,
   Animated,
   BackHandler,
+  DeviceEventEmitter,
+  Easing,
   Image,
   Keyboard,
   KeyboardAvoidingView,
@@ -28,7 +32,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useListas } from '../../context/ListaContext';
 import { useMonetizacao } from '../../context/monetizacao';
 import { useNotas } from '../../context/NotasContext';
+import { useTarefas } from '../../context/TarefasContext';
 import { useTheme } from '../../context/ThemeContext';
+import { idiomaAtual } from '../../context/idiomas';
 import RichText from '../../components/rich-text';
 import AudioPlayer, { extrairAudios } from '../../components/audio-chip';
 import { appColors } from '../../constants/theme';
@@ -86,24 +92,77 @@ export default function HomeScreen() {
     pastas,
     criarPasta,
     moverNotasParaPasta,
-    excluirNota, 
+    excluirNota,
+    excluirPasta,
+    sincronizarAgora, 
     restaurarBackupCloud, 
+    apagarBackupsCloud,
+    buscarCotaDrive,
+    apagarTudoLocal,
     fazerBackupCloud, 
     recarregarTudo,
+    migrarLocaisParaConta,
+    migrarTarefasLocaisParaConta,
     alternarFixarNota, 
-    logout 
+    logout,
+    syncStatus,
   } = useNotas(); 
+  const { apagarTodasTarefas } = useTarefas();
   
   const { listas, excluirLista, alternarFixarLista, moverListasParaPasta } = useListas(); 
   const { isDark, config, t } = useTheme(); // AJUSTE: config adicionado
   const insets = useSafeAreaInsets();
-  const { sincronizarPremiumConvite } = useMonetizacao();
+  const { sincronizarPremium, aguardandoLoginParaCompra, cancelarCompraPendente, tentarCompraPendente, emailDonoCompra } = useMonetizacao();
   
   const [busca, setBusca] = useState('');
   const [buscaAtiva, setBuscaAtiva] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [modalContaVisible, setModalContaVisible] = useState(false);
+  // Anel de sync na BOLINHA do perfil (header): cometa azul girando enquanto
+  // sincroniza; vermelho em erro. Some quando o sync fica 'ok'.
+  const giroSyncRef = useRef(new Animated.Value(0)).current;
+  const giroSyncGraus = giroSyncRef.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
+  const syncAtivo = syncStatus && syncStatus.estado !== 'ok';
+  useEffect(() => {
+    if (syncAtivo) {
+      giroSyncRef.setValue(0);
+      const anim = Animated.loop(
+        Animated.timing(giroSyncRef, { toValue: 1, duration: 1600, easing: Easing.linear, useNativeDriver: true })
+      );
+      anim.start();
+      return () => anim.stop();
+    }
+  }, [syncAtivo, giroSyncRef]);
   const [modalAjudaVisible, setModalAjudaVisible] = useState(false);
+  // ---- Pull-to-refresh (estilo Gmail) ----
+  // Deslizar para cima na lista puxa o backup do Drive na hora, com um
+  // "cometa" (spinner de gradiente) que cresce ao arrastar e gira enquanto sincroniza.
+  const [puxandoAltura, setPuxandoAltura] = useState(0);
+  const [sincronizandoPull, setSincronizandoPull] = useState(false);
+  const puxarRef = useRef({ inicioY: 0, ativo: false });
+  const PUXAR_MAX = 90; // altura máxima do stretch do indicador
+  const PUXAR_GATILHO = 60; // altura mínima para disparar a sync ao soltar
+  const girarPullRef = useRef(new Animated.Value(0)).current;
+  const girarPullGraus = girarPullRef.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
+  useEffect(() => {
+    if (!sincronizandoPull) return;
+    const anim = Animated.loop(
+      Animated.timing(girarPullRef, { toValue: 1, duration: 1400, easing: Easing.linear, useNativeDriver: true })
+    );
+    anim.start();
+    return () => anim.stop();
+  }, [sincronizandoPull, girarPullRef]);
+  const aoPuxarSoltar = async () => {
+    if (puxandoAltura < PUXAR_GATILHO || sincronizandoPull || !sincronizarAgora) { setPuxandoAltura(0); return; }
+    setSincronizandoPull(true);
+    // anima o indicador até a altura de descanso e gira enquanto o pull roda
+    Animated.spring(girarPullRef, { toValue: 0, useNativeDriver: true }).start();
+    try { await sincronizarAgora(); } catch {}
+    // pequena pausa para o giro ser percebido, depois recolhe suave
+    await new Promise(r => setTimeout(r, 450));
+    setSincronizandoPull(false);
+    setPuxandoAltura(0);
+  };
   const [estaAbrindo, setEstaAbrindo] = useState(false);
   const [idAberto, setIdAberto] = useState<string | null>(null);
   const [menuAberto, setMenuAberto] = useState(false);
@@ -158,6 +217,24 @@ export default function HomeScreen() {
     checarUsuario();
   }, []);
 
+  // O avatar de perfil mora no TOPO direito do header (ao lado do título).
+  // Quando o rodapé emite 'abrirModalConta' (compat), também abre o modal.
+  useEffect(() => {
+    const assinatura = DeviceEventEmitter.addListener('abrirModalConta', () => {
+      setModalContaVisible(true);
+    });
+    return () => assinatura.remove();
+  }, []);
+
+  // Compra de premium exige conta logada (o premium fica vinculado ao email).
+  // Quando o usuário confirma em Ajustes, abre aqui o modal de conta — depois
+  // do login, handleTrocarConta dispara a compra pendente.
+  useEffect(() => {
+    if (aguardandoLoginParaCompra && !user) {
+      setModalContaVisible(true);
+    }
+  }, [aguardandoLoginParaCompra, user]);
+
   useEffect(() => {
     if (user) {
       console.log("[Google] usuário conectado:", JSON.stringify({ name: user.name, email: user.email, photo: user.photo }));
@@ -172,12 +249,18 @@ export default function HomeScreen() {
     checarConexao();
   }, [modalContaVisible]);
 
+  // Backup único ao entrar (4s depois, para o app terminar de carregar).
+  // `fazerBackupCloud` fica num ref e NÃO nas dependências: com ela ali o efeito
+  // rodava a cada render (a função trocava de identidade) e o celular subia o
+  // backup para o Drive eternamente, a cada ~6 segundos.
+  const backupAoEntrarRef = useRef(fazerBackupCloud);
+  useEffect(() => { backupAoEntrarRef.current = fazerBackupCloud; }, [fazerBackupCloud]);
   useEffect(() => {
     const dispararBackup = async () => {
       if (user) {
         try {
           await GoogleSignin.signInSilently();
-          await fazerBackupCloud();
+          await backupAoEntrarRef.current();
         } catch {
           console.log("Falha silenciosa no backup automático");
         }
@@ -185,7 +268,7 @@ export default function HomeScreen() {
     };
     const timer = setTimeout(dispararBackup, 4000);
     return () => clearTimeout(timer);
-  }, [user, fazerBackupCloud]);
+  }, [user]);
 
   const paleta = appColors(isDark);
   const cores = {
@@ -369,23 +452,53 @@ export default function HomeScreen() {
           t('O login não foi concluído.') + "\n\nSe isso se repetir: no Google Cloud Console (projeto simple-notes-39893) → APIs e serviços → Tela de consentimento OAuth → configure e adicione sua conta como usuário de teste."
         );
         // Deslogado após o signOut: o convite de premium não vale mais.
-        sincronizarPremiumConvite(null).catch(() => {});
+        cancelarCompraPendente();
+        sincronizarPremium(null).catch(() => {});
         return;
       }
       if (userInfo.type !== 'success') {
         Alert.alert(t('Login'), t('Login não concluído. Tente novamente.'));
-        sincronizarPremiumConvite(null).catch(() => {});
+        cancelarCompraPendente();
+        sincronizarPremium(null).catch(() => {});
         return;
       }
       setUser(userInfo.data.user);
-      // O convite de premium só vale na conta logada: reavalia na hora.
-      sincronizarPremiumConvite({ user: userInfo.data.user }).catch(() => {});
+      // O convite de premium e a compra vinculada ao email só valem na conta
+      // logada: reavalia na hora (compra/convite saem se a conta não tem).
+      sincronizarPremium({ user: userInfo.data.user }).catch(() => {});
       if (recarregarTudo) await recarregarTudo();
       await restaurarBackupCloud();
+      // Traz para a conta o que o usuário criou deslogado (notas/listas/pastas
+      // de @minhas_notas_locais), preservando o que já veio do Drive.
+      let migrados = 0;
+      if (migrarLocaisParaConta) migrados = await migrarLocaisParaConta();
+      // Tarefas criadas deslogado também entram na conta (chave por usuário).
+      if (migrarTarefasLocaisParaConta) migrados += await migrarTarefasLocaisParaConta();
       // Sobe um backup logo após o login: garante que a chave de IA (e as notas)
       // digitadas ANTES de entrar cheguem à conta Google — não precisa repor.
       fazerBackupCloud().catch(() => {});
-      Alert.alert(t('Sucesso'), t('Conectado como {nome}', { nome: userInfo.data.user.name || userInfo.data.user.email }));
+      Alert.alert(
+        t('Sucesso'),
+        migrados > 0
+          ? t('Conectado como {nome}. {quantidade} itens criados deslogado foram transferidos para sua conta.', { nome: userInfo.data.user.name || userInfo.data.user.email, quantidade: migrados })
+          : t('Conectado como {nome}', { nome: userInfo.data.user.name || userInfo.data.user.email })
+      );
+      // Compra de premium que estava esperando o login: abre o pagamento agora
+      // (pequeno atraso para o Alert de sucesso não conflitar com a janela). Se
+      // não abriu, mostra por que (ex.: a conta recém-logada não é a dona).
+      setTimeout(async () => {
+        const res = await tentarCompraPendente();
+        if (res === 'outraConta') {
+          Alert.alert(
+            t('Premium'),
+            emailDonoCompra
+              ? t('Este aparelho já tem Premium comprado pelo email {email}. Entre com essa conta para usar sem anúncios.', { email: emailDonoCompra })
+              : t('Este aparelho já tem Premium comprado. Entre com a conta que fez a compra para usar sem anúncios.')
+          );
+        } else if (res === 'precisaLogin' || res === 'indisponivel') {
+          Alert.alert(t('Erro'), t('Pagamento indisponível neste aparelho.'));
+        }
+      }, 700);
     } catch (error: any) {
       // Mostra o erro real (ex.: "10: The caller has no permission" = SHA-1 não cadastrado no Firebase)
       console.error("[Google] Falha no login:", error);
@@ -396,15 +509,63 @@ export default function HomeScreen() {
           ? "\n\nDica: erro 10/DEVELOPER_ERROR = a assinatura do APK não está cadastrada no Firebase. Cadastre o SHA-1 do seu keystore em Configurações do projeto → App Android → Adicionar impressão digital."
           : "";
       Alert.alert(t('Falha no login'), msgTexto + dica);
+      cancelarCompraPendente();
       try {
         const currentUser = await GoogleSignin.getCurrentUser();
         setUser(currentUser ? currentUser.user : null);
         // Reavalia o convite com o usuário real pós-falha (null se deslogado).
-        sincronizarPremiumConvite(currentUser ? { user: currentUser.user } : null).catch(() => {});
+        sincronizarPremium(currentUser ? { user: currentUser.user } : null).catch(() => {});
       } catch {
         setUser(null);
-        sincronizarPremiumConvite(null).catch(() => {});
+        sincronizarPremium(null).catch(() => {});
       }
+    }
+  };
+
+  // APAGAR TUDO (modal do perfil) — destrói todo o conteúdo do app: notas,
+  // listas, pastas, tarefas e lembretes do APARELHO (de todas as contas que já
+  // logaram) + backup na nuvem da conta logada. Duas etapas de aviso; a 2ª
+  // exige digitar a palavra-chave traduzida (APAGAR/DELETE/BORRAR). Alert do
+  // RN não tem campo de texto, então a 2ª etapa é um card inline no modal.
+  const [etapaApagar, setEtapaApagar] = useState<'nenhuma' | 'digitar'>('nenhuma');
+  const [textoConfirmacao, setTextoConfirmacao] = useState('');
+  const [apagandoAgora, setApagandoAgora] = useState(false);
+
+  const confirmarApagarTudo = () => {
+    Alert.alert(
+      t('Apagar todos os dados'),
+      t('Isso exclui PERMANENTEMENTE do aparelho todas as notas, listas, pastas, tarefas e lembretes — e também o backup na nuvem da conta logada. NÃO dá para desfazer.'),
+      [
+        { text: t('Cancelar'), style: 'cancel' },
+        { text: t('Continuar'), style: 'destructive', onPress: () => {
+            setTextoConfirmacao('');
+            setEtapaApagar('digitar');
+        }},
+      ]
+    );
+  };
+
+  const executarApagarTudo = async () => {
+    const palavra = t('APAGAR');
+    if (apagandoAgora || textoConfirmacao.trim().toUpperCase() !== palavra.toUpperCase()) return;
+    setApagandoAgora(true);
+    // Ordem importa: cancela alarmes ANTES de limpar storage/estados.
+    try { await apagarTodasTarefas(); } catch {}
+    const localOk = apagarTudoLocal ? await apagarTudoLocal() : false;
+    // Nuvvem por último: offline não impede o apagamento local.
+    let nuvemOk = true;
+    try { nuvemOk = apagarBackupsCloud ? await apagarBackupsCloud() : false; } catch { nuvemOk = false; }
+    setApagandoAgora(false);
+    setEtapaApagar('nenhuma');
+    if (localOk) {
+      Alert.alert(
+        t('Pronto'),
+        nuvemOk
+          ? t('Todos os dados foram apagados.')
+          : t('Dados do aparelho apagados. O backup na nuvem não pôde ser excluído (sem internet?).')
+      );
+    } else {
+      Alert.alert(t('Erro'), t('Não foi possível apagar tudo. Tente novamente.'));
     }
   };
 
@@ -415,8 +576,9 @@ export default function HomeScreen() {
           setModalContaVisible(false);
           await logout();
           setUser(null);
+          cancelarCompraPendente();
           // Sem conta logada o convite de premium não vale: revoga na hora.
-          sincronizarPremiumConvite(null).catch(() => {});
+          sincronizarPremium(null).catch(() => {});
       }}
     ]);
   };
@@ -474,7 +636,7 @@ export default function HomeScreen() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <View style={[styles.container, { backgroundColor: cores.fundo }]}>
+      <View testID="sn-screen-notas" style={[styles.container, { backgroundColor: cores.fundo }]}>
         
         <View style={styles.header}>
           <View style={styles.topRow}>
@@ -484,17 +646,54 @@ export default function HomeScreen() {
                 {notasFiltradas.length === 0 ? t('Comece a organizar suas ideias') : t('{n} itens salvos', { n: notasFiltradas.length })}
               </Text>
             </View>
-            <TouchableOpacity onPress={() => setModalContaVisible(true)} style={[styles.avatarBtn, { backgroundColor: user ? cores.botaoAdd : cores.searchBar, overflow: 'hidden' }]}>
+            {/* Avatar de perfil: canto superior direito — abre o modal de conta.
+                Com sync ativo, um anel-cometa gira em volta dele (únicos indicador
+                de sync — barra/texto foram removidos a pedido). */}
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel={t('Conta')}
+              hitSlop={6}
+              style={[styles.avatarBtn, { opacity: 1 }]}
+              onPress={() => setModalContaVisible(true)}
+            >
+              {syncAtivo && (
+                <Animated.View
+                  pointerEvents="none"
+                  style={{
+                    position: 'absolute', top: -4, left: -4, right: -4, bottom: -4,
+                    borderRadius: 27,
+                    transform: [{ rotate: giroSyncGraus }],
+                    shadowColor: syncStatus.estado === 'ocupado' ? '#0A84FF' : '#FF453A',
+                    shadowOpacity: 0.7, shadowRadius: 10, shadowOffset: { width: 0, height: 0 },
+                  }}
+                >
+                  <LinearGradient
+                    colors={syncStatus.estado === 'ocupado'
+                      ? ['rgba(10,132,255,0)', 'rgba(10,132,255,0)', '#0A84FF', '#409CFF']
+                      : ['#FF453A', 'rgba(255,69,58,0.15)', '#FF453A']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={{ flex: 1, borderRadius: 27 }}
+                  />
+                </Animated.View>
+              )}
               {user ? (
                 user.photo && fotoFalhou !== user.photo ? (
-                    <Image key={user.photo} source={{ uri: user.photo }} style={styles.avatarImg} onError={() => setFotoFalhou(user.photo)} />
+                  <Image
+                    key={user.photo}
+                    source={{ uri: user.photo }}
+                    style={[styles.avatarImg, { borderColor: cores.botaoAdd, borderWidth: 2 }]}
+                    onError={() => setFotoFalhou(user.photo)}
+                  />
                 ) : (
-                  <View style={styles.avatarInicial}>
-                    <Text style={styles.avatarInicialText}>{(user.name || user.email || '?').charAt(0).toUpperCase()}</Text>
+                  <View style={[styles.avatarImg, styles.avatarInicial, { backgroundColor: cores.botaoAdd, borderWidth: 2, borderColor: cores.botaoAdd }]}>
+                    <Text style={styles.avatarInicialText}>
+                      {(user.name || user.email || '?').charAt(0).toUpperCase()}
+                    </Text>
                   </View>
                 )
               ) : (
-                <Ionicons name="person-circle-outline" size={42} color={cores.textoSecundario} />
+                <Ionicons name="person-circle-outline" size={40} color={cores.textoSecundario} />
               )}
             </TouchableOpacity>
           </View>
@@ -561,6 +760,24 @@ export default function HomeScreen() {
               <TouchableOpacity
                 style={[styles.chipPasta, { backgroundColor: cores.card, borderColor: cores.borda }]}
                 onPress={() => { if (dragPastas.current.arrastou) { dragPastas.current.arrastou = false; return; } router.push({ pathname: '/pasta/[id]', params: { id: p.id } }); }}
+                onLongPress={() => {
+                  // Atalho: segurar o chip da pasta oferece apagar direto daqui.
+                  Alert.alert(
+                    t('Excluir pasta'),
+                    t('Excluir a pasta &quot;{nome}&quot;? As notas e listas dela voltam para a lista principal.', { nome: p.nome }),
+                    [
+                      { text: t('Cancelar'), style: 'cancel' },
+                      {
+                        text: t('Excluir'),
+                        style: 'destructive',
+                        onPress: () => {
+                          LayoutAnimation.configureNext(LayoutAnimation.Presets.spring);
+                          excluirPasta(p.id);
+                        },
+                      },
+                    ]
+                  );
+                }}
                 activeOpacity={0.8}
               >
                 <Ionicons name="folder" size={17} color={cores.botaoAdd} />
@@ -573,7 +790,57 @@ export default function HomeScreen() {
           ))}
         </ScrollView>
 
-        <ScrollView style={styles.listaScroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} scrollEnabled={!estaAbrindo}>
+        <ScrollView
+          style={styles.listaScroll}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          scrollEnabled={!estaAbrindo}
+          // Pull-to-refresh: quando a lista está no topo, arrastar para baixo
+          // estica o indicador; soltar acima do gatilho dispara a sincronização.
+          scrollEventThrottle={16}
+          onTouchStart={(e: any) => {
+            if (sincronizandoPull) return;
+            puxarRef.current = { inicioY: e.nativeEvent.pageY, ativo: true };
+          }}
+          onTouchMove={(e: any) => {
+            const d = puxarRef.current;
+            if (!d.ativo || sincronizandoPull) return;
+            const dy = e.nativeEvent.pageY - d.inicioY;
+            if (dy > 8) {
+              // resistência progressiva: quanto mais puxa, mais duro estica
+              setPuxandoAltura(Math.min(PUXAR_MAX, dy * 0.55));
+            } else if (puxandoAltura > 0) {
+              setPuxandoAltura(0);
+            }
+          }}
+          onTouchEnd={() => {
+            puxarRef.current.ativo = false;
+            void aoPuxarSoltar();
+          }}
+          onTouchCancel={() => {
+            puxarRef.current.ativo = false;
+            void aoPuxarSoltar();
+          }}
+        >
+          {/* Indicador do pull-to-refresh: cometa azul girando */}
+          {(puxandoAltura > 0 || sincronizandoPull) && (
+            <View style={[styles.pullIndicador, { height: sincronizandoPull ? PUXAR_GATILHO : puxandoAltura }]} pointerEvents="none">
+              <Animated.View
+                style={{
+                  transform: [{ rotate: girarPullGraus }],
+                  opacity: sincronizandoPull ? 1 : Math.min(1, puxandoAltura / PUXAR_GATILHO),
+                  shadowColor: '#0A84FF', shadowOpacity: 0.6, shadowRadius: 8, shadowOffset: { width: 0, height: 0 },
+                }}
+              >
+                <LinearGradient
+                  colors={['rgba(10,132,255,0)', 'rgba(10,132,255,0)', '#0A84FF', '#409CFF']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.pullCometa}
+                />
+              </Animated.View>
+            </View>
+          )}
           {notasFiltradas.length === 0 ? (
             <MotiView
               from={{ opacity: 0, scale: 0.9, translateY: 12 }}
@@ -696,8 +963,17 @@ export default function HomeScreen() {
 
         {/* Modal de Conta */}
         <Modal visible={modalContaVisible} transparent animationType="fade">
-          <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setModalContaVisible(false)}>
-            <View style={[styles.modalContent, { backgroundColor: cores.card }]}>
+          <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => { setModalContaVisible(false); if (!user) cancelarCompraPendente(); }}>
+            {/* O modal SÓ sobe com o teclado na etapa de digitar a confirmação do
+                "apagar tudo" — fora dela fica centrado como sempre. */}
+            <KeyboardAvoidingView
+              behavior="padding"
+              enabled={etapaApagar === 'digitar'}
+              pointerEvents="box-none"
+              style={{ alignSelf: 'stretch', alignItems: 'center' }}
+            >
+            <View style={{ width: '85%' }}>
+              <View style={[styles.modalContent, { backgroundColor: cores.card, width: '100%' }]}>
               <TouchableOpacity style={styles.helpTrigger} onPress={() => { setModalContaVisible(false); setModalAjudaVisible(true); }}>
                 <Ionicons name="help-circle-outline" size={26} color={cores.botaoAdd} />
               </TouchableOpacity>
@@ -707,6 +983,14 @@ export default function HomeScreen() {
                    {user.photo && <Image source={{ uri: user.photo }} style={styles.modalAvatar} />}
                    <Text style={[styles.userName, { color: cores.textoPrincipal }]}>{user.name || t('Usuário')}</Text>
                    <Text style={[styles.userEmail, { color: cores.textoSecundario }]}>{user.email}</Text>
+                   <BarraArmazenamento
+                     visivel={modalContaVisible}
+                     buscar={buscarCotaDrive}
+                     contaId={user?.id}
+                     online={!isOffline}
+                     cores={{ texto: cores.textoPrincipal, sub: cores.textoSecundario, borda: cores.borda, accent: cores.botaoAdd, perigo: cores.perigo, chipFundo: paleta.surfaceElevated }}
+                     t={t}
+                   />
                 </View>
               ) : (
                 <View style={styles.userInfoSection}>
@@ -720,12 +1004,65 @@ export default function HomeScreen() {
                 <Text style={[styles.modalOptionText, { color: cores.textoPrincipal }]}>{user ? t('Trocar Conta') : t('Entrar com Google')}</Text>
               </TouchableOpacity>
               {user && (
+                <TouchableOpacity style={styles.modalOption} onPress={confirmarApagarTudo}>
+                  <Ionicons name="warning-outline" size={24} color={cores.perigo} />
+                  <Text style={[styles.modalOptionText, { color: cores.perigo }]}>{t('Apagar todos os dados')}</Text>
+                </TouchableOpacity>
+              )}
+              {user && (
                 <TouchableOpacity style={styles.modalOption} onPress={handleLogout}>
                   <Ionicons name="log-out-outline" size={24} color={cores.perigo} />
                   <Text style={[styles.modalOptionText, { color: cores.perigo }]}>{t('Sair')}</Text>
                 </TouchableOpacity>
               )}
+
+              {/* Etapa 2 do apagar tudo: card de digitação inline (Alert nativo
+                  não tem campo de texto). Só aparece após o 1º aviso. O wrapper
+                  captura o toque para não fechar o modal (overlay fecha ao tocar). */}
+              {etapaApagar === 'digitar' && (
+                <TouchableOpacity activeOpacity={1} onPress={() => {}}>
+                <View style={[styles.apagarTudoCard, { borderColor: cores.perigo }]}>
+                  <Text style={[styles.apagarTudoCardTitulo, { color: cores.perigo }]}>
+                    {t('Digite para confirmar')}
+                  </Text>
+                  <Text style={[styles.apagarTudoCardTexto, { color: cores.textoSecundario }]}>
+                    {t('Digite APAGAR para confirmar a exclusão de todos os dados.')}
+                  </Text>
+                  <TextInput
+                    style={[styles.apagarTudoInput, { borderColor: cores.borda, color: cores.textoPrincipal }]}
+                    value={textoConfirmacao}
+                    onChangeText={setTextoConfirmacao}
+                    placeholder={t('APAGAR')}
+                    placeholderTextColor={cores.textoSecundario}
+                    autoCapitalize="characters"
+                    autoCorrect={false}
+                    editable={!apagandoAgora}
+                  />
+                  <View style={styles.apagarTudoAcoes}>
+                    <TouchableOpacity
+                      style={[styles.apagarTudoCancelar, { borderColor: cores.borda }]}
+                      onPress={() => { setEtapaApagar('nenhuma'); setTextoConfirmacao(''); }}
+                      disabled={apagandoAgora}
+                    >
+                      <Text style={[styles.apagarTudoCancelarTexto, { color: cores.textoSecundario }]}>{t('Cancelar')}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        styles.apagarTudoConfirmar,
+                        { backgroundColor: textoConfirmacao.trim().toUpperCase() === t('APAGAR').toUpperCase() ? cores.perigo : cores.borda },
+                      ]}
+                      onPress={executarApagarTudo}
+                      disabled={apagandoAgora || textoConfirmacao.trim().toUpperCase() !== t('APAGAR').toUpperCase()}
+                    >
+                      <Text style={styles.apagarTudoConfirmarTexto}>{apagandoAgora ? t('Apagando...') : t('Apagar tudo')}</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+                </TouchableOpacity>
+              )}
             </View>
+            </View>
+            </KeyboardAvoidingView>
           </TouchableOpacity>
         </Modal>
 
@@ -965,6 +1302,248 @@ export default function HomeScreen() {
   );
 }
 
+/**
+ * Barra de armazenamento do Drive da conta (modal do perfil).
+ * - Busca a cota quando o modal abre (e só online + logado);
+ * - Linha animada: preenchimento com gradiente que cresce com mola até a
+ *   porcentagem usada, brilho varrendo em loop e brilho pulsante na ponta;
+ * - Formata bytes em GB/MB no locale do idioma ativo.
+ */
+type CotaDrive = { usado: number; total: number; limite: number | null; escopoApenasApp: boolean };
+const chaveCacheCota = (contaId?: string) => (contaId ? `@cota_drive_cache_${contaId}` : null);
+
+function BarraArmazenamento({
+  visivel,
+  buscar,
+  online,
+  contaId,
+  cores,
+  t,
+}: {
+  visivel: boolean;
+  buscar: () => Promise<CotaDrive | null>;
+  online: boolean;
+  contaId?: string;
+  cores: { texto: string; sub: string; borda: string; accent: string; perigo: string; chipFundo: string };
+  t: (chave: string, vars?: Record<string, any>) => string;
+}) {
+  const [cota, setCota] = useState<CotaDrive | null>(null);
+  const [carregando, setCarregando] = useState(false);
+  const [erro, setErro] = useState(false);
+  const [doCache, setDoCache] = useState(false);
+  const brilho = useMemo(() => new Animated.Value(0), []);
+
+  // Busca quando o modal abre. Primeiro mostra o cache da conta (se houver),
+  // para a barra NUNCA piscar/sumir; depois tenta atualizar do Drive. Se a
+  // atualização falhar, mantém o cache com aviso discreto + botão tentar de novo.
+  useEffect(() => {
+    if (!visivel || !online) return;
+    let vivo = true;
+    const chave = chaveCacheCota(contaId);
+    (async () => {
+      setCarregando(true);
+      setErro(false);
+      // 1) Cache imediato (mostra algo na hora, mesmo com Drive lento/instável).
+      if (chave) {
+        try {
+          const bruto = await AsyncStorage.getItem(chave);
+          if (vivo && bruto) {
+            setCota(JSON.parse(bruto));
+            setDoCache(true);
+          }
+        } catch { /* segue sem cache */ }
+      }
+      // 2) Atualização do Drive.
+      const resultado = await buscar();
+      if (!vivo) return;
+      if (resultado) {
+        setCota(resultado);
+        setDoCache(false);
+        setErro(false);
+        if (chave) {
+          AsyncStorage.setItem(chave, JSON.stringify(resultado)).catch(() => {});
+        }
+      } else {
+        // Falhou: se já mostramos algo (cache), mantém; senão vira estado de erro.
+        setErro(true);
+      }
+      setCarregando(false);
+    })();
+    return () => { vivo = false; };
+  }, [visivel, online, buscar, contaId]);
+
+  // Brilho varrendo a barra em loop (estilo "shimmer").
+  useEffect(() => {
+    if (!cota || !cota.limite) return;
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(brilho, { toValue: 1, duration: 1400, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+        Animated.timing(brilho, { toValue: 0, duration: 1400, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [cota, brilho]);
+
+  const formatarBytes = (bytes: number): string => {
+    const gb = bytes / 1024 ** 3;
+    if (gb >= 1) return t('{n} GB', { n: gb.toFixed(1).replace('.', idiomaAtual === 'pt' ? ',' : '.') });
+    const mb = bytes / 1024 ** 2;
+    if (mb >= 1) return t('{n} MB', { n: Math.round(mb) });
+    return t('{n} KB', { n: Math.round(bytes / 1024) });
+  };
+
+  if (!visivel) return null;
+
+  // Tentar de novo (usado no estado de erro e no aviso de cache desatualizado).
+  const tentarDeNovo = () => {
+    setErro(false);
+    setCarregando(true);
+    const chave = chaveCacheCota(contaId);
+    buscar()
+      .then(resultado => {
+        if (resultado) {
+          setCota(resultado);
+          setDoCache(false);
+          setErro(false);
+          if (chave) AsyncStorage.setItem(chave, JSON.stringify(resultado)).catch(() => {});
+        } else {
+          setErro(true);
+        }
+      })
+      .catch(() => setErro(true))
+      .finally(() => setCarregando(false));
+  };
+
+  // Carregando e ainda sem nada (sem cache): pulse discreto.
+  if (!cota && carregando) {
+    return (
+      <View style={styles.cotaWrap}>
+        <View style={[styles.cotaBarra, { backgroundColor: cores.chipFundo, borderColor: cores.borda }]}>
+          <MotiView
+            from={{ opacity: 0.35 }}
+            animate={{ opacity: 1 }}
+            transition={{ type: 'timing', duration: 700, loop: true, repeatReverse: true }}
+            style={[styles.cotaPreenchimento, { width: '18%', backgroundColor: cores.accent, opacity: 0.45 }]}
+          />
+        </View>
+      </View>
+    );
+  }
+
+  // Falhou e não há cache: mostra um aviso honesto com botão de tentar de novo
+  // (em vez de sumir silenciosamente como antes).
+  if (!cota && erro) {
+    return (
+      <View style={styles.cotaWrap}>
+        <TouchableOpacity
+          style={[styles.cotaErro, { backgroundColor: cores.chipFundo, borderColor: cores.borda }]}
+          onPress={tentarDeNovo}
+          activeOpacity={0.8}
+          disabled={carregando}
+        >
+          <Ionicons name="cloud-offline-outline" size={16} color={cores.sub} />
+          <Text style={[styles.cotaErroTexto, { color: cores.sub }]} numberOfLines={2}>
+            {t('Não foi possível conectar ao armazenamento do Drive.')}
+          </Text>
+          <View style={[styles.cotaRetry, { backgroundColor: cores.accent }]}>
+            <Ionicons name="refresh" size={13} color="#FFF" />
+            <Text style={styles.cotaRetryTexto}>{t('Tentar novamente')}</Text>
+          </View>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  if (!cota) return null;
+
+  const pct = cota.limite && cota.limite > 0
+    ? Math.min(100, Math.max(2, Math.round((cota.usado / cota.limite) * 100)))
+    : 8;
+  const semLimite = !cota.limite;
+  // Quase cheio: a partir de 90% o backup já pode falhar — barra e texto em
+  // vermelho com aviso para liberar espaço.
+  const cheio = !semLimite && !cota.escopoApenasApp && pct >= 90;
+  const corBarra = cheio ? cores.perigo : cores.accent;
+  const corBarra2 = cheio ? '#B3261E' : '#0A84FF';
+
+  return (
+    <MotiView
+      from={{ opacity: 0, scale: 0.94 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ type: 'spring', damping: 18, stiffness: 200, delay: 120 }}
+      style={styles.cotaWrap}
+    >
+      {/* Rótulo em cima, valores na linha de baixo (sem ellipsis no título) */}
+      <View style={styles.cotaLinha}>
+        <Text style={[styles.cotaTitulo, { color: cheio ? cores.perigo : cores.sub }]}>
+          {cota.escopoApenasApp ? t('Dados do app na nuvem') : t('Armazenamento no Drive')}
+        </Text>
+        <Text style={[styles.cotaValores, { color: cheio ? cores.perigo : cores.texto }]}>
+          {cota.escopoApenasApp
+            ? formatarBytes(cota.usado)
+            : semLimite
+              ? `${formatarBytes(cota.usado)} · ${t('sem limite')}`
+              : `${formatarBytes(cota.usado)} / ${formatarBytes(cota.limite ?? 0)}`}
+        </Text>
+      </View>
+
+      {/* Trilha + preenchimento com gradiente e brilho varrendo */}
+      <View style={[styles.cotaBarra, { backgroundColor: cores.chipFundo, borderColor: cores.borda }]}>
+        <MotiView
+          from={{ width: '0%' }}
+          animate={{ width: `${semLimite ? 8 : pct}%` }}
+          transition={{ type: 'spring', damping: 20, stiffness: 120, delay: 250 }}
+          style={styles.cotaPreenchimentoWrap}
+        >
+          <LinearGradient
+            colors={[corBarra, corBarra2]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.cotaPreenchimento}
+          >
+            <Animated.View
+              style={[
+                styles.cotaBrilho,
+                {
+                  opacity: brilho.interpolate({ inputRange: [0, 1], outputRange: [0, 0.65] }),
+                  transform: [{ translateX: brilho.interpolate({ inputRange: [0, 1], outputRange: [-60, 220] }) }],
+                },
+              ]}
+            />
+          </LinearGradient>
+        </MotiView>
+      </View>
+
+      {semLimite && !cota.escopoApenasApp && (
+        <Text style={[styles.cotaAviso, { color: cores.sub }]}>{t('Conta com armazenamento ilimitado do Drive.')}</Text>
+      )}
+
+      {/* Quase cheio: barra vermelha + aviso para liberar espaço */}
+      {cheio && (
+        <View style={styles.cotaCheio}>
+          <Ionicons name="warning-outline" size={14} color={cores.perigo} />
+          <Text style={[styles.cotaCheioTexto, { color: cores.perigo }]}>
+            {t('Armazenamento quase cheio ({pct}%) — libere espaço para o app continuar fazendo backup.', { pct })}
+          </Text>
+        </View>
+      )}
+
+      {/* Atualização falhou mas há cache: mostra o dado anterior + toque para revalidar */}
+      {erro && (
+        <TouchableOpacity style={styles.cotaStaleLinha} onPress={tentarDeNovo} activeOpacity={0.7} disabled={carregando}>
+          <Ionicons name="refresh" size={12} color={cores.sub} />
+          <Text style={[styles.cotaStaleTexto, { color: cores.sub }]} numberOfLines={1}>
+            {doCache
+              ? t('Mostrando dados anteriores. Toque para atualizar.')
+              : t('Não foi possível atualizar. Toque para tentar de novo.')}
+          </Text>
+        </TouchableOpacity>
+      )}
+    </MotiView>
+  );
+}
+
 const styles = StyleSheet.create({
   container: { flex: 1 },
   header: { paddingTop: 60, paddingHorizontal: 25, marginBottom: 10 },
@@ -973,6 +1552,8 @@ const styles = StyleSheet.create({
   title: { fontSize: 38, fontWeight: '900', letterSpacing: -1.2 },
   headerSubtitle: { fontSize: 13, marginTop: 3, fontWeight: '600' },
   avatarBtn: { width: 46, height: 46, borderRadius: 23, justifyContent: 'center', alignItems: 'center' },
+  pullIndicador: { justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
+  pullCometa: { width: 30, height: 30, borderRadius: 15 },
   avatarImg: { width: 46, height: 46, borderRadius: 23 },
   avatarInicial: { flex: 1, width: '100%', alignItems: 'center', justifyContent: 'center' },
   avatarInicialText: { color: '#FFF', fontSize: 20, fontWeight: '800' },
@@ -1005,12 +1586,101 @@ const styles = StyleSheet.create({
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
   modalContent: { width: '85%', borderRadius: 30, padding: 25, elevation: 20 },
   userInfoSection: { alignItems: 'center', marginBottom: 10 },
+  // --- Barra de armazenamento no Drive (modal do perfil) ---
+  cotaWrap: { width: '100%', marginTop: 12, paddingHorizontal: 6 },
+  cotaLinha: { marginBottom: 6 },
+  cotaTitulo: { fontSize: 12, fontWeight: '600', letterSpacing: 0.3, marginBottom: 2 },
+  cotaValores: { fontSize: 13, fontWeight: '800' },
+  cotaBarra: {
+    height: 10,
+    borderRadius: 5,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  cotaPreenchimentoWrap: { height: '100%', borderRadius: 5, overflow: 'hidden' },
+  cotaPreenchimento: { flex: 1, borderRadius: 5 },
+  cotaBrilho: {
+    position: 'absolute',
+    top: -4,
+    bottom: -4,
+    width: 46,
+    backgroundColor: 'rgba(255,255,255,0.55)',
+    transform: [{ rotate: '12deg' }],
+  },
+  cotaAviso: { fontSize: 11, marginTop: 5, textAlign: 'center' },
+  cotaErro: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingVertical: 9,
+    paddingHorizontal: 10,
+  },
+  cotaErroTexto: { flex: 1, fontSize: 12, lineHeight: 15, fontWeight: '500' },
+  cotaRetry: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderRadius: 9,
+    paddingVertical: 5,
+    paddingHorizontal: 8,
+  },
+  cotaRetryTexto: { color: '#FFF', fontSize: 11, fontWeight: '700' },
+  cotaStaleLinha: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    marginTop: 7,
+    paddingVertical: 2,
+  },
+  cotaStaleTexto: { fontSize: 11, fontWeight: '600' },
+  cotaCheio: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 },
+  cotaCheioTexto: { flex: 1, fontSize: 12, fontWeight: '700', lineHeight: 16 },
   modalAvatar: { width: 70, height: 70, borderRadius: 35, marginBottom: 10 },
   userName: { fontSize: 20, fontWeight: 'bold' },
   userEmail: { fontSize: 14, marginTop: 2 },
   separator: { height: 1, width: '100%', marginVertical: 15 },
   modalOption: { flexDirection: 'row', alignItems: 'center', paddingVertical: 15 },
   modalOptionText: { fontSize: 16, marginLeft: 15, fontWeight: '600' },
+  // --- Apagar tudo (modal do perfil) ---
+  apagarTudoCard: {
+    width: '100%',
+    marginTop: 8,
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1.5,
+  },
+  apagarTudoCardTitulo: { fontSize: 15, fontWeight: '700', marginBottom: 5 },
+  apagarTudoCardTexto: { fontSize: 13, lineHeight: 18, marginBottom: 12 },
+  apagarTudoInput: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: 2,
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  apagarTudoAcoes: { flexDirection: 'row', gap: 10 },
+  apagarTudoCancelar: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  apagarTudoCancelarTexto: { fontSize: 15, fontWeight: '600' },
+  apagarTudoConfirmar: {
+    flex: 1,
+    borderRadius: 12,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  apagarTudoConfirmarTexto: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
   footer: { paddingVertical: 22, alignItems: 'center', justifyContent: 'center' },
   footerText: { fontSize: 12, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1.5, opacity: 0.7 },
   helpTrigger: { position: 'absolute', top: 20, right: 20, padding: 5 },

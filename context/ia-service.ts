@@ -32,9 +32,281 @@ export interface MensagemChat {
 export interface RespostaChat {
   texto: string;
   modo: 'online' | 'offline' | 'fora';
+  /** true quando a pergunta foi interpretada como ORDEM de edição (ex.: "adiciona X na lista").
+   *  A UI usa isto: se a IA deu só texto, ainda oferece aplicar o texto na nota. */
+  ordemEdicao?: boolean;
+}
+
+/**
+ * Proposta de edição que a IA pode anexar ao fim da resposta (protocolo
+ * compartilhado celular/PC): a IA PRIMEIRO explica em texto o que vai mudar e
+ * DEPOIS inclui um bloco ```json com {"edicao": {...}}. O app NUNCA aplica
+ * sozinho — mostra a proposta e só aplica após o usuário confirmar.
+ */
+export interface PropostaEdicao {
+  /** O que a IA vai alterar (própria IA descreve — aparece no cartão). */
+  explicacao?: string;
+  /** Novo título (se ausente, mantém o atual). */
+  titulo?: string;
+  /** HTML final COMPLETO da nota (nota inteira substituída). */
+  conteudo?: string;
+  /** Lista final COMPLETA de itens (existentes + mudanças). */
+  itens?: { texto: string; concluido: boolean }[];
+}
+
+/**
+ * Extrai a proposta de edição de uma resposta da IA.
+ * Procura um bloco ```json ... ``` (ou um objeto solto) com a chave "edicao".
+ * Retorna o texto limpo (sem o bloco) para exibir na conversa.
+ */
+export function extrairPropostaEdicao(texto: string): { proposta: PropostaEdicao | null; textoLimpo: string } {
+  const bruto = String(texto || '');
+  // 1) Bloco cercado ```json { ... } ```
+  const cerca = bruto.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/i);
+  const candidatos = [];
+  if (cerca) candidatos.push(cerca[1]);
+  // 2) Objeto solto contendo "edicao" (IA esqueceu a cerca)
+  const solto = bruto.match(/\{[\s\S]*"edicao"[\s\S]*\}/);
+  if (solto) candidatos.push(solto[0]);
+  for (const brutoJson of candidatos) {
+    try {
+      const obj = JSON.parse(brutoJson);
+      const ed = obj && typeof obj === 'object' ? obj.edicao : null;
+      if (ed && typeof ed === 'object') {
+        const proposta: PropostaEdicao = {};
+        if (typeof ed.explicacao === 'string') proposta.explicacao = ed.explicacao;
+        if (typeof ed.titulo === 'string' && ed.titulo.trim()) proposta.titulo = ed.titulo.trim();
+        if (typeof ed.conteudo === 'string' && ed.conteudo.trim()) proposta.conteudo = ed.conteudo;
+        if (Array.isArray(ed.itens)) {
+          const itens = ed.itens
+            .filter((it: any) => it && typeof it === 'object' && typeof it.texto === 'string' && it.texto.trim())
+            .map((it: any) => ({ texto: String(it.texto).trim(), concluido: !!it.concluido }));
+          if (itens.length) proposta.itens = itens;
+        }
+        // Só é proposta se traz algum conteúdo aplicável
+        if (proposta.conteudo || proposta.itens || proposta.titulo) {
+          const textoLimpo = bruto.replace(cerca ? cerca[0] : (solto ? solto[0] : ''), '').trim();
+          return { proposta, textoLimpo: textoLimpo || proposta.explicacao || '' };
+        }
+      }
+    } catch {
+      // JSON inválido — ignora e tenta o próximo candidato
+    }
+  }
+  return { proposta: null, textoLimpo: bruto };
+}
+
+/** Instrução de edição por conta própria (anexada ao prompt quando há nota aberta). */
+function instrucaoEdicao(idioma: Idioma): string {
+  if (idioma === 'en') {
+    return 'THE USER ORDERED AN EDIT of the open note. Do this now: FIRST one short text line explaining exactly what changes, THEN — mandatory, not optional — append a fenced block with the COMPLETE final note: ```json {"edicao": {"titulo": "new title (or same)", "conteudo": "<complete final note in the formatting notation>"}} ```. CONTENT NOTATION (use the SAME one you received, never HTML): **bold**, *italic*, <u>underline</u>, ~~strikethrough~~, `code`, - list item, 1. numbered item, # title, ## subtitle, > quote and [text](url) for links; one line per paragraph (a blank line separates paragraphs). RULES: (1) KEEP the formatting the note already has — text that was bold stays bold and lists stay lists; change only what the user asked; (2) add the new content ALREADY FORMATTED (requested bullets = "- "; requested highlight = "**"); (3) keep EVERY [[midia1]], [[midia2]] mark exactly where they appear — they are the user images/audio and must NEVER be removed or renamed; (4) conteudo contains ONLY the note — no phrases of yours like "Done" or "The note was updated", and not the title; (5) the title goes ONLY in the titulo field. The JSON block is EXEMPT from the length limit. Never apply changes silently — the app asks the user first.';
+  }
+  if (idioma === 'es') {
+    return 'EL USUARIO ORDENÓ UNA EDICIÓN de la nota abierta. Hazlo ahora: PRIMERO una línea corta explicando exactamente qué cambia, LUEGO — obligatorio, no opcional — añade un bloque cercado con la nota final COMPLETA: ```json {"edicao": {"titulo": "título nuevo (o el mismo)", "conteudo": "<nota final completa en la notación de formato>"}} ```. NOTACIÓN DEL CONTENIDO (usa la MISMA que recibiste, nunca HTML): **negrita**, *cursiva*, <u>subrayado</u>, ~~tachado~~, `código`, - elemento de lista, 1. elemento numerado, # título, ## subtítulo, > cita y [texto](url) para enlaces; una línea por párrafo (una línea vacía separa párrafos). REGLAS: (1) CONSERVA el formato que la nota ya tiene — lo que estaba en negrita sigue en negrita y las listas siguen siendo listas; cambia solo lo que el usuario pidió; (2) añade el contenido nuevo YA FORMATEADO (viñetas pedidas = "- "; destacado pedido = "**"); (3) conserva TODAS las marcas [[midia1]], [[midia2]] exactamente donde están — son las imágenes/audios del usuario y NUNCA deben quitarse ni renombrarse; (4) conteudo contiene SOLO la nota — nada de frases tuyas como "Listo" o "La nota fue actualizada", ni el título; (5) el título va SOLO en el campo titulo. El bloque JSON está EXENTO del límite de longitud. Nunca apliques cambios en silencio — la app pide confirmación al usuario.';
+  }
+  return 'O USUÁRIO ORDENOU UMA EDIÇÃO na nota aberta. Faça agora: PRIMEIRO uma linha curta explicando exatamente o que muda, DEPOIS — obrigatório, não opcional — acrescente um bloco cercado com a nota final COMPLETA: ```json {"edicao": {"titulo": "título novo (ou o mesmo de antes)", "conteudo": "<nota final COMPLETA na notação de formatação>"}} ```. NOTAÇÃO DO CONTEÚDO (use a MESMA que você recebeu, nunca HTML): **negrito**, *itálico*, <u>sublinhado</u>, ~~riscado~~, `código`, - item de lista, 1. item numerado, # título, ## subtítulo, > citação e [texto](url) para links; uma linha por parágrafo (linha vazia separa parágrafos). REGRAS: (1) CONSERVE a formatação que a nota já tem — o que estava em negrito continua em negrito e as listas continuam listas; altere apenas o que o usuário pediu; (2) acrescente o conteúdo novo JÁ FORMATADO (tópicos pedidos = "- "; destaque pedido = "**"); (3) preserve TODAS as marcas [[midia1]], [[midia2]]... exatamente onde aparecem — são as imagens/áudios do usuário e NUNCA podem ser removidas nem renomeadas; (4) o conteudo contém SOMENTE a nota — nada de frases suas como "Pronto" ou "A nota foi alterada", e nem o título; (5) o título vai SÓ no campo titulo. O bloco JSON está ISENTO do limite de tamanho. Nunca aplique a mudança em silencio — o app pergunta ao usuário antes de aplicar.';
+}
+
+/**
+ * Detecta ORDEM de edição (não pergunta). Só aqui a IA recebe a instrução de
+ * propor a edição — conversa normal nunca gera bloco JSON, evitando que toda
+ * pergunta vire um cartão de edição.
+ */
+export function ehOrdemEdicao(texto: string): boolean {
+  const s = String(texto || '').toLowerCase();
+  if (!s.trim()) return false;
+  // Pergunta disfarçada de ordem ("como faço pra apagar uma nota?") nunca é ordem.
+  if (/^\s*(como|qual|quais|quando|onde|por que|porque|o que|quem|ser[áa]\s*que|can|could|how|what|where|when|why|which|c[óo]mo|cu[áa]l|cu[áa]ndo|d[óo]nde|qu[ée]|qui[ée]n)\b/.test(s)) return false;
+  // verbo de mudança no imperativo/infinitivo + alvo (nota/lista/anot[ação])
+  const verbo = /\b(adicion\w*|inclu\w*|colo(ca|que|car)\w*|insir\w*|apag\w*|delet\w*|remov\w*|tirar?|exclu\w*|corrij\w*|corrig\w*|arrum\w*|consert\w*|edit\w*|alter\w*|mud\w*|modific\w*|reescrev\w*|reescrev\w*|reformul\w*|reorganiz\w*|organiz\w*|atualiz\w*|substitu\w*|troc\w*|complet\w*|preench\w*|resum\w*|traduz\w*|converter?|format\w*|add|insert|remove|delete|fix|correct|change|modify|rewrite|edit|update|replace|organize|complete|fill|summarize|translate|format|agreg\w*|a(ñ|n)ad\w*|elimin\w*|cambi\w*|reescrib\w*|corrig\w*|arregl\w*|actualiz\w*|reemplaz\w*|organiz\w*|complet\w*|traduc\w*|formate\w*)\b/;
+  if (!verbo.test(s)) return false;
+  // alvo explícito ou referência clara ao conteúdo em edição
+  const alvo = /\b(nota|notas|lista|listas|anotac\w*|anota(ç|c)\w*|tarefa|tarefas|item|itens|texto|t(í|i)tulo|note|notes|list|lists|task|tasks|item|items|title|conte(ú|u)do|content)\b/.test(s);
+  const deitico = /\b(nele|nela|nisso|aqui|esse|essa|isso|ele|ela|it|this|that|there|lo|la|ah(í|i))\b/.test(s);
+  if (alvo || deitico) return true;
+  // Comando curto no imperativo ("reescreve em tópicos") sem alvo explícito:
+  // sem interrogação e com o verbo no início da frase.
+  const palavras = s.split(/\s+/).filter(Boolean);
+  if (/\?/.test(s) || palavras.length > 12) return false;
+  return verbo.test(palavras.slice(0, 2).join(' '));
+}
+
+// ---- Mídia da nota -------------------------------------------------------
+// A IA recebe uma MARCA no lugar de cada imagem/áudio (nunca vê o base64) e
+// devolve a marca; ao aplicar, a marca volta a ser a mídia original. Marca que
+// o modelo perder é re-anexada no fim: a IA NUNCA apaga a mídia do usuário.
+const RE_MIDIA = /<img\b[^>]*>|<audio\b[\s\S]*?<\/audio>|<video\b[\s\S]*?<\/video>/gi;
+/** Mídias da nota aberta no momento do pedido, na ordem das marcas [[midiaN]]. */
+let midiasNotaAberta: string[] = [];
+
+export function extrairMidias(html: string): { texto: string; midias: string[] } {
+  const midias: string[] = [];
+  const texto = String(html || '').replace(RE_MIDIA, (tag) => { midias.push(tag); return `\n[[midia${midias.length}]]\n`; });
+  return { texto, midias };
+}
+
+function restaurarMidias(texto: string, midias: string[]): string {
+  let out = String(texto || '');
+  (midias || []).forEach((tag, i) => {
+    const marca = `[[midia${i + 1}]]`;
+    out = out.includes(marca) ? out.split(marca).join(tag) : out + tag;
+  });
+  return out;
+}
+
+// Frases que a IA escreve PARA O USUÁRIO e que não podem virar conteúdo da nota.
+const RE_FALA_IA = /^\s*(pronto|prontinho|feito|conclu[ií]do|ok|beleza|perfeito|claro|certeza|aqui est[áa]|segue|a seguir|a nota (foi|j[áa] foi)?\s*(alterada|editada|atualizada|criada|modificada)|nota (alterada|editada|atualizada|modificada)|done|listo|la nota (ha sido|fue)?\s*(actualizada|editada|modificada))[\s!.,:;—\-]*$/i;
+
+// Linha de conversa com RELATO da mudança: "Pronto! Acrescentei o passo do
+// forno", "Feito: organizei em tópicos", "Done — I added the list". Sem isto a
+// explicação da IA virava conteúdo da nota.
+const RE_FALA_IA_RELATO = /^\s*(pronto|prontinho|feito|conclu[íi]do|ok|beleza|perfeito|claro|certeza|done|listo)\b[^\n]{0,160}\b(acrescent|adicion|añad|inclu|alter|atualiz|actualic|organiz|organic|corrig|correg|arrum|reescrev|reformul|format|coloqu|coloc|remov|apagu|exclu|tirei|tirar|added|add |updated|organized|fixed|rewrote|removed|changed|formatted|agregu|cambi)/i;
+
+function ehFalaIA(linha: string): boolean {
+  return RE_FALA_IA.test(linha) || RE_FALA_IA_RELATO.test(linha);
+}
+
+function limparFalasIA(texto: string): string {
+  const linhas = String(texto || '').split('\n');
+  while (linhas.length > 1 && ehFalaIA(linhas[0])) linhas.shift();
+  while (linhas.length > 1 && ehFalaIA(linhas[linhas.length - 1])) linhas.pop();
+  return linhas.join('\n').trim();
+}
+
+// Título não se repete dentro do corpo da nota (a IA costuma colocar lá).
+function semTituloNoCorpo(html: string, titulo: string): string {
+  const t = String(titulo || '').trim();
+  if (!t) return html;
+  const esc = t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return String(html || '')
+    .replace(new RegExp(`^\\s*<h[1-3][^>]*>\\s*${esc}\\s*<\\/h[1-3]>\\s*`, 'i'), '')
+    .replace(new RegExp(`^\\s*${esc}\\s*(<br\\s*\\/?>|\n|$)`, 'i'), '')
+    .trim();
+}
+
+function paraHtml(texto: string): string {
+  const esc = (v: string) => String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return String(texto || '').split(/\n+/).map(l => l.trim()).filter(Boolean)
+    .map(l => `<p>${esc(l.replace(/^[-*•]\s+/, '• '))}</p>`).join('');
+}
+
+// ---- Formatação (notação compacta) ---------------------------------------
+// A IA vê a nota COM a formatação numa notação compacta (Markdown) e devolve a
+// mesma notação. Enviar só texto puro obrigava o modelo a recriar do zero o que
+// já existia — e negrito, listas e títulos se perdiam. Aqui ela PRESERVA o que
+// existe e acrescenta conteúdo novo já formatado.
+const ENTIDADES: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ' };
+
+function decodificaEntidades(s: string): string {
+  return String(s || '').replace(/&(#\d+|#x[0-9a-f]+|[a-z]+);/gi, (m, e: string) => {
+    if (e.charAt(0) === '#') {
+      const n = e.charAt(1).toLowerCase() === 'x' ? parseInt(e.slice(2), 16) : parseInt(e.slice(1), 10);
+      return isNaN(n) ? m : String.fromCharCode(n);
+    }
+    return ENTIDADES[e.toLowerCase()] != null ? ENTIDADES[e.toLowerCase()] : m;
+  });
+}
+
+/** HTML da nota -> notação compacta que a IA consegue manter e estender. */
+export function htmlParaMarkdown(html: string): string {
+  let s = String(html || '').replace(/\r/g, '');
+  s = s.replace(/<h([1-6])[^>]*>([\s\S]*?)<\/h\1>/gi, (_m, n: string, t: string) => `\n\n${'#'.repeat(Number(n))} ${t.trim()}\n\n`);
+  s = s.replace(/<blockquote[^>]*>([\s\S]*?)<\/blockquote>/gi, (_m, t: string) => `\n\n> ${t.trim().replace(/\s*\n\s*/g, ' ')}\n\n`);
+  s = s.replace(/<ol[^>]*>([\s\S]*?)<\/ol>/gi, (_m, inner: string) => {
+    let i = 0;
+    return `\n${inner.replace(/<li[^>]*>([\s\S]*?)<\/li>/gi, (_x, t: string) => `${++i}. ${t.trim()}\n`)}\n`;
+  });
+  s = s.replace(/<ul[^>]*>([\s\S]*?)<\/ul>/gi, (_m, inner: string) =>
+    `\n${inner.replace(/<li[^>]*>([\s\S]*?)<\/li>/gi, (_x, t: string) => `- ${t.trim()}\n`)}\n`);
+  s = s.replace(/<\/(p|div)>/gi, '\n\n').replace(/<(p|div)\b[^>]*>/gi, '\n\n');
+  s = s.replace(/<br\s*\/?>/gi, '\n');
+  s = s.replace(/<(b|strong)\b[^>]*>([\s\S]*?)<\/\1>/gi, '**$2**');
+  s = s.replace(/<(i|em)\b[^>]*>([\s\S]*?)<\/\1>/gi, '*$2*');
+  s = s.replace(/<(s|strike|del)\b[^>]*>([\s\S]*?)<\/\1>/gi, '~~$2~~');
+  s = s.replace(/<code\b[^>]*>([\s\S]*?)<\/code>/gi, '`$1`');
+  s = s.replace(/<a\b[^>]*href=["']([^"']*)["'][^>]*>([\s\S]*?)<\/a>/gi, '[$2]($1)');
+  // <u> é mantido: a notação não tem sublinhado
+  s = s.replace(/<(?!\/?u>)[^>]+>/g, '');
+  s = decodificaEntidades(s);
+  return s.replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+
+/** O texto veio na notação compacta (e não em HTML)? */
+export function pareceMarkdown(s: string): boolean {
+  const t = String(s || '');
+  if (/<\s*(p|div|h[1-6]|ul|ol|li|br|blockquote)\b/i.test(t)) return false;
+  return /\*\*[^*\n]+\*\*|^\s*[-*•]\s+\S|^\s*\d+[.)]\s+\S|^#{1,6}\s|~~[^~\n]+~~|^\s*>\s/m.test(t);
+}
+
+function linhaInlineHtml(txt: string): string {
+  let s = String(txt || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  s = s.replace(/&lt;u&gt;/g, '<u>').replace(/&lt;\/u&gt;/g, '</u>');
+  s = s.replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
+  s = s.replace(/(^|[^*])\*([^*\n]+)\*/g, '$1<i>$2</i>');
+  s = s.replace(/~~([^~]+)~~/g, '<s>$1</s>');
+  s = s.replace(/`([^`]+)`/g, '<code>$1</code>');
+  s = s.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, '<a href="$2">$1</a>');
+  return s;
+}
+
+/** Notação compacta -> HTML (o que entra na nota). */
+export function markdownParaHtml(md: string): string {
+  const linhas = String(md || '').replace(/\r/g, '').split('\n');
+  const out: string[] = [];
+  let lista: { tipo: 'ul' | 'ol'; itens: string[] } | null = null;
+  const fecha = () => {
+    if (lista) { out.push(`<${lista.tipo}>${lista.itens.map(i => `<li>${i}</li>`).join('')}</${lista.tipo}>`); lista = null; }
+  };
+  for (const raw of linhas) {
+    const l = raw.trim();
+    if (!l) { fecha(); continue; }
+    let m: RegExpMatchArray | null;
+    if ((m = l.match(/^[-*•]\s+(.*)$/))) {
+      if (!lista || lista.tipo !== 'ul') { fecha(); lista = { tipo: 'ul', itens: [] }; }
+      lista.itens.push(linhaInlineHtml(m[1])); continue;
+    }
+    if ((m = l.match(/^\d+[.)]\s+(.*)$/))) {
+      if (!lista || lista.tipo !== 'ol') { fecha(); lista = { tipo: 'ol', itens: [] }; }
+      lista.itens.push(linhaInlineHtml(m[1])); continue;
+    }
+    fecha();
+    if ((m = l.match(/^(#{1,6})\s+(.*)$/))) { const n = Math.min(m[1].length, 3); out.push(`<h${n}>${linhaInlineHtml(m[2])}</h${n}>`); continue; }
+    if ((m = l.match(/^>\s*(.*)$/))) { out.push(`<blockquote>${linhaInlineHtml(m[1])}</blockquote>`); continue; }
+    out.push(`<p>${linhaInlineHtml(l)}</p>`);
+  }
+  fecha();
+  return out.join('');
+}
+
+/**
+ * Conteúdo final para gravar na nota: devolve a mídia original, tira falas da
+ * IA ("Pronto", "A nota foi alterada"), não repete o título e GARANTE HTML — a
+ * IA devolve texto puro com frequência, e gravar texto puro destruiria os
+ * parágrafos (e as imagens) da nota.
+ */
+/** Mídias capturadas na última pergunta — a UI guarda junto da proposta. */
+export function midiasDaNotaAberta(): string[] {
+  return midiasNotaAberta.slice();
+}
+
+export function conteudoAplicadoDaProposta(conteudo: string, titulo: string, tituloAntigo?: string, midias?: string[]): string {
+  let base = limparFalasIA(String(conteudo || ''));
+  // A IA devolve a nota na notação compacta (com a formatação preservada).
+  if (pareceMarkdown(base)) base = markdownParaHtml(base);
+  base = semTituloNoCorpo(base, titulo);
+  if (tituloAntigo && tituloAntigo !== titulo) base = semTituloNoCorpo(base, tituloAntigo);
+  if (!/<(p|br|h[1-6]|ul|ol|li|div|blockquote|table|strong|em|b|i|u|span|code|pre)\b/i.test(base)) base = paraHtml(base);
+  // Marca que sobrou (modelo inventou) nunca aparece dentro da nota.
+  return restaurarMidias(base, midias || midiasNotaAberta).replace(/\[\[midia\d+\]\]/g, '').trim();
 }
 
 const URL_API = 'https://openrouter.ai/api/v1/chat/completions';
+
+// Tetos de resposta: conversa é curta; EDIÇÃO devolve a nota inteira em HTML
+// (nota longa truncada perderia o bloco JSON e a edição nunca chegaria).
+const TETO_CHAT = 400;
+const TETO_EDICAO = 16000;
+const TETO_RESERVA = 4000;
 
 // Limites para manter a resposta rápida e dentro do token dos modelos grátis.
 const MAX_NOTAS_CONTEXTO = 8;       // máx. de notas enviadas à IA
@@ -283,7 +555,9 @@ export async function responderPergunta(
   chaveApi: string,
   historico: MensagemChat[] = [],
   tarefas: any[] = [],
-  idioma: Idioma = 'pt'
+  idioma: Idioma = 'pt',
+  /** Contexto de edição: a nota (ou lista) ABERTA no editor, para a IA poder propor alterações. */
+  notaAberta?: { titulo: string; conteudo?: string; itens?: { texto: string; concluido: boolean }[]; tipo: 'nota' | 'lista' }
 ): Promise<RespostaChat> {
   const todasNotas = Array.isArray(notas) ? notas : [];
   const todasTarefas = Array.isArray(tarefas) ? tarefas : [];
@@ -321,7 +595,33 @@ export async function responderPergunta(
   }
 
   // --- Modo online: sempre chama a API com as notas e tarefas como contexto ---
+  // A instrução de edição (e o orçamento extra de tokens para o HTML completo)
+  // só entram quando o usuário realmente ORDENA uma mudança — perguntas,
+  // saudações e conversa normal nunca geram carta de edição.
+  const ordemEdicao = ehOrdemEdicao(pergunta);
   const contexto = montarContexto(todasNotas, todasTarefas, pergunta, true, idioma);
+
+  // Contexto da nota/lista aberta: dá à IA o material exato que ela pode
+  // propor editar (o app só aplica após confirmação do usuário).
+  let ctxAberta = '';
+  if (notaAberta) {
+    const tipoTxt = notaAberta.tipo === 'lista'
+      ? (idioma === 'en' ? 'open list' : idioma === 'es' ? 'lista abierta' : 'lista aberta')
+      : (idioma === 'en' ? 'open note' : idioma === 'es' ? 'nota abierta' : 'nota aberta');
+    let conteudoTxt = '';
+    if (notaAberta.tipo === 'lista' && notaAberta.itens) {
+      conteudoTxt = notaAberta.itens.map(it => `- [${it.concluido ? 'x' : ' '}] ${it.texto}`).join('\n');
+    } else {
+      // Marcas no lugar da mídia: a IA sabe onde cada imagem/áudio está e as
+      // preserva; nada de base64 (e nem de imagem sumindo na edição).
+      const prep = extrairMidias(String(notaAberta.conteudo || ''));
+      midiasNotaAberta = prep.midias;
+      // COM a formatação: a IA mantém negrito/listas/títulos e estende a nota.
+      conteudoTxt = htmlParaMarkdown(prep.texto);
+      if (conteudoTxt.length > 4000) conteudoTxt = conteudoTxt.slice(0, 4000) + '…';
+    }
+    ctxAberta = `\n\n--- ${tipoTxt.toUpperCase()} ---\n${tIdioma(idioma, 'Título:')} ${notaAberta.titulo || tIdioma(idioma, 'Sem título')}\n${conteudoTxt}\n---`;
+  }
 
   const foraEscopo =
     idioma === 'pt'
@@ -341,6 +641,7 @@ export async function responderPergunta(
           'Use o conteúdo das notas e tarefas fornecidas como base para responder, mas pode conversar naturalmente e explicar ideias, organizar informações, resumir, comparar e tirar dúvidas sobre o que está nas notas e tarefas.',
           `Se a pergunta não tiver relação com as notas, tarefas nem com o aplicativo, responda: ${foraEscopo}.`,
           'Responda de forma curta e objetiva (máx. ~180 palavras).',
+          ...(ordemEdicao && notaAberta ? [instrucaoEdicao('pt')] : []),
         ]
       : idioma === 'en'
         ? [
@@ -353,6 +654,7 @@ export async function responderPergunta(
           'Use the provided notes and tasks as your base, but you may chat naturally: explain ideas, organize information, summarize, compare and answer doubts about what is in the notes and tasks.',
           `If the question is unrelated to the notes, tasks or the app, answer: ${foraEscopo}.`,
           'Keep answers short and objective (max ~180 words).',
+          ...(ordemEdicao && notaAberta ? [instrucaoEdicao('en')] : []),
         ]
       : [
           'Eres NotaIA, el asistente de IA de la app de notas "Simple Notes".',
@@ -364,6 +666,7 @@ export async function responderPergunta(
           'Usa el contenido de las notas y tareas proporcionadas como base, pero puedes conversar con naturalidad: explicar ideas, organizar información, resumir, comparar y resolver dudas sobre lo que está en las notas y tareas.',
           `Si la pregunta no tiene relación con las notas, las tareas ni con la app, responde: ${foraEscopo}.`,
           'Responde de forma breve y objetiva (máx. ~180 palabras).',
+          ...(ordemEdicao && notaAberta ? [instrucaoEdicao('es')] : []),
         ]
       .join(' ');
 
@@ -378,26 +681,41 @@ export async function responderPergunta(
     ...historicoMsgs,
     {
       role: 'user',
-      content: `Estas são as notas e tarefas do usuário:\n\n${contexto}\n\nPergunta do usuário: ${pergunta}`,
+      content: `Estas são as notas e tarefas do usuário:\n\n${contexto}${ctxAberta}\n\nPergunta do usuário: ${pergunta}`,
     },
   ];
 
+  /**
+   * Uma EDIÇÃO devolve o HTML completo da nota: teto alto para nota longa não
+   * ser truncada (o bloco JSON se perderia). Modelos grátis recusam tetos acima
+   * do próprio limite — nesse caso o recuo para TETO_RESERVA mantém funcionando.
+   */
+  const chamar = (maxTokens: number) => fetch(URL_API, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${chaveApi}`,
+      'HTTP-Referer': 'https://simple-notes.app',
+      'X-Title': 'Simple Notes',
+    },
+    body: JSON.stringify({
+      model: 'openrouter/free',
+      messages,
+      temperature: 0.7,
+      max_tokens: maxTokens,
+    }),
+  });
+
   try {
-    const res = await fetch(URL_API, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${chaveApi}`,
-        'HTTP-Referer': 'https://simple-notes.app',
-        'X-Title': 'Simple Notes',
-      },
-      body: JSON.stringify({
-        model: 'openrouter/free',
-        messages,
-        temperature: 0.7,
-        max_tokens: 400,
-      }),
-    });
+    let res = await chamar(ordemEdicao ? TETO_EDICAO : TETO_CHAT);
+    if (ordemEdicao && res.status === 400) {
+      const corpo400 = await res.text().catch(() => '');
+      if (/max_tokens|maximum|too large|context length/i.test(corpo400)) {
+        res = await chamar(TETO_RESERVA);
+      } else {
+        throw new Error(`API 400: ${corpo400.slice(0, 120)}`);
+      }
+    }
 
     if (!res.ok) {
       const corpo = await res.text().catch(() => '');
@@ -419,7 +737,7 @@ export async function responderPergunta(
     const data = await res.json();
     const texto = data?.choices?.[0]?.message?.content?.trim();
     if (!texto) throw new Error('Resposta vazia da API');
-    return { texto, modo: 'online' };
+    return { texto, modo: 'online', ordemEdicao };
   } catch (e) {
     console.warn('[IA] Erro na API, usando resposta local:', e);
     const local = montarContexto(todasNotas, todasTarefas, pergunta, false, idioma);
