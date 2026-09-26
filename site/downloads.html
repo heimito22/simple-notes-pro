@@ -1,607 +1,324 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Downloads | Simple Notes Pro — Windows e Android</title>
-    <meta name="description" content="Baixe o Simple Notes Pro para Windows (instalador e portátil) ou Android via Play Store. Sempre a versão mais recente.">
-    <meta name="theme-color" content="#000000">
-    <meta property="og:title" content="Downloads — Simple Notes Pro">
-    <meta property="og:description" content="Windows (instalador e portátil) e Android — sempre a versão mais recente.">
-    <meta property="og:type" content="website">
-    <meta property="og:image" content="favicon.png">
-    <link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAIAAADYYG7QAAAEu0lEQVR42u1YfUxbVRQ/577XV2gplNIVihS68bXxuQEbIkyQbSgqbELYJhG3BUNmojERIyYimqlLpotxHzFuiZJo/EhAHBuTzYhCXSDBLSxDgYAwBhgQxmih0EHbd/3jjfK5xRaLDjl/vZx73z2/+zv3nnPPQZgWRIQFQm2jtm9KhamUUrjzC50ze2aZ6VE6Z306e3k63yLeA800AArLKGRRq5RSQbPMaGYALUrJLKcsIPbujC5ZEO5/QXTeNoijnK4EYv+/givagUveGhJEJEgREBB5nud5/r+1RULIUsImOh6KKEUA6hnsG5WalrRxU4B0/GZPWVl5U9NVIZQ7lnYYh9GwYokkfFfMnuKdm9xdDW1G/WBsbGxJyRtqtXdNzU8OJ0F0DA0jdpNoYhVbnnXp+FI8dn1z4iNm81RdXZ1KpaqsrKj+7kL+cwWEEFuSdnbeQKk23ishX5ZctPXBmMGhoZaW5vb2ttHRkZyc7KDAQKNRn5mZAQAsyzofDQAn13iEpa9JfomLO/jh++/sP3AAEcVicWHhy+Pjo/7+/qWln1Z8Uw4ADMM412WIhFLeLSiZkSoRGcmGdPZSSU9vLyABygNAZ2dHcXGxj49679498fEJwnWzy2vEAYaAiDifiPGuSyJ3td4vk2HFSHlEfDIjQ6n0amz8JSIifGBgQAgBzj1DiAQAOIVWk39WvCbELWS79gWdOuuEq2aLu8zt4vnyoqJXIiIjjUZ9VtZTjp0hB2+ZKv1tkWr9UGUhI/WSJz4vUgZN9jdPtp3Xt35/7szXBuNUXt4+IRTZyxA6QBKlVOTuo3riMCNTjdSfMnU3iL3DZdHZIlWY+c8W5veKodZas1UoTOgyBEaKSKyTY2OtNVYXhWJznqs2wTzcOdb01eQfV1wC4unax6zG4ambHYgEwPmAhIsjkUi++Py0RH9NV3bSRa6WRe+WBKWYb3Xr6z/m3Lw84p6Z7L1iMQ4iYcBOkuwGxDAMz/NHj76349G0I+8enlDEUOOA/vJnrJvKPSZX5Kkd/vEI572BU4VMdNbhrALTWZkcALRarWFUvz0lATQ7tAcvSLQJwqh03cOagmqvrS+KlYG+u08hI5qJFH//NePA0yI1NbX24tnaLiYg83XDtcqJ7gbCipERjXfp9D+fcA3eBoDmW93IuixHtqeUjupHfvhtDKP2sVYjiiQTXTrebALKS9clEZZjPR6wGPrAYrrd32y/u5Cx6zhTShUKRXRUWBvGWAx9g1WH3DfukkdksDJvWeg2j6jskeYqV3WYZaTXou+ZMvTbf9HsASTkgbfeLHn1taKR9lr55PWns9OqTh+a4DmiDDWZcVh33EelAGXk1I2GiYEWylsdiLuMXfR4espzcvdbLObqc98ySD84diwlKc7UpcM+3Xqu6/H0NFNwbm/jGdONBqv5NiKC8xIZEgIAa4NCdmbl+Pn5CsrQ0JDS0k9aWn+tv3z1ZFndQwUfsf6Jwk10ZjfiLoQJhgGA48ScTAngMv9RsFxFBWODQgixPcEIAEEEJEssrfAfYetOo27Zu1ursiqrsgK6qauty/vMHThvkq0Un9FTCoiCxlZk4bTmHnU7zv1rtqGFmmk7i2H61+UvsWrbKb0GLucAAAAASUVORK5CYII=">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
-    <script src="https://unpkg.com/lucide@latest"></script>
-
-    <style>
-        :root {
-            /* Paleta idêntica ao app (constants/theme.ts — tema escuro) */
-            --primary: #0A84FF;
-            --primary-strong: #409CFF;
-            --primary-soft: #152A42;
-            --bg: #000000;
-            --surface: #0a0a0b;
-            --surface-elevated: #101012;
-            --border: rgba(255,255,255,.09);
-            --glass-border: rgba(255,255,255,0.08);
-            --text-main: #FFFFFF;
-            --text-muted: #8E8E93;
-            --success: #34C759;
-            --danger: #FF453A;
-            --warning: #FFD60A;
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Inter', -apple-system, sans-serif;
-            -webkit-font-smoothing: antialiased;
-            scroll-behavior: smooth;
-        }
-
-        html { scroll-padding-top: 90px; overflow-x: hidden; }
-
-        body {
-            background-color: var(--bg);
-            color: var(--text-main);
-            overflow-x: hidden;
-            line-height: 1.6;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-        }
-
-        ::selection { background: var(--primary); color: #fff; }
-
-        /* ===== Fundo ambiente ===== */
-        .glow-canvas {
-            position: fixed;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            z-index: -1;
-            background: radial-gradient(60% 50% at 50% 0%, rgba(10,132,255,.06), transparent 70%);
-        }
-
-        .blob { display: none; }
-
-        @keyframes float {
-            0% { transform: translate(-10%, -10%) rotate(0deg); }
-            100% { transform: translate(15%, 15%) rotate(15deg); }
-        }
-
-        /* ===== Glass ===== */
-        .glass-card {
-            background: rgba(255, 255, 255, 0.02);
-            backdrop-filter: blur(25px);
-            -webkit-backdrop-filter: blur(25px);
-            border: 1px solid var(--border);
-            border-radius: 14px;
-            box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.04);
-            transition: all 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
-        }
-
-        /* ===== Navbar ===== */
-        nav {
-            position: fixed;
-            top: 0; left: 0; right: 0;
-            z-index: 100;
-            display: flex;
-            justify-content: center;
-            padding: 16px 24px;
-            background: rgba(0, 0, 0, 0.55);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-        }
-
-        .nav-inner {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            max-width: 900px;
-            width: 100%;
-        }
-
-        .nav-logo {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-weight: 800;
-            font-size: 1.05rem;
-            text-decoration: none;
-            color: var(--text-main);
-            margin-right: auto;
-            white-space: nowrap;
-        }
-
-        .nav-logo .logo-badge {
-            width: 34px; height: 34px;
-            border-radius: 10px;
-            overflow: hidden;
-            border: 1px solid var(--border);
-            display: flex; align-items: center; justify-content: center;
-            background: #000;
-        }
-
-        .nav-logo .logo-badge img {
-            width: 100%; height: 100%;
-            object-fit: cover;
-            display: block;
-        }
-
-        .nav-links { display: flex; gap: 2px; }
-
-        .nav-links a {
-            color: var(--text-muted);
-            text-decoration: none;
-            font-size: 0.9rem;
-            font-weight: 600;
-            padding: 8px 13px;
-            border-radius: 100px;
-            transition: all 0.25s ease;
-        }
-
-        .nav-links a:hover { color: #fff; background: rgba(255,255,255,0.06); }
-
-        .nav-cta {
-            background: var(--primary);
-            color: #fff !important;
-            display: inline-flex;
-            align-items: center;
-            gap: 7px;
-        }
-
-        .nav-cta svg { flex-shrink: 0; }
-        .nav-cta:hover { background: var(--primary-strong) !important; }
-
-        /* aba ativa na página de downloads */
-        .nav-links a.ativo {
-            color: #fff;
-            background: rgba(10,132,255,0.18);
-        }
-
-        /* ===== Menu hambúrguer (mobile) ===== */
-        .nav-hamburger {
-            display: none;
-            align-items: center; justify-content: center;
-            width: 44px; height: 44px;
-            background: transparent;
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            color: var(--text-main);
-            cursor: pointer;
-            transition: all 0.25s ease;
-        }
-        .nav-hamburger:hover { background: rgba(255,255,255,0.06); }
-
-        @media (max-width: 720px) {
-            .nav-hamburger { display: flex; }
-            .nav-links {
-                display: none;
-                position: absolute;
-                top: 100%; left: 0; right: 0;
-                flex-direction: column;
-                gap: 6px;
-                padding: 18px 20px 22px;
-                background: rgba(0,0,0,0.92);
-                backdrop-filter: blur(20px);
-                -webkit-backdrop-filter: blur(20px);
-                border-bottom: 1px solid rgba(255,255,255,0.08);
-                animation: menuSobe .3s cubic-bezier(0.25, 0.1, 0.25, 1);
-            }
-            @keyframes menuSobe { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
-            .nav-links.aberto { display: flex; }
-            .nav-links a { width: 100%; text-align: center; padding: 13px 16px; font-size: 1rem; }
-            .lang-switch { margin: 12px auto 0; justify-content: center; }
-            .lang-switch button { padding: 10px 16px; font-size: 0.78rem; }
-        }
-
-        .lang-switch { display: flex; gap: 4px; margin-left: 8px; }
-        .lang-switch button {
-            background: transparent; border: 1px solid var(--glass-border);
-            color: var(--text-muted); font: 600 0.7rem 'Plus Jakarta Sans', sans-serif;
-            padding: 5px 9px; border-radius: 100px; cursor: pointer;
-            transition: all 0.2s ease; letter-spacing: 0.5px;
-        }
-        .lang-switch button:hover { color: #fff; border-color: rgba(255,255,255,0.25); }
-        .lang-switch button.ativo { background: var(--primary); border-color: var(--primary); color: #fff; }
-
-        /* ===== Seções ===== */
-        section { padding: 110px 24px 60px; max-width: 1240px; margin: 0 auto; width: 100%; }
-
-        .section-title {
-            text-align: center;
-            font-size: clamp(2rem, 5vw, 3.2rem);
-            font-weight: 800;
-            margin-bottom: 20px;
-            letter-spacing: -0.03em;
-        }
-
-        .section-sub {
-            text-align: center;
-            color: var(--text-muted);
-            max-width: 620px;
-            margin: 0 auto 70px;
-            font-size: 1.05rem;
-        }
-
-        /* ===== Botões ===== */
-        .btn-download {
-            background: #ffffff;
-            color: #000;
-            padding: 18px 34px;
-            border-radius: 100px;
-            font-weight: 700;
-            font-size: 1rem;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 12px;
-            text-decoration: none;
-            line-height: 1;
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            box-shadow: 0 10px 30px rgba(255,255,255,0.08);
-        }
-
-        .btn-download svg { flex-shrink: 0; }
-
-        .btn-download:hover {
-            transform: scale(1.05) translateY(-4px);
-            background: var(--primary);
-            color: #fff;
-            box-shadow: 0 20px 40px rgba(10, 132, 255, 0.35);
-        }
-
-        /* ===== Downloads ===== */
-        .downloads-wrap {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 20px;
-            max-width: 960px;
-            margin: 0 auto;
-        }
-        .dl-card {
-            display: flex;
-            flex-direction: column;
-            gap: 14px;
-            padding: 28px 26px;
-            position: relative;
-            overflow: hidden;
-        }
-        .dl-card:hover { transform: translateY(-4px); border-color: rgba(10,132,255,0.45); }
-        .dl-card .dl-ico {
-            width: 52px; height: 52px;
-            border-radius: 15px;
-            display: flex; align-items: center; justify-content: center;
-            background: var(--primary-soft);
-            color: var(--primary);
-        }
-        .dl-card.droid .dl-ico { color: var(--success); background: rgba(52,199,89,0.12); }
-        .dl-card h3 { font-size: 1.15rem; font-weight: 800; }
-        .dl-card .dl-sub { color: var(--text-muted); font-size: 0.86rem; line-height: 1.5; }
-        .dl-card .dl-meta {
-            display: flex; gap: 8px; flex-wrap: wrap;
-            font-size: 0.74rem; color: var(--text-muted);
-        }
-        .dl-card .dl-meta span {
-            background: rgba(255,255,255,0.05);
-            border: 1px solid var(--border);
-            padding: 3px 10px; border-radius: 999px;
-        }
-        .dl-card .btn-download {
-            justify-content: center;
-            width: 100%;
-            margin-top: auto;
-        }
-        .dl-card.droid .btn-download {
-            background: var(--success); border-color: var(--success);
-        }
-        .dl-card.droid .btn-download:hover {
-            background: #2db84c; border-color: #2db84c;
-            box-shadow: 0 20px 40px rgba(52, 199, 89, 0.3);
-        }
-        .dl-badge-top {
-            position: absolute; top: 16px; right: 16px;
-            font-size: 0.68rem; font-weight: 700; letter-spacing: 0.5px;
-            color: var(--primary); background: var(--primary-soft);
-            padding: 4px 10px; border-radius: 999px;
-        }
-        .dl-card.droid .dl-badge-top { color: var(--success); background: rgba(52,199,89,0.12); }
-        .dl-erro {
-            max-width: 960px; margin: 18px auto 0; text-align: center;
-            color: var(--text-muted); font-size: 0.85rem; display: none;
-        }
-
-        /* ===== Footer ===== */
-        footer {
-            padding: 60px 24px 40px;
-            text-align: center;
-            font-size: 0.95rem;
-            color: var(--text-muted);
-            border-top: 1px solid rgba(255,255,255,0.05);
-            margin-top: auto;
-        }
-
-        footer .footer-links { display: flex; gap: 26px; justify-content: center; margin-bottom: 26px; flex-wrap: wrap; }
-        footer a { color: var(--text-muted); text-decoration: none; transition: color 0.2s; }
-        footer a:hover { color: var(--primary-strong); }
-
-        @media (max-width: 768px) {
-            .downloads-wrap { grid-template-columns: 1fr; }
-            .dl-card { padding: 34px 28px; }
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Baixar — Simple Notes Pro</title>
+<meta name="description" content="Baixe o Simple Notes Pro: Windows (instalador e portátil) e Android (Play Store). Sempre a versão mais recente.">
+<meta name="theme-color" content="#000000">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+:root{
+  --bg:#000;--surface:#0a0a0b;--surface2:#101012;
+  --line:rgba(255,255,255,.08);--line2:rgba(255,255,255,.14);
+  --txt:#f4f4f5;--mut:#9d9da4;--mut2:#6c6c73;
+  --acc:#0A84FF;--acc2:#409CFF;--ok:#34C759;--warn:#FFD60A;
+  --sans:'Inter',-apple-system,sans-serif;--mono:'JetBrains Mono',ui-monospace,monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:80px}
+body{background:var(--bg);color:var(--txt);font-family:var(--sans);line-height:1.6;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+::selection{background:var(--acc);color:#fff}
+a{color:inherit;text-decoration:none}
+.wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+.hero-bg{position:fixed;inset:0 0 30% 0;z-index:-2;background:radial-gradient(60% 50% at 50% 0%,rgba(10,132,255,.07),transparent 70%)}
+.hero-grid{position:fixed;inset:0 0 30% 0;z-index:-1;pointer-events:none;
+  background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);
+  background-size:56px 56px;
+  -webkit-mask-image:radial-gradient(70% 60% at 50% 0%,#000 20%,transparent 100%);
+          mask-image:radial-gradient(70% 60% at 50% 0%,#000 20%,transparent 100%);
+  opacity:.35}
+/* nav */
+nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(0,0,0,.72);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
+.nav-inner{display:flex;align-items:center;gap:14px;height:60px}
+.nav-logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:.98rem;white-space:nowrap;flex-shrink:0;letter-spacing:-.01em}
+.nav-logo .logo-badge{width:28px;height:28px;border-radius:8px;overflow:hidden;border:1px solid var(--line2)}
+.nav-logo .logo-badge img{width:100%;height:100%;object-fit:cover}
+.nav-links{display:flex;align-items:center;gap:2px;margin-left:auto}
+.nav-links a{color:var(--mut);font-size:.88rem;font-weight:500;padding:7px 12px;border-radius:8px;transition:color .2s,background .2s;white-space:nowrap}
+.nav-links a:hover{color:var(--txt);background:rgba(255,255,255,.05)}
+.nav-links a.ativo{color:var(--txt)}
+.nav-cta{background:var(--acc);color:#fff!important;font-weight:600;display:inline-flex;align-items:center;gap:7px}
+.nav-cta:hover{background:#0a74e0!important}
+.lang-switch{display:flex;gap:2px;margin-left:8px}
+.lang-switch button{background:none;border:1px solid transparent;color:var(--mut2);font:600 .68rem var(--mono);padding:4px 8px;border-radius:6px;cursor:pointer;letter-spacing:.5px;transition:all .2s}
+.lang-switch button:hover{color:var(--txt)}
+.lang-switch button.ativo{color:var(--txt);border-color:var(--line2);background:rgba(255,255,255,.04)}
+/* head */
+header{padding:150px 0 60px}
+.overline{font:600 .72rem var(--mono);letter-spacing:.14em;color:var(--acc2);text-transform:uppercase;margin-bottom:18px;display:flex;align-items:center;gap:10px}
+.overline::before{content:"";width:22px;height:1px;background:var(--acc)}
+h1{font-size:clamp(2.2rem,4.6vw,3.4rem);font-weight:800;line-height:1.05;letter-spacing:-.035em;margin-bottom:14px}
+h1 em{font-style:normal;color:var(--acc)}
+.sub{color:var(--mut);font-size:1.05rem;max-width:560px}
+.sub b{color:var(--txt);font-weight:600}
+/* cards */
+section{padding:10px 0 96px}
+.dl-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.dl-card{border:1px solid var(--line);border-radius:14px;background:var(--surface);padding:28px;position:relative;transition:border-color .25s,background .25s;overflow:hidden}
+.dl-card:hover{border-color:var(--line2);background:var(--surface2)}
+.dl-card::after{content:"";position:absolute;inset:0;border-radius:14px;opacity:0;transition:opacity .3s;pointer-events:none;background:radial-gradient(360px circle at var(--mx,50%) var(--my,50%),rgba(10,132,255,.08),transparent 65%)}
+.dl-card:hover::after{opacity:1}
+.dl-card.destaque{border-color:rgba(10,132,255,.45);background:linear-gradient(180deg,rgba(10,132,255,.05),transparent 50%),var(--surface)}
+.rec-tag{position:absolute;top:16px;right:16px;font:600 .6rem var(--mono);letter-spacing:.1em;color:var(--acc2);border:1px solid rgba(10,132,255,.35);border-radius:6px;padding:3px 9px;background:rgba(10,132,255,.08)}
+.os-chip{display:inline-flex;align-items:center;gap:8px;font:600 .68rem var(--mono);letter-spacing:.1em;color:var(--mut2);margin-bottom:18px;text-transform:uppercase}
+.os-chip i{width:15px;height:15px;color:var(--mut)}
+.dl-card.destaque .os-chip i{color:var(--acc2)}
+.dl-card h3{font-size:1.1rem;font-weight:700;letter-spacing:-.015em;margin-bottom:8px}
+.dl-card p{color:var(--mut);font-size:.88rem;margin-bottom:22px;min-height:66px}
+.dl-meta{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:22px}
+.dl-meta span{font:500 .68rem var(--mono);color:var(--mut);border:1px solid var(--line);border-radius:6px;padding:4px 9px;letter-spacing:.03em}
+.dl-meta span b{color:var(--txt);font-weight:600}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;font-weight:600;font-size:.92rem;padding:13px 20px;border-radius:10px;transition:all .2s;cursor:pointer;border:1px solid transparent;width:100%}
+.btn-primary{background:var(--acc);color:#fff}
+.btn-primary:hover{background:#0a74e0;transform:translateY(-1px)}
+.btn-ghost{border-color:var(--line2);color:var(--txt)}
+.btn-ghost:hover{border-color:var(--acc);color:var(--acc2)}
+.dl-erro{display:none;border:1px solid rgba(255,69,58,.35);border-radius:12px;background:rgba(255,69,58,.04);color:var(--mut);font-size:.88rem;padding:16px 20px;margin-top:26px;max-width:560px}
+.dl-nota{margin-top:34px;color:var(--mut2);font:500 .74rem var(--mono);letter-spacing:.04em;display:flex;gap:9px;align-items:flex-start;max-width:560px}
+.dl-nota i{width:14px;height:14px;flex-shrink:0;margin-top:3px;color:var(--mut2)}
+/* reveal infinito */
+.rv{opacity:0;transform:translateY(14px);transition:opacity .6s ease,transform .6s ease}
+.rv.on{opacity:1;transform:none}
+@keyframes floaty{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+.dl-card{animation:floaty 8s ease-in-out infinite}
+.dl-card:nth-child(2){animation-delay:-2.6s}
+.dl-card:nth-child(3){animation-delay:-5.2s}
+/* footer */
+footer{border-top:1px solid var(--line);padding:34px 0;background:rgba(255,255,255,.01)}
+.foot-base{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;font:500 .72rem var(--mono);color:var(--mut2);letter-spacing:.03em}
+footer a{color:var(--mut);font-size:.88rem;transition:color .2s}
+footer a:hover{color:var(--txt)}
+@media(max-width:1020px){.nav-links a:not(.nav-cta):not(.lang-switch){display:none}}
+@media(max-width:880px){
+  .dl-grid{grid-template-columns:1fr}
+  .dl-card{animation:none}
+  .dl-card p{min-height:0}
+}
+</style>
 </head>
 <body>
-    <div class="glow-canvas"></div>
-    <div class="blob" style="top:-20%; left:-10%;"></div>
-    <div class="blob" style="bottom:-25%; right:-15%; animation-delay: -12s;"></div>
+<div class="hero-bg"></div>
+<div class="hero-grid"></div>
 
-    <!-- ===== NAV ===== -->
-    <nav>
-        <div class="nav-inner">
-            <a href="index.html" class="nav-logo">
-                <span class="logo-badge"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAIAAADYYG7QAAAEu0lEQVR42u1YfUxbVRQ/577XV2gplNIVihS68bXxuQEbIkyQbSgqbELYJhG3BUNmojERIyYimqlLpotxHzFuiZJo/EhAHBuTzYhCXSDBLSxDgYAwBhgQxmih0EHbd/3jjfK5xRaLDjl/vZx73z2/+zv3nnPPQZgWRIQFQm2jtm9KhamUUrjzC50ze2aZ6VE6Z306e3k63yLeA800AArLKGRRq5RSQbPMaGYALUrJLKcsIPbujC5ZEO5/QXTeNoijnK4EYv+/givagUveGhJEJEgREBB5nud5/r+1RULIUsImOh6KKEUA6hnsG5WalrRxU4B0/GZPWVl5U9NVIZQ7lnYYh9GwYokkfFfMnuKdm9xdDW1G/WBsbGxJyRtqtXdNzU8OJ0F0DA0jdpNoYhVbnnXp+FI8dn1z4iNm81RdXZ1KpaqsrKj+7kL+cwWEEFuSdnbeQKk23ishX5ZctPXBmMGhoZaW5vb2ttHRkZyc7KDAQKNRn5mZAQAsyzofDQAn13iEpa9JfomLO/jh++/sP3AAEcVicWHhy+Pjo/7+/qWln1Z8Uw4ADMM412WIhFLeLSiZkSoRGcmGdPZSSU9vLyABygNAZ2dHcXGxj49679498fEJwnWzy2vEAYaAiDifiPGuSyJ3td4vk2HFSHlEfDIjQ6n0amz8JSIifGBgQAgBzj1DiAQAOIVWk39WvCbELWS79gWdOuuEq2aLu8zt4vnyoqJXIiIjjUZ9VtZTjp0hB2+ZKv1tkWr9UGUhI/WSJz4vUgZN9jdPtp3Xt35/7szXBuNUXt4+IRTZyxA6QBKlVOTuo3riMCNTjdSfMnU3iL3DZdHZIlWY+c8W5veKodZas1UoTOgyBEaKSKyTY2OtNVYXhWJznqs2wTzcOdb01eQfV1wC4unax6zG4ambHYgEwPmAhIsjkUi++Py0RH9NV3bSRa6WRe+WBKWYb3Xr6z/m3Lw84p6Z7L1iMQ4iYcBOkuwGxDAMz/NHj76349G0I+8enlDEUOOA/vJnrJvKPSZX5Kkd/vEI572BU4VMdNbhrALTWZkcALRarWFUvz0lATQ7tAcvSLQJwqh03cOagmqvrS+KlYG+u08hI5qJFH//NePA0yI1NbX24tnaLiYg83XDtcqJ7gbCipERjXfp9D+fcA3eBoDmW93IuixHtqeUjupHfvhtDKP2sVYjiiQTXTrebALKS9clEZZjPR6wGPrAYrrd32y/u5Cx6zhTShUKRXRUWBvGWAx9g1WH3DfukkdksDJvWeg2j6jskeYqV3WYZaTXou+ZMvTbf9HsASTkgbfeLHn1taKR9lr55PWns9OqTh+a4DmiDDWZcVh33EelAGXk1I2GiYEWylsdiLuMXfR4espzcvdbLObqc98ySD84diwlKc7UpcM+3Xqu6/H0NFNwbm/jGdONBqv5NiKC8xIZEgIAa4NCdmbl+Pn5CsrQ0JDS0k9aWn+tv3z1ZFndQwUfsf6Jwk10ZjfiLoQJhgGA48ScTAngMv9RsFxFBWODQgixPcEIAEEEJEssrfAfYetOo27Zu1ursiqrsgK6qauty/vMHThvkq0Un9FTCoiCxlZk4bTmHnU7zv1rtqGFmmk7i2H61+UvsWrbKb0GLucAAAAASUVORK5CYII=" alt="Simple Notes Pro"></span>
-                Simple Notes Pro
-            </a>
-            <div class="nav-links">
-                <a href="index.html#recursos" data-i18n="nav_recursos">Recursos</a>
-                <a href="index.html#diferenciais" data-i18n="nav_dif">Diferenciais</a>
-                <a href="index.html#premium" data-i18n="nav_premium">Premium</a>
-                <a href="index.html#faq" data-i18n="nav_faq">FAQ</a>
-                <a href="downloads.html" class="ativo" data-i18n="nav_downloads">Downloads</a>
-                <div class="lang-switch" id="langSwitch" role="group" aria-label="Idioma / Language">
-                    <button data-lang="pt" type="button">PT</button><button data-lang="en" type="button">EN</button><button data-lang="es" type="button">ES</button>
-                </div>
-                <button class="nav-hamburger" id="navHamb" type="button" aria-label="Menu"><i data-lucide="menu" size="22"></i></button>
-            </div>
+<nav>
+  <div class="wrap nav-inner">
+    <a href="index.html" class="nav-logo">
+      <span class="logo-badge"><img src="favicon-192x192.png" alt=""></span>
+      Simple Notes Pro
+    </a>
+    <div class="nav-links">
+      <a href="index.html#recursos" data-i18n="nav_recursos">Recursos</a>
+      <a href="index.html#diferenciais" data-i18n="nav_dif">Diferenciais</a>
+      <a href="index.html#criptografia" data-i18n="nav_cri">Criptografia</a>
+      <a href="index.html#premium" data-i18n="nav_premium">Premium</a>
+      <a href="index.html#faq" data-i18n="nav_faq">FAQ</a>
+      <a href="downloads.html" class="ativo" data-i18n="nav_downloads">Downloads</a>
+      <a href="downloads.html" class="nav-cta"><i data-lucide="download" size="14"></i><span data-i18n="nav_baixar">Baixar</span></a>
+      <div class="lang-switch" id="langSwitch" role="group" aria-label="Idioma / Language">
+        <button data-lang="pt" type="button">PT</button><button data-lang="en" type="button">EN</button><button data-lang="es" type="button">ES</button>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<header>
+  <div class="wrap rv">
+    <div class="overline" data-i18n="dl_overline">Downloads</div>
+    <h1 data-i18n="dl_title">Baixe o <em>Simple Notes Pro</em></h1>
+    <p class="sub" data-i18n="dl_sub">No PC (Windows) e no celular (Android) — sempre a versão mais recente, direto do repositório oficial.</p>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <div class="dl-grid">
+      <div class="dl-card destaque rv">
+        <span class="rec-tag" data-i18n="dl_recomendado">Recomendado</span>
+        <span class="os-chip"><i data-lucide="monitor"></i>Windows</span>
+        <h3 data-i18n="dl_win_t">Windows — Instalador</h3>
+        <p data-i18n="dl_win_d">Instala no PC, inicia com o Windows e fica na bandeja com os alarmes ativos. Sincroniza com o celular pelo Google Drive.</p>
+        <div class="dl-meta">
+          <span><b id="dlWinVersao">v—</b></span>
+          <span id="dlWinTamanho">— MB</span>
+          <span id="dlWinData"></span>
         </div>
-    </nav>
+        <a id="btnDlWin" href="https://github.com/heimito22/simple-notes-pro/releases" class="btn btn-primary">
+          <i data-lucide="download" size="16"></i><span data-i18n="dl_win_btn">Baixar para Windows</span>
+        </a>
+      </div>
 
-    <!-- ===== DOWNLOADS ===== -->
-    <section id="downloads">
-        <h2 class="section-title" data-aos="fade-up" data-i18n="dl_title">Baixe o Simple Notes Pro</h2>
-        <p class="section-sub" data-aos="fade-up" data-i18n="dl_sub">No PC (Windows) e no celular (Android) — sempre a versão mais recente.</p>
-
-        <div class="downloads-wrap" data-aos="fade-up">
-            <!-- Windows: instalador -->
-            <div class="glass-card dl-card win">
-                <span class="dl-badge-top" data-i18n="dl_recomendado">Recomendado</span>
-                <div class="dl-ico"><i data-lucide="monitor-down" size="26"></i></div>
-                <div>
-                    <h3 data-i18n="dl_win_t">Windows — Instalador</h3>
-                    <p class="dl-sub" data-i18n="dl_win_d">Instala no PC, inicia com o Windows e fica na bandeja com os alarmes ativos. Sincroniza com o celular pelo Google Drive.</p>
-                </div>
-                <div class="dl-meta">
-                    <span id="dlWinVersao">v—</span>
-                    <span id="dlWinTamanho">— MB</span>
-                    <span id="dlWinData">—</span>
-                </div>
-                <a id="btnDlWin" href="#" class="btn-download">
-                    <i data-lucide="download" style="margin-top:-1px"></i><span data-i18n="dl_win_btn">Baixar para Windows</span>
-                </a>
-            </div>
-
-            <!-- Windows: portable -->
-            <div class="glass-card dl-card win">
-                <div class="dl-ico"><i data-lucide="usb" size="26"></i></div>
-                <div>
-                    <h3 data-i18n="dl_port_t">Windows — Portátil</h3>
-                    <p class="dl-sub" data-i18n="dl_port_d">Sem instalação: um único .exe que roda direto do pen drive ou de qualquer pasta.</p>
-                </div>
-                <div class="dl-meta">
-                    <span id="dlPortVersao">v—</span>
-                    <span id="dlPortTamanho">— MB</span>
-                </div>
-                <a id="btnDlPort" href="#" class="btn-download">
-                    <i data-lucide="download" style="margin-top:-1px"></i><span data-i18n="dl_port_btn">Baixar portátil</span>
-                </a>
-            </div>
-
-            <!-- Android: Play Store -->
-            <div class="glass-card dl-card droid">
-                <span class="dl-badge-top" data-i18n="dl_android_badge">Android</span>
-                <div class="dl-ico"><i data-lucide="smartphone" size="26"></i></div>
-                <div>
-                    <h3 data-i18n="dl_droid_t">Android — Play Store</h3>
-                    <p class="dl-sub" data-i18n="dl_droid_d">Atualizações automáticas pelo Google Play. O Premium vitalício é comprado por lá.</p>
-                </div>
-                <div class="dl-meta">
-                    <span data-i18n="dl_droid_meta">Atualização automática</span>
-                </div>
-                <a href="https://play.google.com/store/apps/details?id=com.seuusuario.simplesnotes" target="_blank" rel="noopener" class="btn-download">
-                    <i data-lucide="play" style="margin-top:-1px"></i><span data-i18n="dl_droid_btn">Abrir na Play Store</span>
-                </a>
-            </div>
+      <div class="dl-card rv">
+        <span class="os-chip"><i data-lucide="usb"></i>Windows</span>
+        <h3 data-i18n="dl_port_t">Windows — Portátil</h3>
+        <p data-i18n="dl_port_d">Sem instalação: um único .exe que roda direto do pen drive ou de qualquer pasta.</p>
+        <div class="dl-meta">
+          <span><b id="dlPortVersao">v—</b></span>
+          <span id="dlPortTamanho">— MB</span>
         </div>
-        <p class="dl-erro" id="dlErro" data-i18n="dl_erro">Não foi possível carregar a versão mais recente agora — use os botões acima para ir até a página de downloads.</p>
-    </section>
+        <a id="btnDlPort" href="https://github.com/heimito22/simple-notes-pro/releases" class="btn btn-ghost">
+          <i data-lucide="download" size="16"></i><span data-i18n="dl_port_btn">Baixar portátil</span>
+        </a>
+      </div>
 
-    <!-- ===== FOOTER ===== -->
-    <footer>
-        <div class="footer-links">
-            <a href="index.html#recursos" data-i18n="nav_recursos">Recursos</a>
-            <a href="index.html#premium" data-i18n="nav_premium">Premium</a>
-            <a href="index.html#faq" data-i18n="nav_faq">FAQ</a>
-            <a href="downloads.html" data-i18n="nav_downloads">Downloads</a>
+      <div class="dl-card rv">
+        <span class="os-chip"><i data-lucide="smartphone"></i>Android</span>
+        <h3 data-i18n="dl_droid_t">Android — Play Store</h3>
+        <p data-i18n="dl_droid_d">Atualizações automáticas pelo Google Play. O Premium vitalício é comprado por lá.</p>
+        <div class="dl-meta">
+          <span data-i18n="dl_droid_meta">Atualização automática</span>
         </div>
-        <p><span data-i18n="foot_made">Orgulhosamente criado no Brasil</span>  <i data-lucide="heart" size="15" style="fill: #FF453A; color: #FF453A; display: inline-block; vertical-align: -2px;"></i></p>
-        <p style="margin-top: 10px; font-size: 0.8rem;">&copy; 2026 Simple Notes Pro. <span data-i18n="foot_rights">Todos os direitos reservados.</span></p>
-    </footer>
+        <a href="https://play.google.com/store/apps/details?id=com.seuusuario.simplesnotes" class="btn btn-ghost">
+          <i data-lucide="play" size="16"></i><span data-i18n="dl_droid_btn">Abrir na Play Store</span>
+        </a>
+      </div>
+    </div>
+    <div class="dl-erro" id="dlErro" data-i18n="dl_erro">Não foi possível carregar a versão mais recente agora — use os botões acima para ir até a página de downloads.</div>
+    <div class="dl-nota">
+      <i data-lucide="shield-check"></i>
+      <span data-i18n="dl_nota">Instalador assinado · Auto-update embutido · Windows 10 ou superior · Android 8 ou superior</span>
+    </div>
+  </div>
+</section>
 
-    <script src="https://unpkg.com/aos@next/dist/aos.js"></script>
-    <script>
-        AOS.init({
-            duration: 900,
-            easing: 'cubic-bezier(0.25, 0.1, 0.25, 1)',
-            once: false,
-            mirror: true,
-            offset: 100
-        });
+<footer>
+  <div class="wrap foot-base">
+    <a href="index.html">← <span data-i18n="foot_voltar">Voltar ao site</span></a>
+    <span>© 2026 Simple Notes Pro — <span data-i18n="foot_rights">Todos os direitos reservados.</span></span>
+  </div>
+</footer>
 
-        lucide.createIcons({ attrs: { 'stroke-width': 2.5 } });
+<script>
+lucide.createIcons({attrs:{'stroke-width':2}});
+// reveal infinito
+(function(){
+  var els=document.querySelectorAll('.rv');
+  if(!('IntersectionObserver' in window)){els.forEach(function(e){e.classList.add('on')});return}
+  var io=new IntersectionObserver(function(es){es.forEach(function(e){e.target.classList.toggle('on',e.isIntersecting)})},{threshold:.1});
+  els.forEach(function(e){io.observe(e)});
+})();
+// spotlight
+document.querySelectorAll('.dl-card').forEach(function(card){card.addEventListener('mousemove',function(ev){var r=card.getBoundingClientRect();card.style.setProperty('--mx',(ev.clientX-r.left)+'px');card.style.setProperty('--my',(ev.clientY-r.top)+'px')})});
+// ===== versão mais nova via GitHub Releases =====
+var GITHUB_REPO='heimito22/simple-notes-pro';
+(function(){
+  var api='https://api.github.com/repos/'+GITHUB_REPO+'/releases/latest';
+  var btnWin=document.getElementById('btnDlWin');
+  var btnPort=document.getElementById('btnDlPort');
+  var erro=document.getElementById('dlErro');
+  fetch(api).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json()}).then(function(rel){
+    var versao=(rel.tag_name||'').replace(/^v/,'')||'-';
+    var assets=rel.assets||[];
+    function acha(padrao){for(var i=0;i<assets.length;i++){var n=String(assets[i].name||'');if(padrao.test(n))return assets[i]}return null}
+    var setup=acha(/setup/i);
+    var port=acha(/portable/i);
+    function mb(bytes){return (bytes/1024/1024).toFixed(1)+' MB'}
+    function data(iso){try{return new Date(iso).toLocaleDateString(document.documentElement.lang==='en'?'en-US':(document.documentElement.lang==='es'?'es-ES':'pt-BR'))}catch(e){return ''}}
+    if(setup&&btnWin){
+      btnWin.href=setup.browser_download_url;
+      var v1=document.getElementById('dlWinVersao');if(v1)v1.textContent='v'+versao;
+      var t1=document.getElementById('dlWinTamanho');if(t1)t1.textContent=mb(setup.size);
+      var d1=document.getElementById('dlWinData');if(d1)d1.textContent=data(setup.updated_at);
+    }else if(btnWin){btnWin.href='https://github.com/'+GITHUB_REPO+'/releases'}
+    if(port&&btnPort){
+      btnPort.href=port.browser_download_url;
+      var v2=document.getElementById('dlPortVersao');if(v2)v2.textContent='v'+versao;
+      var t2=document.getElementById('dlPortTamanho');if(t2)t2.textContent=mb(port.size);
+    }else if(btnPort){btnPort.href='https://github.com/'+GITHUB_REPO+'/releases'}
+  }).catch(function(e){
+    if(btnWin)btnWin.href='https://github.com/'+GITHUB_REPO+'/releases';
+    if(btnPort)btnPort.href='https://github.com/'+GITHUB_REPO+'/releases';
+    if(erro)erro.style.display='block';
+    console.warn('[downloads] falha ao buscar release:',e&&e.message);
+  });
+})();
+</script>
 
-        // Menu hambúrguer (mobile): abre/fecha e fecha ao clicar num link
-        (function () {
-            var hamb = document.getElementById('navHamb');
-            var links = document.querySelector('.nav-links');
-            if (!hamb || !links) return;
-            hamb.addEventListener('click', function () { links.classList.toggle('aberto'); });
-            links.querySelectorAll('a').forEach(function (a) {
-                a.addEventListener('click', function () { links.classList.remove('aberto'); });
-            });
-        })();
-
-        // ===== DOWNLOADS: versão mais nova via GitHub Releases (grátis, sem servidor) =====
-        // >>> TROQUE pelo seu repo: usuario/nome-do-repo <<<
-        var GITHUB_REPO = 'heimito22/simple-notes-pro';
-        (function () {
-            var api = 'https://api.github.com/repos/' + GITHUB_REPO + '/releases/latest';
-            var btnWin = document.getElementById('btnDlWin');
-            var btnPort = document.getElementById('btnDlPort');
-            var erro = document.getElementById('dlErro');
-            fetch(api).then(function (r) {
-                if (!r.ok) throw new Error('HTTP ' + r.status);
-                return r.json();
-            }).then(function (rel) {
-                var versao = (rel.tag_name || '').replace(/^v/, '') || '—';
-                var assets = rel.assets || [];
-                function acha(padrao) {
-                    for (var i = 0; i < assets.length; i++) {
-                        var n = String(assets[i].name || '');
-                        if (padrao.test(n)) return assets[i];
-                    }
-                    return null;
-                }
-                var setup = acha(/setup/i);
-                var port = acha(/portable/i);
-                function mb(bytes) { return (bytes / 1024 / 1024).toFixed(1) + ' MB'; }
-                function data(iso) {
-                    try { return new Date(iso).toLocaleDateString(document.documentElement.lang === 'en' ? 'en-US' : (document.documentElement.lang === 'es' ? 'es-ES' : 'pt-BR')); }
-                    catch (e) { return ''; }
-                }
-                if (setup && btnWin) {
-                    btnWin.href = setup.browser_download_url;
-                    var v1 = document.getElementById('dlWinVersao'); if (v1) v1.textContent = 'v' + versao;
-                    var t1 = document.getElementById('dlWinTamanho'); if (t1) t1.textContent = mb(setup.size);
-                    var d1 = document.getElementById('dlWinData'); if (d1) d1.textContent = data(setup.updated_at);
-                } else if (btnWin) {
-                    btnWin.href = 'https://github.com/' + GITHUB_REPO + '/releases';
-                }
-                if (port && btnPort) {
-                    btnPort.href = port.browser_download_url;
-                    var v2 = document.getElementById('dlPortVersao'); if (v2) v2.textContent = 'v' + versao;
-                    var t2 = document.getElementById('dlPortTamanho'); if (t2) t2.textContent = mb(port.size);
-                } else if (btnPort) {
-                    btnPort.href = 'https://github.com/' + GITHUB_REPO + '/releases';
-                }
-            }).catch(function (e) {
-                if (btnWin) btnWin.href = 'https://github.com/' + GITHUB_REPO + '/releases';
-                if (btnPort) btnPort.href = 'https://github.com/' + GITHUB_REPO + '/releases';
-                if (erro) erro.style.display = 'block';
-                console.warn('[downloads] falha ao buscar release:', e && e.message);
-            });
-        })();
-    </script>
-
-    <script>
-    // ===== i18n: pt / en / es com detecção automática do navegador =====
-    var I18N = {
-      pt: {
-        nav_recursos: 'Recursos', nav_dif: 'Diferenciais', nav_premium: 'Premium', nav_faq: 'FAQ', nav_downloads: 'Downloads',
-        foot_made: 'Orgulhosamente criado no Brasil', foot_rights: 'Todos os direitos reservados.',
-        dl_title: 'Baixe o Simple Notes Pro',
-        dl_sub: 'No PC (Windows) e no celular (Android) — sempre a versão mais recente.',
-        dl_recomendado: 'Recomendado',
-        dl_win_t: 'Windows — Instalador',
-        dl_win_d: 'Instala no PC, inicia com o Windows e fica na bandeja com os alarmes ativos. Sincroniza com o celular pelo Google Drive.',
-        dl_win_btn: 'Baixar para Windows',
-        dl_port_t: 'Windows — Portátil',
-        dl_port_d: 'Sem instalação: um único .exe que roda direto do pen drive ou de qualquer pasta.',
-        dl_port_btn: 'Baixar portátil',
-        dl_android_badge: 'Android',
-        dl_droid_t: 'Android — Play Store',
-        dl_droid_d: 'Atualizações automáticas pelo Google Play. O Premium vitalício é comprado por lá.',
-        dl_droid_meta: 'Atualização automática',
-        dl_droid_btn: 'Abrir na Play Store',
-        dl_erro: 'Não foi possível carregar a versão mais recente agora — use os botões acima para ir até a página de downloads.'
-      },
-      en: {
-        nav_recursos: 'Features', nav_dif: 'Highlights', nav_premium: 'Premium', nav_faq: 'FAQ', nav_downloads: 'Downloads',
-        foot_made: 'Proudly made in Brazil', foot_rights: 'All rights reserved.',
-        dl_title: 'Download Simple Notes Pro',
-        dl_sub: 'On PC (Windows) and mobile (Android) — always the latest version.',
-        dl_recomendado: 'Recommended',
-        dl_win_t: 'Windows — Installer',
-        dl_win_d: 'Installs on your PC, starts with Windows and sits in the tray with alarms active. Syncs with your phone via Google Drive.',
-        dl_win_btn: 'Download for Windows',
-        dl_port_t: 'Windows — Portable',
-        dl_port_d: 'No installation: a single .exe that runs straight from a pen drive or any folder.',
-        dl_port_btn: 'Download portable',
-        dl_android_badge: 'Android',
-        dl_droid_t: 'Android — Play Store',
-        dl_droid_d: 'Automatic updates via Google Play. The lifetime Premium is purchased there.',
-        dl_droid_meta: 'Automatic update',
-        dl_droid_btn: 'Open Play Store',
-        dl_erro: 'Could not load the latest version right now — use the buttons above to go to the downloads page.'
-      },
-      es: {
-        nav_recursos: 'Funciones', nav_dif: 'Destacados', nav_premium: 'Premium', nav_faq: 'FAQ', nav_downloads: 'Descargas',
-        foot_made: 'Creado con orgullo en Brasil', foot_rights: 'Todos los derechos reservados.',
-        dl_title: 'Descarga Simple Notes Pro',
-        dl_sub: 'En la PC (Windows) y en el celular (Android) — siempre la versión más reciente.',
-        dl_recomendado: 'Recomendado',
-        dl_win_t: 'Windows — Instalador',
-        dl_win_d: 'Se instala en la PC, inicia con Windows y queda en la bandeja con las alarmas activas. Sincroniza con el celular por Google Drive.',
-        dl_win_btn: 'Descargar para Windows',
-        dl_port_t: 'Windows — Portátil',
-        dl_port_d: 'Sin instalación: un solo .exe que corre directo desde un pendrive o cualquier carpeta.',
-        dl_port_btn: 'Descargar portátil',
-        dl_android_badge: 'Android',
-        dl_droid_t: 'Android — Play Store',
-        dl_droid_d: 'Actualizaciones automáticas por Google Play. El Premium vitalicio se compra allí.',
-        dl_droid_meta: 'Actualización automática',
-        dl_droid_btn: 'Abrir Play Store',
-        dl_erro: 'No fue posible cargar la versión más reciente ahora — usa los botones de arriba para ir a la página de descargas.'
-      }
-    };
-
-    // Aplica o idioma salvo/detectado — MESMA CHAVE do index (idioma interligado entre as páginas)
-    (function () {
-        var salvo = null;
-        try { salvo = localStorage.getItem('snpro-lang'); } catch (e) {}
-        var nav = (navigator.language || 'pt').slice(0, 2);
-        var idioma = (salvo && I18N[salvo]) ? salvo : (I18N[nav] ? nav : 'pt');
-        aplicar(idioma);
-
-        function aplicar(id) {
-            if (!I18N[id]) id = 'pt';
-            document.documentElement.lang = id === 'pt' ? 'pt-br' : id;
-            var d = I18N[id];
-            document.querySelectorAll('[data-i18n]').forEach(function (el) {
-                var chave = el.getAttribute('data-i18n');
-                if (d[chave] != null) el.textContent = d[chave];
-            });
-            document.querySelectorAll('#langSwitch button').forEach(function (b) {
-                b.classList.toggle('ativo', b.dataset.lang === id);
-            });
-        }
-
-        document.querySelectorAll('#langSwitch button').forEach(function (b) {
-            b.addEventListener('click', function () {
-                aplicar(b.dataset.lang);
-                try { localStorage.setItem('snpro-lang', b.dataset.lang); } catch (e) {}
-            });
-        });
-
-        // Outra aba (index/downloads) trocou o idioma? Atualiza aqui na hora.
-        window.addEventListener('storage', function (e) {
-            if (e.key === 'snpro-lang' && e.newValue && I18N[e.newValue]) aplicar(e.newValue);
-        });
-    })();
-    </script>
+<script>
+var I18N={
+  pt:{
+    nav_recursos:'Recursos',nav_dif:'Diferenciais',nav_cri:'Criptografia',nav_premium:'Premium',nav_faq:'FAQ',nav_baixar:'Baixar',nav_downloads:'Downloads',
+    dl_overline:'Downloads',
+    dl_title:'Baixe o <em>Simple Notes Pro</em>',
+    dl_sub:'No PC (Windows) e no celular (Android) — sempre a versão mais recente, direto do repositório oficial.',
+    dl_recomendado:'Recomendado',
+    dl_win_t:'Windows — Instalador',
+    dl_win_d:'Instala no PC, inicia com o Windows e fica na bandeja com os alarmes ativos. Sincroniza com o celular pelo Google Drive.',
+    dl_win_btn:'Baixar para Windows',
+    dl_port_t:'Windows — Portátil',
+    dl_port_d:'Sem instalação: um único .exe que roda direto do pen drive ou de qualquer pasta.',
+    dl_port_btn:'Baixar portátil',
+    dl_droid_t:'Android — Play Store',
+    dl_droid_d:'Atualizações automáticas pelo Google Play. O Premium vitalício é comprado por lá.',
+    dl_droid_meta:'Atualização automática',
+    dl_droid_btn:'Abrir na Play Store',
+    dl_erro:'Não foi possível carregar a versão mais recente agora — use os botões acima para ir até a página de downloads.',
+    dl_nota:'Instalador assinado · Auto-update embutido · Windows 10 ou superior · Android 8 ou superior',
+    foot_voltar:'Voltar ao site',foot_rights:'Todos os direitos reservados.'
+  },
+  en:{
+    nav_recursos:'Features',nav_dif:'Highlights',nav_cri:'Encryption',nav_premium:'Premium',nav_faq:'FAQ',nav_baixar:'Download',nav_downloads:'Downloads',
+    dl_overline:'Downloads',
+    dl_title:'Download <em>Simple Notes Pro</em>',
+    dl_sub:'On PC (Windows) and mobile (Android) — always the latest version, straight from the official repository.',
+    dl_recomendado:'Recommended',
+    dl_win_t:'Windows — Installer',
+    dl_win_d:'Installs on your PC, starts with Windows and sits in the tray with alarms active. Syncs with your phone via Google Drive.',
+    dl_win_btn:'Download for Windows',
+    dl_port_t:'Windows — Portable',
+    dl_port_d:'No installation: a single .exe that runs straight from a pen drive or any folder.',
+    dl_port_btn:'Download portable',
+    dl_droid_t:'Android — Play Store',
+    dl_droid_d:'Automatic updates via Google Play. The lifetime Premium is purchased there.',
+    dl_droid_meta:'Automatic updates',
+    dl_droid_btn:'Open Play Store',
+    dl_erro:'Could not load the latest version right now — use the buttons above to go to the downloads page.',
+    dl_nota:'Signed installer · Built-in auto-update · Windows 10 or later · Android 8 or later',
+    foot_voltar:'Back to site',foot_rights:'All rights reserved.'
+  },
+  es:{
+    nav_recursos:'Funciones',nav_dif:'Destacados',nav_cri:'Cifrado',nav_premium:'Premium',nav_faq:'FAQ',nav_baixar:'Descargar',nav_downloads:'Descargas',
+    dl_overline:'Descargas',
+    dl_title:'Descarga <em>Simple Notes Pro</em>',
+    dl_sub:'En PC (Windows) y celular (Android) — siempre la versión más reciente, directo del repositorio oficial.',
+    dl_recomendado:'Recomendado',
+    dl_win_t:'Windows — Instalador',
+    dl_win_d:'Se instala en el PC, inicia con Windows y queda en la bandeja con las alarmas activas. Sincroniza con el celular vía Google Drive.',
+    dl_win_btn:'Descargar para Windows',
+    dl_port_t:'Windows — Portátil',
+    dl_port_d:'Sin instalación: un solo .exe que corre directo desde un pendrive o cualquier carpeta.',
+    dl_port_btn:'Descargar portátil',
+    dl_droid_t:'Android — Play Store',
+    dl_droid_d:'Actualizaciones automáticas por Google Play. El Premium vitalicio se compra allí.',
+    dl_droid_meta:'Actualización automática',
+    dl_droid_btn:'Abrir en Play Store',
+    dl_erro:'No fue posible cargar la versión más reciente ahora — usa los botones de arriba para ir a la página de descargas.',
+    dl_nota:'Instalador firmado · Auto-update integrado · Windows 10 o superior · Android 8 o superior',
+    foot_voltar:'Volver al sitio',foot_rights:'Todos los derechos reservados.'
+  }
+};
+function aplicarIdioma(idioma){
+  var d=I18N[idioma]||I18N.pt;
+  document.querySelectorAll('[data-i18n]').forEach(function(el){
+    var v=d[el.getAttribute('data-i18n')];
+    if(v)el.innerHTML=v;
+  });
+  document.documentElement.lang=(idioma==='pt')?'pt-BR':idioma;
+  document.title=(idioma==='en')?'Download — Simple Notes Pro':(idioma==='es'?'Descargar — Simple Notes Pro':'Baixar — Simple Notes Pro');
+  document.querySelectorAll('#langSwitch button').forEach(function(b){b.classList.toggle('ativo',b.getAttribute('data-lang')===idioma)});
+  try{localStorage.setItem('snpro-lang',idioma)}catch(e){}
+}
+(function(){
+  var salva=null;
+  try{salva=localStorage.getItem('snpro-lang')}catch(e){}
+  var nav=(navigator.language||'pt-BR').toLowerCase();
+  var auto=nav.indexOf('pt')===0?'pt':(nav.indexOf('es')===0?'es':'en');
+  aplicarIdioma(salva||auto);
+  document.querySelectorAll('#langSwitch button').forEach(function(b){b.addEventListener('click',function(){aplicarIdioma(b.getAttribute('data-lang'))})});
+})();
+</script>
 </body>
 </html>
