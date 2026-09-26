@@ -676,6 +676,28 @@ window.addEventListener('focus', function(){
 
 // ---- Bloqueio PIN ----
 var bloqueioTimer=null, bloqueioAtivo=false, bloqueioBuffer='';
+// ── ANTI BRUTE-FORCE: rate limiting exponencial no PIN ──
+var pinTentativas=0, pinBloqueadoAte=0, pinTimerVisual=null;
+function pinPodeTentar(){ return Date.now()>=pinBloqueadoAte; }
+function pinRegistroErro(){
+  pinTentativas++;
+  if(pinTentativas>=3){
+    var espera=Math.min(pinTentativas*2000, 30000);
+    pinBloqueadoAte=Date.now()+espera;
+    var lbl=document.getElementById('bloqueioSub');
+    if(lbl){
+      clearInterval(pinTimerVisual);
+      var fim=pinBloqueadoAte;
+      pinTimerVisual=setInterval(function(){
+        var resta=fim-Date.now();
+        if(resta<=0){ clearInterval(pinTimerVisual); lbl.textContent='Tente novamente'; return; }
+        lbl.textContent='Aguarde '+Math.ceil(resta/1000)+'s ('+pinTentativas+' tentativas)';
+      },250);
+    }
+  }
+}
+function pinResetTentativas(){ pinTentativas=0; pinBloqueadoAte=0; clearInterval(pinTimerVisual); }
+
 function deveBloquear(){ return !!(config && config.exigirBiometriaApp && config.pinDesbloqueio && config.pinDesbloqueio.length===4); }
 function mostrarBloqueio(){
   if(!deveBloquear() || bloqueioAtivo) return;
@@ -728,11 +750,14 @@ function atualizarBloqueioDots(){
   ds.forEach(function(d,i){ d.classList.toggle('on', i < bloqueioBuffer.length); });
 }
 function verificarBloqueio(){
+  if(!pinPodeTentar()) return; // bloqueado por rate limit
   if(bloqueioBuffer===config.pinDesbloqueio){
+    pinResetTentativas();
     esconderBloqueio();
     agendarBloqueio();
     toast(T('Desbloqueado'));
   } else {
+    pinRegistroErro();
     toast(T('PIN incorreto'));
     bloqueioBuffer=''; atualizarBloqueioDots();
     var card=document.querySelector('#bloqueioOverlay .bloqueio-card');

@@ -3,6 +3,8 @@ const {app, BrowserWindow, ipcMain, nativeTheme, shell, Notification, Tray, Menu
 // autoUpdater da biblioteca electron-updater (o do Electron puro não tem checkForUpdatesAndNotify)
 const {autoUpdater} = require('electron-updater');
 const path=require('path'), os=require('os'), fs=require('fs');
+const Cripto = require('./lib/cripto.js');
+const CryptoJS = require('crypto-js');
 
 // ---- Auto-update via GitHub Releases (electron-updater) ----
 // Verifica no boot + a cada 30 min; baixa sozinho e PERGUNTA ao usuário
@@ -136,8 +138,43 @@ function agendarTimer(id, titulo, quandoMs, recorrencia, horario){
 ipcMain.on('janela:minimizar',()=>janela&&janela.minimize());
 ipcMain.on('janela:maximizar',()=>{ if(!janela) return; janela.isMaximized()?janela.unmaximize():janela.maximize(); });
 ipcMain.on('janela:fechar',()=>janela&&janela.close());
-ipcMain.handle('store:ler',()=>deps().store.lerLocal());
-ipcMain.handle('store:salvar',(_e,d)=>{deps().store.salvarLocal(d); return true;});
+// ── CRIPTOGRAFIA LOCAL (store.json encriptado no disco) ──
+function chaveLocal(){
+  // Chave derivada do hostname + username (única por máquina)
+  var id = os.hostname() + '::' + (os.userInfo().username || 'user') + '::sn-pro-local';
+  return Cripto.derivarChave(id);
+}
+
+ipcMain.handle('store:ler',()=>{
+  var dados=deps().store.lerLocal();
+  // Se os dados vierem encriptados, descriptografa
+  if(dados && dados.__enc){
+    var chave=chaveLocal();
+    if(!chave) return dados;
+    var dec=Cripto.descriptografar(dados, chave);
+    if(dec){
+      try{ return JSON.parse(dec); }catch(e){ return dados; }
+    }
+  }
+  return dados;
+});
+
+ipcMain.handle('store:salvar',(_e,d)=>{
+  // Encripta antes de gravar no disco
+  var chave=chaveLocal();
+  if(chave && d){
+    var enc=Cripto.encriptar(JSON.stringify(d), chave);
+    if(enc){
+      // Salva o envelope encriptado no formato que store.js entende
+      // (store.js grava o que recebe; aqui substituímos pelo payload encriptado)
+      var envelope={ __enc:'AES-256-CBC', iv:enc.iv, dados:enc.dados };
+      deps().store.salvarLocal(envelope);
+      return true;
+    }
+  }
+  deps().store.salvarLocal(d);
+  return true;
+});
 ipcMain.handle('store:apagarTudo',async()=>{
   // PADRÃO DE SINCRONIZAÇÃO CORRETO (igual empresas grandes):
   // 1. Lê os IDs das notas atuais e cria TOMBSTONES
@@ -276,7 +313,56 @@ ipcMain.handle('store:sync:meta', async()=>{ try{ const t=await deps().googleAut
 // ia dentro do JSON e a sincronização ficava lenta). Devolve também o
 // `modifiedTime` da gravação (relógio do Google): é o marcador
 // que o renderer usa para saber se a nuvem mudou — sem depender do relógio do PC.
-ipcMain.handle('store:sync:enviar',async(_e,d)=>{ try{ const t=await deps().googleAuth.tokenDeAcesso(); let dados=d; try{ dados=await deps().store.desidratarNotasParaEnvio(t, d); }catch(e){ console.warn('[sync] desidratar falhou:', e&&e.message); } const r=await deps().store.enviarBackupDrive(t,dados); return {ok:!!(r&&r.ok), modifiedTime:(r&&r.modifiedTime)||null}; }catch(e){return {ok:false,erro:String(e.message||e).slice(0,200)}; }});
+// ── CRIPTOGRAFIA DO BACKUP NO DRIVE ──
+// Deriva a chave do email da conta Google logada (mesma no PC e celular)
+function chaveDriveAtual(){
+  try{
+    const {tokenDeAcesso}=deps().googleAuth;
+    // O email está em cache no googleAuth (obterInfo)
+    const info=deps().googleAuth.obterInfo ? deps().googleAuth.obterInfo() : null;
+    return info && info.email ? Cripto.derivarChave(info.email) : null;
+  }catch(e){ return null; }
+}
+
+// Encripta o backup antes de subir pro Drive
+ipcMain.handle('store:sync:enviar',async(_e,d)=>{
+  try{
+    const t=await deps().googleAuth.tokenDeAcesso();
+    let dados=d;
+    try{ dados=await deps().store.desidratarNotasParaEnvio(t, d); }catch(e){ console.warn('[sync] desidratar falhou:', e&&e.message); }
+    // ── ENCRIPTA o backup antes de subir ──
+    const chave=chaveDriveAtual();
+    if(chave && dados){
+      const encriptado=Cripto.encriptarJSON(dados, chave);
+      if(encriptado){
+        console.log('[sync] Backup encriptado AES-256 antes do upload');
+        dados=encriptado;
+      }
+    }
+    const r=await deps().store.enviarBackupDrive(t,dados);
+    return {ok:!!(r&&r.ok), modifiedTime:(r&&r.modifiedTime)||null};
+  }catch(e){ return {ok:false,erro:String(e.message||e).slice(0,200)}; }
+});
+
+// Descriptografa o backup ao baixar do Drive
+ipcMain.handle('store:sync:baixar',async()=>{
+  try{
+    const t=await deps().googleAuth.tokenDeAcesso();
+    const r=await deps().store.buscarBackupDrive(t);
+    if(!r) return {ok:true,vazio:true};
+    // ── DESCRIPTOGRAFA o backup ──
+    let dados=r;
+    if(Cripto.estaEncriptado(r)){
+      const chave=chaveDriveAtual();
+      if(!chave) return {ok:false, erro:'Conta não logada para descriptografar backup'};
+      dados=Cripto.descriptografarJSON(r, chave);
+      if(!dados) return {ok:false, erro:'Falha na descriptografia do backup (conta errada?)'};
+      console.log('[sync] Backup descriptografado');
+    }
+    try{ const a=await deps().store.hidratarNotasComAnexos(t,dados); if(a>0) console.log('[sync] anexos hidratados',a); }catch(e){ console.warn('[sync] hidratar falhou',e&&e.message); }
+    return {ok:true, dados: dados};
+  }catch(e){ return {ok:false, erro:String(e.message||e).slice(0,200)}; }
+});
 // Anexos: baixa imagens/áudios (anexo_*) do Drive e troca file:// por data:uri
 // nas notas locais — sem baixar nada quando todas já estão hidratadas.
 ipcMain.handle('store:anexos:hidratar',async()=>{ try{
@@ -311,8 +397,15 @@ function criarJanela(){
     // backgroundThrottling:false — o app vive na BANDEJA (fechar só esconde a
     // janela). Sem isso o Chromium estrangula os timers da página oculta (até
     // 1x por minuto), a sincronização automática e a fila de envio quase param.
-    webPreferences:{preload:path.join(__dirname,'preload.js'), contextIsolation:true, nodeIntegration:false, sandbox:false, backgroundThrottling:false}
+    webPreferences:{preload:path.join(__dirname,'preload.js'), contextIsolation:true, nodeIntegration:false, sandbox:false, backgroundThrottling:false, webSecurity:true, allowRunningInsecureContent:false, experimentalFeatures:false}
   });
+  // ── SEGURANÇA: desativa DevTools em produção (só dev tem) ──
+  if(app.isPackaged){
+    janela.webContents.on('devtools-opened',()=>{ janela.webContents.closeDevTools(); });
+  }
+  // ── SEGURANÇA: bloqueia navegação externa (só o app, nunca browser embutido) ──
+  janela.webContents.setWindowOpenHandler(()=>{ return {action:'deny'}; });
+  janela.webContents.on('will-navigate',(e,url)=>{ if(url && !url.startsWith('file://')) e.preventDefault(); });
   janela.webContents.on('render-process-gone',(_e,d)=>console.error('[electron] render-process-gone',d.reason,d.exitCode));
   janela.webContents.on('did-finish-load',()=>console.log('[electron] did-finish-load'));
   nativeTheme.themeSource='dark';
