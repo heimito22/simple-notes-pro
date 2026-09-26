@@ -1,6 +1,6 @@
 {
   "name": "simple-notes-pro-desktop",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "Simple Notes Pro para desktop â€” vinculado ao celular via Google Drive",
   "main": "src/main.js",
   "author": "Simple Notes Pro",
@@ -72,6 +72,7 @@
     "electron-builder": "^25.0.0"
   },
   "dependencies": {
+    "crypto-js": "^4.2.0",
     "electron-updater": "^6.8.9"
   }
 }

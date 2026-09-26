@@ -1,8 +1,8 @@
-{
+﻿{
   "expo": {
     "name": "Simple Notes",
     "slug": "MinhasNotas",
-    "version": "1.2.1",
+    "version": "1.4.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "simplesnotes",
@@ -36,7 +36,7 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "O aplicativo precisa acessar suas fotos para anexá-las às notas."
+          "photosPermission": "O aplicativo precisa acessar suas fotos para anexÃ¡-las Ã s notas."
         }
       ],
       [
@@ -67,7 +67,7 @@
       [
         "expo-audio",
         {
-          "microphonePermission": "O aplicativo precisa acessar o microfone para gravar áudios nas notas."
+          "microphonePermission": "O aplicativo precisa acessar o microfone para gravar Ã¡udios nas notas."
         }
       ],
       "./plugins/withAlarmFullScreen",
@@ -92,3 +92,4 @@
     }
   }
 }
+
