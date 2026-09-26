@@ -305,7 +305,7 @@ ipcMain.handle('alarme:testar',(_e,payload)=>{
 // (antes do merge do renderer): nota só-local era apagada do disco e, se o app
 // fechasse nesse intervalo, a alteração sumia de vez. O merge e a gravação são
 // responsabilidade do renderer (Merge.mesclar), que sabe o que é local.
-ipcMain.handle('store:sync:baixar',async()=>{ try{ const t=await deps().googleAuth.tokenDeAcesso(); const r=await deps().store.buscarBackupDrive(t); if(!r) return {ok:true,vazio:true}; try{ const a=await deps().store.hidratarNotasComAnexos(t,r); if(a>0) console.log('[sync] anexos hidratados',a); }catch(e){ console.warn('[sync] hidratar falhou',e&&e.message);} return {ok:true,dados:r}; }catch(e){return {ok:false,erro:String(e.message||e).slice(0,200)}; }});
+// [store:sync:baixar está mais abaixo — versão com descriptografia AES]
 ipcMain.handle('store:sync:meta', async()=>{ try{ const t=await deps().googleAuth.tokenDeAcesso(); const m=await deps().store.obterMetadadosBackupDrive(t); return {ok:true, meta:m}; }catch(e){ return {ok:false, erro:String(e.message||e).slice(0,200)}; }});
 // Antes de subir, DESIDRATA o payload: extrai as imagens/áudios data:uri do
 // HTML, sobe cada um como anexo_* no Drive (mesma convenção do celular) e
