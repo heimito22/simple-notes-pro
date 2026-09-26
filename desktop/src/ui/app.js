@@ -457,6 +457,24 @@ async function reconciliarComNuvem(dados, metaIso){
     try{ await S.configSalvar({ chaveIA: dados.chaveIA }); }catch(e){}
     config.chaveIA=dados.chaveIA;
   }
+  // ── WIPE MARKER: "apagar tudo" do outro aparelho ──
+  // Sem isto, notas que SÓ existiam no PC sobreviviam ao "apagar tudo"
+  // do celular (o celular nem sabia que elas existiam pra criar tombstone).
+  // O carimbo `wipeAllAt` no backup diz: "tudo antes deste instante morreu".
+  var P=window.PoliticaSync;
+  var ultimoWipeVisto=0;
+  try{ ultimoWipeVisto=Number(localStorage.getItem('sn_wipe_visto')||0)||0; }catch(e){}
+  var wipeAllAt=Number(dados.wipeAllAt||0)||0;
+  if(P && wipeAllAt>0 && wipeAllAt>ultimoWipeVisto){
+    var antesWipe=store.notas.length+store.listas.length+store.pastas.length+store.tarefas.length;
+    var rW=P.aplicarWipe(store.notas, wipeAllAt, 0);
+    store.notas=rW.itens;
+    store.listas=(P.aplicarWipe(store.listas, wipeAllAt, 0)).itens;
+    store.pastas=(P.aplicarWipe(store.pastas, wipeAllAt, 0)).itens;
+    store.tarefas=(P.aplicarWipe(store.tarefas, wipeAllAt, 0)).itens;
+    try{ localStorage.setItem('sn_wipe_visto', String(wipeAllAt)); }catch(e){}
+    console.log('[Sync] WIPE processado: sobreviveram', store.notas.length, 'de', antesWipe, 'itens');
+  }
   var antes=JSON.stringify({ n:store.notas, l:store.listas, p:store.pastas, t:store.tarefas });
   var mesclar=function(remotos, locais){
     if(window.Merge) return window.Merge.mesclar(remotos, locais);

@@ -457,6 +457,30 @@ export function NotasProvider({ children }: any) {
     await hidratarApagados();
     // tombstones remotos chegam antes do merge — defines o que ficou apagado
     if (Array.isArray(backupData.apagados)) carregarApagados(backupData.apagados);
+
+    // ── WIPE MARKER: "apagar tudo" do outro aparelho ──
+    // Sem isto, notas que SÓ existiam no PC sobreviviam ao "apagar tudo"
+    // do celular (o celular nem sabia que elas existiam pra criar tombstone).
+    const wipeAllAt = Number(backupData.wipeAllAt || 0) || 0;
+    if (wipeAllAt > 0) {
+      const ultimoWipeVisto = Number(await AsyncStorage.getItem('@sn_wipe_visto').catch(() => '0')) || 0;
+      if (wipeAllAt > ultimoWipeVisto) {
+        const P = require('../desktop/src/lib/politica-sync');
+        const sobrevivemNotas = P.aplicarWipe(notasRef.current, wipeAllAt, 0).itens;
+        const sobrevivemListas = P.aplicarWipe(listas || [], wipeAllAt, 0).itens;
+        const sobrevivemPastas = P.aplicarWipe(pastas || [], wipeAllAt, 0).itens;
+        const sobrevivemTarefas = P.aplicarWipe(dadosRef.current.tarefas || [], wipeAllAt, 0).itens;
+        setNotas(sobrevivemNotas);
+        if (typeof setListas === 'function') setListas(sobrevivemListas);
+        setPastas(sobrevivemPastas);
+        if (typeof tarefasContext?.definirTarefas === 'function') {
+          await (tarefasContext.definirTarefas as any)(sobrevivemTarefas).catch(() => {});
+        }
+        await AsyncStorage.setItem('@sn_wipe_visto', String(wipeAllAt)).catch(() => {});
+        console.log('[Sync] WIPE processado — sobreviveram:', sobrevivemNotas.length, 'notas');
+      }
+    }
+
     suprimirPushRef.current = true;
     try {
     const mNotas = backupData.notas ? mesclarComLocais(backupData.notas, notasRef.current) : null;
@@ -741,6 +765,7 @@ export function NotasProvider({ children }: any) {
         pastas: [],
         tarefas: [],
         apagados: serializarApagados(),
+        wipeAllAt: Date.now(), // mata TUDO que for mais antigo que este instante
       });
 
       const search = await fetch('https://www.googleapis.com/drive/v3/files?q=name="backup_notas.json"&spaces=appDataFolder', {

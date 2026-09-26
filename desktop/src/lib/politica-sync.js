@@ -170,6 +170,29 @@
   }
 
   /**
+   * WIPE MARKER: processa um "apagar tudo" vindo do outro aparelho.
+   *
+   * O tombstone por item não cobre nota que só existe no PC (o celular
+   * nem sabe que ela existe). O wipe marker resolve: um timestamp no backup
+   * que diz "tudo ANTES deste instante morreu". O aparelho que puxa apaga
+   * todos os itens locais com `dataModificacao <= wipeAllAt`.
+   *
+   * @param {Array} itens - os itens LOCAIS atuais
+   * @param {number} wipeAllAt - timestamp do backup remoto (0 = sem wipe)
+   * @param {number} ultimoVisto - último wipe que este aparelho já processou
+   * @returns {{itens: Array, houveWipe: boolean}} itens sobreviventes
+   */
+  function aplicarWipe(itens, wipeAllAt, ultimoVisto) {
+    if (!wipeAllAt || wipeAllAt <= (ultimoVisto || 0)) {
+      return { itens: itens || [], houveWipe: false };
+    }
+    var sobrevivem = (itens || []).filter(function (it) {
+      return tsDoItem(it) > wipeAllAt; // criado/editado DEPOIS do wipe: fica
+    });
+    return { itens: sobrevivem, houveWipe: true };
+  }
+
+  /**
    * BACKUP CANÔNICO: a conta pode acabar com MAIS DE UM `backup_notas.json`
    * (dois aparelhos criando o arquivo, ou um "apagar tudo" que removeu só o
    * primeiro). Pegar `files[0]` de uma lista sem ordem garantida fazia um
@@ -191,7 +214,7 @@
   return {
     JANELA_MS: JANELA_MS, LIMITE: LIMITE,
     tsDoItem: tsDoItem, criarRegistroApagados: criarRegistroApagados,
-    mesclarPorItem: mesclarPorItem,
+    mesclarPorItem: mesclarPorItem, aplicarWipe: aplicarWipe,
     ordenarBackups: ordenarBackups, escolherCanonico: escolherCanonico,
   };
 });

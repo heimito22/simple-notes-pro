@@ -146,18 +146,17 @@ ipcMain.handle('store:apagarTudo',async()=>{
       (dados?.[campo]||[]).forEach(it => { if (it?.id != null) todosIds.push(String(it.id)); });
     }
 
-    // Se logado, sobe backup VAZIO com os tombstones (não deleta!)
+    // Se logado, sobe backup VAZIO com os tombstones e o WIPE MARKER
     try{
       const t=await tokenDeAcesso();
-      if(t && todosIds.length > 0){
+      if(t){
         const agora = Date.now();
-        const apagados = todosIds.map(id => ({ id, ts: agora }));
-        const backupVazio = { notas: [], listas: [], pastas: [], tarefas: [], apagados: apagados };
+        const backupVazio = {
+          notas: [], listas: [], pastas: [], tarefas: [],
+          apagados: (todosIds.length > 0) ? todosIds.map(id => ({ id, ts: agora })) : [],
+          wipeAllAt: agora // <-- mata TUDO que for mais antigo que este instante
+        };
         const r = await store.enviarBackupDrive(t, backupVazio);
-        nuvemOk = r?.ok ?? false;
-      } else if (t) {
-        // Sem notas locais (já vazio): só sobe o backup vazio
-        const r = await store.enviarBackupDrive(t, { notas: [], listas: [], pastas: [], tarefas: [], apagados: [] });
         nuvemOk = r?.ok ?? false;
       }
     }catch(e){ nuvemOk=false; }
