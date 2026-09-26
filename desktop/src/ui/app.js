@@ -452,6 +452,36 @@ async function aplicarPreferenciasRemotasDesktop(prefs, metaIso){
 async function reconciliarComNuvem(dados, metaIso){
   if(!dados) return { mudou:false, localVenceu:false };
   if(window.Tombstones && Array.isArray(dados.apagados)) window.Tombstones.carregar(dados.apagados);
+
+  // ── FILTRO DIRETO POR TOMBSTONE (rede de segurança do merge) ──
+  // O merge (mesclarPorItem) já processa tombstones, mas tem condições
+  // sutéis que podem falhar (formato de ts, clock skew, edge cases).
+  // Este filtro REMOVE na marra qualquer item local que tenha tombstone
+  // no backup remoto — mesma lógica do wipe, mas por item. Garantia dupla.
+  if (Array.isArray(dados.apagados) && dados.apagados.length > 0) {
+    var mapaApagados = {};
+    dados.apagados.forEach(function(t) { if (t && t.id) mapaApagados[String(t.id)] = Number(t.ts) || 0; });
+    var P2 = window.PoliticaSync;
+    if (P2) {
+      ['notas','listas','pastas','tarefas'].forEach(function(campo) {
+        if (Array.isArray(store[campo]) && store[campo].length > 0) {
+          var sobrevivem = [];
+          for (var fi = 0; fi < store[campo].length; fi++) {
+            var item = store[campo][fi];
+            if (!item || item.id == null) { sobrevivem.push(item); continue; }
+            var tsAp = mapaApagados[String(item.id)] || 0;
+            if (tsAp > 0 && P2.tsDoItem(item) <= tsAp) {
+              // tombstone mata este item — não sobrevive
+            } else {
+              sobrevivem.push(item);
+            }
+          }
+          store[campo] = sobrevivem;
+        }
+      });
+    }
+  }
+
   await aplicarPreferenciasRemotasDesktop(dados.preferencias, metaIso);
   if(config && dados.chaveIA && !config.chaveIA){
     try{ await S.configSalvar({ chaveIA: dados.chaveIA }); }catch(e){}
