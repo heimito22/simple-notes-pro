@@ -5,21 +5,21 @@ const {autoUpdater} = require('electron-updater');
 const path=require('path'), os=require('os'), fs=require('fs');
 
 // ---- Auto-update via GitHub Releases (electron-updater) ----
-// Verifica no boot + de hora em hora; baixa sozinho e instala quando o app fechar.
+// Verifica no boot + a cada 30 min; baixa sozinho e PERGUNTA ao usuário
+// se quer reiniciar AGORA (com UI bonita no renderer) ou deixar pra depois.
 function iniciarAutoUpdate(){
   // Só no app INSTALADO — em dev/portable não há onde instalar
   if (!app.isPackaged) return;
   try {
     autoUpdater.autoDownload = true;
-    autoUpdater.autoInstallOnAppQuit = true;
+    autoUpdater.autoInstallOnAppQuit = true; // fallback: instala ao fechar se ignorou
     autoUpdater.logger = { info: (m)=>console.log('[update]', m), warn: (m)=>console.warn('[update]', m), error: (m)=>console.error('[update]', m) };
     autoUpdater.on('update-downloaded', (info)=>{
-      console.log('[update] baixado:', info && info.version);
-      splashStatus('Atualização pronta — instala ao fechar', 100);
-      try {
-        const n = new Notification({ title: 'Atualização baixada', body: 'A versão nova do Simple Notes Pro será instalada quando você fechar o app.', silent: false });
-        n.show();
-      } catch {}
+      var versao = info && info.version ? info.version : '';
+      console.log('[update] baixado:', versao);
+      splashStatus('Atualização pronta', 100);
+      // Avisa o RENDERER (a UI bonita aparece lá)
+      try { if(janela && !janela.isDestroyed()) janela.webContents.send('update:pronta', { versao: versao }); } catch {}
     });
     autoUpdater.on('download-progress', (p)=>{
       const pct = p && p.percent != null ? p.percent : null;
@@ -27,11 +27,22 @@ function iniciarAutoUpdate(){
       try { if(janela && !janela.isDestroyed()) janela.webContents.send('update:progresso', { percent: pct }); } catch {}
     });
     autoUpdater.on('error', (e)=>{ console.warn('[update] erro:', e && (e.message || e)); });
-    // checa 8s depois do boot (não trava a abertura) e depois de hora em hora
+    // checa 8s depois do boot (não trava a abertura) e depois a cada 30 min
     setTimeout(()=>{ autoUpdater.checkForUpdatesAndNotify().catch((e)=>console.warn('[update] check falhou:', e && (e.message||e))); }, 8000);
-    setInterval(()=>{ autoUpdater.checkForUpdatesAndNotify().catch(()=>{}); }, 60*60*1000);
+    setInterval(()=>{ autoUpdater.checkForUpdatesAndNotify().catch(()=>{}); }, 30*60*1000);
   } catch(e) { console.warn('[update] falha ao iniciar:', e && e.message); }
 }
+
+// IPC: renderer pede reinício para instalar a atualização
+ipcMain.handle('update:reiniciar', async()=>{
+  try {
+    autoUpdater.quitAndInstall(true, true);
+    return { ok: true };
+  } catch(e) {
+    app.quit();
+    return { ok: false, erro: String(e.message||e) };
+  }
+});
 
 // Aceleração de hardware ativada — usa GPU dedicada quando disponível (PC potente).
 // Em headless/CI o Chromium faz fallback sozinho; não forçamos disable-gpu aqui.

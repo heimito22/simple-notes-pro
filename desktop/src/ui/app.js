@@ -451,6 +451,12 @@ async function aplicarPreferenciasRemotasDesktop(prefs, metaIso){
  */
 async function reconciliarComNuvem(dados, metaIso){
   if(!dados) return { mudou:false, localVenceu:false };
+
+  // ── Captura ANTES de QUALQUER modificação no store ──
+  // (tombstone filter, wipe, merge — todos modificam o store;
+  //  o snapshot tem que ser do estado ORIGINAL pra detectar mudança)
+  var antes=JSON.stringify({ n:store.notas, l:store.listas, p:store.pastas, t:store.tarefas });
+
   if(window.Tombstones && Array.isArray(dados.apagados)) window.Tombstones.carregar(dados.apagados);
 
   // ── FILTRO DIRETO POR TOMBSTONE (rede de segurança do merge) ──
@@ -487,9 +493,6 @@ async function reconciliarComNuvem(dados, metaIso){
     try{ await S.configSalvar({ chaveIA: dados.chaveIA }); }catch(e){}
     config.chaveIA=dados.chaveIA;
   }
-  // ── Captura ANTES do wipe e do merge (pra detectar que o wipe mudou algo) ──
-  var antes=JSON.stringify({ n:store.notas, l:store.listas, p:store.pastas, t:store.tarefas });
-
   // ── WIPE MARKER: "apagar tudo" do outro aparelho ──
   // Sem isto, notas que SÓ existiam no PC sobreviviam ao "apagar tudo"
   // do celular (o celular nem sabia que elas existiam pra criar tombstone).
@@ -1018,6 +1021,37 @@ if(window.snTarefas && window.snTarefas.bind) window.snTarefas.bind(ctx);
 if(window.snConfig && window.snConfig.bind) window.snConfig.bind(ctx);
 var btnCopiar=document.getElementById('btnCopiarRedirect');
 if(btnCopiar) btnCopiar.onclick=function(){ var el=document.getElementById('hintRedirectUri'); var v=el?el.textContent.trim():''; if(!v) return; if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(v).then(function(){ toast(T('URI copiado: ')+v); }).catch(function(){ toast(v); }); else toast(v); };
+
+// ── BANNER DE ATUALIZAÇÃO (UI bonita com animação) ──
+(function(){
+  var S2 = window.snDesktop;
+  if (!S2 || !S2.onUpdatePonta) return;
+  var banner = document.getElementById('updateBanner');
+  var lblVersao = document.getElementById('updateVersao');
+  var lblProgresso = document.getElementById('updateProgresso');
+  var btnAgora = document.getElementById('updateBtnAgora');
+  var btnDepois = document.getElementById('updateBtnDepois');
+  if (!banner) return;
+
+  S2.onUpdatePonta(function(info){
+    if (!info || !info.versao) return;
+    if (lblVersao) lblVersao.textContent = info.versao;
+    banner.style.display = 'block';
+    setTimeout(function(){ banner.classList.add('ativo'); }, 50);
+  });
+
+  if (btnAgora) btnAgora.onclick = function(){
+    btnAgora.textContent = 'Reiniciando…';
+    btnAgora.disabled = true;
+    btnAgora.style.opacity = 0.6;
+    if (S2.updateReiniciar) S2.updateReiniciar().catch(function(){});
+  };
+
+  if (btnDepois) btnDepois.onclick = function(){
+    banner.classList.remove('ativo');
+    setTimeout(function(){ banner.style.display = 'none'; }, 500);
+  };
+})();
 
 (async function(){ try{ await refreshConta(); await carregar(); iniciarAutoSync(); document.addEventListener('visibilitychange', function(){ if(!document.hidden) iniciarAutoSync(); }); await hidratarAnexosSilencioso(); setTimeout(hidratarAnexosSilencioso, 20000); setInterval(hidratarAnexosSilencioso, 60000); if(window.Movimento){ window.Movimento.entrada(); window.Movimento.stagger('#grid', '.card', { y: 24, each: 0.035 }); } }catch(e){ console.error('boot',e); } })();
 });

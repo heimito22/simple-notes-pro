@@ -8,6 +8,8 @@ contextBridge.exposeInMainWorld('snDesktop', {
   storeApagarTudo: () => ipcRenderer.invoke('store:apagarTudo'),
   configLer: () => ipcRenderer.invoke('config:ler'),
   configSalvar: (patch) => ipcRenderer.invoke('config:salvar', patch),
+  updateReiniciar: () => ipcRenderer.invoke('update:reiniciar'),
+  onUpdatePonta: (cb) => { ipcRenderer.on('update:pronta', (_e, info) => cb(info)); },
   syncBaixar: () => ipcRenderer.invoke('store:sync:baixar'),
   syncMeta: () => ipcRenderer.invoke('store:sync:meta'),
   syncEnviar: (d) => ipcRenderer.invoke('store:sync:enviar', d),
