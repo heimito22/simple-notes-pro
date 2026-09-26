@@ -593,35 +593,39 @@ function iniciarAutoSync(){
     // Sem `document.hidden`: o app vive na bandeja e a janela escondida é o caso
     // NORMAL de uso — era aí que a sincronização parava.
     if(Date.now()-ultimoPushAt < 1200) return;
-    // DIRTY-FIRST: alteração local ainda não confirmada no Drive? sobe primeiro
-    // e pula o pull — aplicar o backup antigo agora apagaria a nota/lista/tarefa
-    // recém-criada (a corrida que fazia a nota nova sumir no celular).
-    if(haMudancasLocais){
-      haMudancasLocais=false;
-      ultimoPushAt=Date.now();
-      syncEnviar();
-      return;
-    }
+    // PULL-FIRST: mesmo com mudança local pendente, PUXA antes de subir.
+    // Antes era DIRTY-FIRST (subia e pulava o pull): isso SOBRESCREVIA
+    // exclusões que o celular tinha acabado de subir, sem nunca ver os
+    // tombstones. O merge já protege notas locais mais novas
+    // (`dataModificacao` + `localVenceu`), então puxar é seguro:
+    // a nota recém-criada no PC sobrevive ao merge e é enviada depois.
     try{
       var u2=await S.googleUsuario().catch(function(){return null;});
       if(!u2 || !u2.email) return;
       var metaRes=await S.syncMeta().catch(function(){return null;});
       if(!metaRes || !metaRes.ok || !metaRes.meta || !metaRes.meta.modifiedTime) return;
       var remotoIso=metaRes.meta.modifiedTime;
-      if(remotoIso===metaDrive()) return;   // a nuvem não mudou desde a última vez que vimos
-      syncPullEmAndamento=true;
-      var rr=await S.syncBaixar().catch(function(){return null;});
-      if(rr && rr.ok && rr.dados){
-        var rec=await reconciliarComNuvem(rr.dados, remotoIso);
-        if(rec.localVenceu){
-          // O merge manteve versão local mais nova: sobe agora, senão ela ficaria
-          // só neste PC para sempre (a nuvem "já estava em dia" para o poll).
-          haMudancasLocais=false;
-          ultimoPushAt=Date.now();
-          syncEnviar();
-        } else if(rec.mudou){ await reagendarTarefas(); renderNotas(); renderTarefas(); renderConfig(); }
-        // puxou nota nova com anexo? hidrata já — não espera o ciclo de 60s
-        hidratarAnexosSilencioso();
+      if(remotoIso!==metaDrive()){   // a nuvem mudou desde a última vez que vimos
+        syncPullEmAndamento=true;
+        var rr=await S.syncBaixar().catch(function(){return null;});
+        if(rr && rr.ok && rr.dados){
+          var rec=await reconciliarComNuvem(rr.dados, remotoIso);
+          if(rec.localVenceu){
+            // O merge manteve versão local mais nova: sobe agora, senão ela ficaria
+            // só neste PC para sempre (a nuvem "já estava em dia" para o poll).
+            haMudancasLocais=false;
+            ultimoPushAt=Date.now();
+            syncEnviar();
+          } else if(rec.mudou){ await reagendarTarefas(); renderNotas(); renderTarefas(); renderConfig(); }
+          // puxou nota nova com anexo? hidrata já — não espera o ciclo de 60s
+          hidratarAnexosSilencioso();
+        }
+      }
+      // Mudança local pendente? Sobe AGORA (DEPOIS do pull — nunca antes)
+      if(haMudancasLocais){
+        haMudancasLocais=false;
+        ultimoPushAt=Date.now();
+        syncEnviar();
       }
     }catch(e){} finally { syncPullEmAndamento=false; }
   }, 3000);
