@@ -596,6 +596,108 @@
 
         details .faq-body { padding: 0 26px 22px; color: var(--text-muted); }
 
+        /* ===== Criptografia ===== */
+        .cripto-pipeline {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
+            flex-wrap: wrap;
+            margin-bottom: 80px;
+        }
+
+        .pipe-step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            min-width: 110px;
+        }
+
+        .pipe-icon {
+            width: 72px; height: 72px;
+            border-radius: 22px;
+            display: flex; align-items: center; justify-content: center;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            box-shadow: 0 12px 30px rgba(0,0,0,0.35);
+        }
+
+        .pipe-icon.enc {
+            background: linear-gradient(135deg, var(--primary), #0050b8);
+            border-color: rgba(10,132,255,0.5);
+            color: #fff;
+            box-shadow: 0 15px 40px rgba(10,132,255,0.35);
+        }
+
+        .pipe-icon.blind { border-color: rgba(52,199,89,0.4); color: var(--success); }
+
+        .pipe-label { font-size: 0.85rem; font-weight: 700; color: var(--text-muted); text-align: center; }
+
+        .pipe-arrow { color: var(--primary-strong); display: flex; align-items: center; }
+
+        .cripto-layers { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-bottom: 90px; }
+
+        .layer-card {
+            padding: 30px;
+            background: rgba(255,255,255,0.02);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            display: flex;
+            gap: 18px;
+            align-items: flex-start;
+            transition: all 0.4s ease;
+        }
+
+        .layer-card:hover { border-color: rgba(10,132,255,0.5); transform: translateY(-5px); }
+
+        .layer-card i { color: var(--primary-strong); flex-shrink: 0; margin-top: 2px; }
+
+        .layer-card h4 { font-size: 1.02rem; margin-bottom: 6px; letter-spacing: -0.01em; }
+        .layer-card p { color: var(--text-muted); font-size: 0.9rem; }
+
+        .cripto-vs {
+            max-width: 900px;
+            margin: 0 auto;
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            overflow: hidden;
+        }
+
+        .vs-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .vs-head { background: rgba(255,255,255,0.03); border-bottom: 1px solid var(--border); font-weight: 800; }
+        .vs-head .vs-cell { padding: 20px 26px; }
+
+        .vs-cell {
+            padding: 18px 26px;
+            font-size: 0.95rem;
+            color: var(--text-muted);
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+        }
+
+        .vs-cell.pro { background: rgba(52,199,89,0.04); color: var(--text-main); display: flex; gap: 10px; align-items: flex-start; }
+        .vs-cell.con { display: flex; gap: 10px; align-items: flex-start; }
+
+        .vs-cell.pro i { color: var(--success); flex-shrink: 0; margin-top: 3px; }
+        .vs-cell.con i { color: var(--danger); flex-shrink: 0; margin-top: 3px; }
+
+        .vs-rotulo { display: block; font-size: 0.78rem; font-weight: 700; color: var(--text-muted); margin-bottom: 3px; text-transform: uppercase; letter-spacing: 1px; }
+
+        .vs-head .vs-cell:last-child { color: var(--success); }
+        .vs-row:last-child .vs-cell { border-bottom: none; }
+
+        @media (max-width: 640px) {
+            .vs-row { grid-template-columns: 1fr; }
+            .vs-head { display: none; }
+            .vs-cell { border-bottom: 1px solid var(--border); }
+            .vs-cell::before { content: attr(data-rotulo); display: block; font-size: 0.75rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; }
+        }
+
         /* ===== Footer ===== */
         footer {
             padding: 80px 24px 50px;
@@ -634,6 +736,7 @@
             <div class="nav-links">
                 <a href="#recursos" data-i18n="nav_recursos">Recursos</a>
                 <a href="#diferenciais" data-i18n="nav_dif">Diferenciais</a>
+                <a href="#criptografia" data-i18n="nav_cri">Criptografia</a>
                 <a href="#premium" data-i18n="nav_premium">Premium</a>
                 <a href="#faq" data-i18n="nav_faq">FAQ</a>
                 <a href="https://play.google.com/store/apps/details?id=com.seuusuario.simplesnotes" target="_blank" rel="noopener" class="nav-cta"><i data-lucide="download" size="15"></i><span data-i18n="nav_baixar">Baixar</span></a>
@@ -647,7 +750,7 @@
     <!-- ===== HERO ===== -->
     <header>
         <div data-aos="fade-up">
-            <span class="hero-badge"><i data-lucide="sparkles" size="15"></i> <span data-i18n="hero_badge">Backup no Google Drive · IA · Biometria</span></span>
+            <span class="hero-badge"><i data-lucide="sparkles" size="15"></i> <span data-i18n="hero_badge">Backup encriptado no Google Drive · IA · Biometria</span></span>
             <h1>Simple Notes Pro</h1>
             <p class="subtitle" data-i18n="hero_sub">O bloco de notas que redefine o minimalismo no seu Android. Notas, listas e pastas com backup automático na sua conta Google.</p>
             <div class="hero-actions">
@@ -721,7 +824,7 @@
             <div class="glass-card feature-card" data-aos="fade-up">
                 <div class="icon-box"><i data-lucide="shield-check" color="#fff" size="30"></i></div>
                 <h3 data-i18n="f1_t">Privacidade de Elite</h3>
-                <p data-i18n="f1_d">Bloqueio por biometria (digital ou rosto) com tempo configurável — de imediato a 30 minutos fora do app.</p>
+                <p data-i18n="f1_d">Backup encriptado com AES-256, bloqueio por biometria (digital ou rosto) e PIN anti brute-force — de imediato a 30 minutos fora do app.</p>
             </div>
             <div class="glass-card feature-card" data-aos="fade-up" data-aos-delay="80">
                 <div class="icon-box"><i data-lucide="cloud-lightning" color="#fff" size="30"></i></div>
@@ -791,12 +894,13 @@
 
             <div class="glass-card tab-panel" id="tab-seguranca">
                 <h3><i data-lucide="fingerprint" size="20" style="vertical-align:-3px; color: var(--primary-strong)"></i> <span data-i18n="tab_seg_t">Seus dados, seus apenas</span></h3>
-                <p data-i18n="tab_seg_p">Bloqueio por biometria com animação de cadeado estilizada e desbloqueio suave.</p>
+                <p data-i18n="tab_seg_p">Backup encriptado com AES-256, bloqueio por biometria e proteção anti brute-force — o pacote completo.</p>
                 <ul>
-                    <li><i data-lucide="check" size="17"></i> <span data-i18n="tab_seg_l1">Bloqueio automático: imediato ou após 1 a 30 minutos fora do app.</span></li>
-                    <li><i data-lucide="check" size="17"></i> <span data-i18n="tab_seg_l2">Notas protegidas individualmente por senha.</span></li>
-                    <li><i data-lucide="check" size="17"></i> <span data-i18n="tab_seg_l3">Na tela de bloqueio do celular, o app não vaza conteúdo.</span></li>
-                    <li><i data-lucide="check" size="17"></i> <span data-i18n="tab_seg_l4">Botão de emergência para apagar tudo do aparelho com confirmação.</span></li>
+                    <li><i data-lucide="check" size="17"></i> <span data-i18n="tab_seg_l1">Backup no Drive encriptado com AES-256 — nem o Google lê suas notas.</span></li>
+                    <li><i data-lucide="check" size="17"></i> <span data-i18n="tab_seg_l2">Bloqueio automático: imediato ou após 1 a 30 minutos fora do app.</span></li>
+                    <li><i data-lucide="check" size="17"></i> <span data-i18n="tab_seg_l3">PIN com trava progressiva: erros repetidos bloqueiam por até 30 segundos.</span></li>
+                    <li><i data-lucide="check" size="17"></i> <span data-i18n="tab_seg_l4">Notas protegidas individualmente por senha.</span></li>
+                    <li><i data-lucide="check" size="17"></i> <span data-i18n="tab_seg_l5">Na tela de bloqueio do celular, o app não vaza conteúdo.</span></li>
                 </ul>
             </div>
 
@@ -820,6 +924,100 @@
                     <li><i data-lucide="check" size="17"></i> <span data-i18n="tab_alm_l3">Lembretes de revisão nas notas: data, a cada X dias ou dias da semana.</span></li>
                     <li><i data-lucide="check" size="17"></i> <span data-i18n="tab_alm_l4">Tela de permissões guiada para Xiaomi/MIUI e Android 14+.</span></li>
                 </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== CRIPTOGRAFIA ===== -->
+    <section id="criptografia" style="padding-top: 40px;">
+        <h2 class="section-title" data-aos="fade-up" data-i18n="cri_title">Nem o Google lê suas notas</h2>
+        <p class="section-sub" data-aos="fade-up" data-i18n="cri_sub">Todo backup é encriptado com AES-256 antes de sair do aparelho. A chave nasce do seu email, existe só nos seus dispositivos e nunca viaja. No Drive, suas notas são apenas bytes aleatórios.</p>
+
+        <div class="cripto-pipeline" data-aos="fade-up">
+            <div class="pipe-step">
+                <div class="pipe-icon"><i data-lucide="notebook-pen" size="30"></i></div>
+                <div class="pipe-label" data-i18n="cri_p1">Sua nota</div>
+            </div>
+            <div class="pipe-arrow"><i data-lucide="arrow-right" size="22"></i></div>
+            <div class="pipe-step">
+                <div class="pipe-icon enc"><i data-lucide="lock" size="30"></i></div>
+                <div class="pipe-label">AES-256</div>
+            </div>
+            <div class="pipe-arrow"><i data-lucide="arrow-right" size="22"></i></div>
+            <div class="pipe-step">
+                <div class="pipe-icon"><i data-lucide="cloud" size="30"></i></div>
+                <div class="pipe-label" data-i18n="cri_p2">Google Drive</div>
+            </div>
+            <div class="pipe-arrow"><i data-lucide="arrow-right" size="22"></i></div>
+            <div class="pipe-step">
+                <div class="pipe-icon blind"><i data-lucide="eye-off" size="30"></i></div>
+                <div class="pipe-label" data-i18n="cri_p3">Só você lê</div>
+            </div>
+        </div>
+
+        <h3 class="section-title" style="font-size: clamp(1.4rem, 3vw, 1.9rem); margin-bottom: 40px;" data-aos="fade-up" data-i18n="cri_layers_title">Seis camadas de proteção</h3>
+        <div class="cripto-layers" data-aos="fade-up">
+            <div class="layer-card">
+                <i data-lucide="shield-check" size="24"></i>
+                <div>
+                    <h4 data-i18n="cri_l1_t">AES-256-CBC</h4>
+                    <p data-i18n="cri_l1_d">O mesmo padrão de bancos e governos. Sem a chave, quebrar por força bruta levaria mais que a idade do universo.</p>
+                </div>
+            </div>
+            <div class="layer-card">
+                <i data-lucide="shuffle" size="24"></i>
+                <div>
+                    <h4 data-i18n="cri_l2_t">IV aleatório</h4>
+                    <p data-i18n="cri_l2_d">Cada backup gera bytes totalmente diferentes — impossível deduzir padrões ou comparar conteúdos.</p>
+                </div>
+            </div>
+            <div class="layer-card">
+                <i data-lucide="key-round" size="24"></i>
+                <div>
+                    <h4 data-i18n="cri_l3_t">Chave SHA-256 × 4</h4>
+                    <p data-i18n="cri_l3_d">A chave é derivada do seu email em 4 rodadas com sais únicos — rainbow tables e fazendas de GPUs não servem.</p>
+                </div>
+            </div>
+            <div class="layer-card">
+                <i data-lucide="eye-off" size="24"></i>
+                <div>
+                    <h4 data-i18n="cri_l4_t">Zero conhecimento</h4>
+                    <p data-i18n="cri_l4_d">A chave nunca sai dos seus aparelhos: não viaja pela rede, não fica no Drive, não existe no nosso servidor — nós não temos servidor.</p>
+                </div>
+            </div>
+            <div class="layer-card">
+                <i data-lucide="timer" size="24"></i>
+                <div>
+                    <h4 data-i18n="cri_l5_t">PIN anti brute-force</h4>
+                    <p data-i18n="cri_l5_d">3 erros travam por 6 segundos, 4 por 8, 5 por 10... até 30 segundos. Adivinhar um PIN de 4 dígitos vira inviável.</p>
+                </div>
+            </div>
+            <div class="layer-card">
+                <i data-lucide="cpu" size="24"></i>
+                <div>
+                    <h4 data-i18n="cri_l6_t">Cofre de hardware</h4>
+                    <p data-i18n="cri_l6_d">No celular, chaves sensíveis ficam no Keychain protegido pelo hardware. No PC, a sessão fica atrás do seu login do Windows.</p>
+                </div>
+            </div>
+        </div>
+
+        <h3 class="section-title" style="font-size: clamp(1.4rem, 3vw, 1.9rem); margin-bottom: 40px;" data-aos="fade-up" data-i18n="cri_vs_title">A diferença que importa</h3>
+        <div class="cripto-vs" data-aos="fade-up">
+            <div class="vs-row vs-head">
+                <div class="vs-cell" data-i18n="cri_vs_col1">Outros apps de notas</div>
+                <div class="vs-cell" data-i18n="cri_vs_col2">Simple Notes Pro</div>
+            </div>
+            <div class="vs-row">
+                <div class="vs-cell con" data-rotulo="Outros apps"><i data-lucide="x" size="17"></i><span data-i18n="cri_vs_r1_c1">Notas nos servidores da empresa — a conta deles, as regras deles.</span></div>
+                <div class="vs-cell pro" data-rotulo="Simple Notes Pro"><i data-lucide="check" size="17"></i><span data-i18n="cri_vs_r1_c2">Backup na pasta privada do SEU Google Drive — seu armazenamento, seu controle.</span></div>
+            </div>
+            <div class="vs-row">
+                <div class="vs-cell con" data-rotulo="Outros apps"><i data-lucide="x" size="17"></i><span data-i18n="cri_vs_r2_c1">A empresa guarda a chave de criptografia — tecnicamente, eles podem ler.</span></div>
+                <div class="vs-cell pro" data-rotulo="Simple Notes Pro"><i data-lucide="check" size="17"></i><span data-i18n="cri_vs_r2_c2">A chave é derivada do seu email, só nos seus aparelhos. Nem nós podemos ler.</span></div>
+            </div>
+            <div class="vs-row">
+                <div class="vs-cell con" data-rotulo="Outros apps"><i data-lucide="x" size="17"></i><span data-i18n="cri_vs_r3_c1">Um vazamento na nuvem deles expõe suas notas em texto puro.</span></div>
+                <div class="vs-cell pro" data-rotulo="Simple Notes Pro"><i data-lucide="check" size="17"></i><span data-i18n="cri_vs_r3_c2">Mesmo se o Drive vazar, seu backup é bytes aleatórios ilegíveis.</span></div>
             </div>
         </div>
     </section>
@@ -867,7 +1065,11 @@
             </details>
             <details>
                 <summary><span data-i18n="faq6_q">Minhas notas são privadas?</span> <i data-lucide="plus" size="19"></i></summary>
-                <div class="faq-body" data-i18n="faq6_a">Você pode ativar bloqueio por biometria no app inteiro e proteger notas individuais por senha. Com o bloqueio ativo, o conteúdo não aparece na tela de bloqueio do celular.</div>
+                <div class="faq-body" data-i18n="faq6_a">Totalmente. O backup no Drive é encriptado com AES-256 — nem o Google consegue ler. No aparelho, você ativa bloqueio por biometria, protege notas individuais por senha e o PIN tem trava anti brute-force. Com o bloqueio ativo, o conteúdo não aparece na tela de bloqueio do celular.</div>
+            </details>
+            <details>
+                <summary><span data-i18n="faq7_q">O que é "encriptado de ponta a ponta" no backup?</span> <i data-lucide="plus" size="19"></i></summary>
+                <div class="faq-body" data-i18n="faq7_a">Antes de qualquer nota sair do seu aparelho, ela é encriptada com AES-256 — o padrão usado por bancos. A chave é derivada do seu email Google em 4 rodadas de SHA-256 e existe apenas nos seus aparelhos: ela nunca viaja pela internet e nunca fica armazenada na nuvem. Resultado: quem entrar na sua conta Google sem ser você baixa apenas bytes ilegíveis, e nem nós — os desenvolvedores — conseguimos ler seus backups.</div>
             </details>
         </div>
     </section>
@@ -876,6 +1078,7 @@
     <footer>
         <div class="footer-links">
             <a href="#recursos" data-i18n="nav_recursos">Recursos</a>
+            <a href="#criptografia" data-i18n="nav_cri">Criptografia</a>
             <a href="#premium" data-i18n="nav_premium">Premium</a>
             <a href="#faq" data-i18n="nav_faq">FAQ</a>
         </div>
@@ -923,13 +1126,13 @@
     var I18N = {
       pt: {
         title: 'Simple Notes Pro | Notas minimalistas com backup no Google Drive',
-        nav_recursos: 'Recursos', nav_dif: 'Diferenciais', nav_premium: 'Premium', nav_faq: 'FAQ', nav_baixar: 'Baixar',
-        hero_badge: 'Backup no Google Drive · IA · Biometria',
+        nav_recursos: 'Recursos', nav_dif: 'Diferenciais', nav_cri: 'Criptografia', nav_premium: 'Premium', nav_faq: 'FAQ', nav_baixar: 'Baixar',
+        hero_badge: 'Backup encriptado no Google Drive · IA · Biometria',
         hero_sub: 'O bloco de notas que redefine o minimalismo no seu Android. Notas, listas e pastas com backup automático na sua conta Google.',
         cta_download: 'Baixar na Play Store', cta_features: 'Ver recursos',
         rec_title: 'Tudo que você precisa',
         rec_sub: 'Um app completo disfarçado de minimalista — sem anúncios te interrompendo no meio da ideia.',
-        f1_t: 'Privacidade de Elite', f1_d: 'Bloqueio por biometria (digital ou rosto) com tempo configurável — de imediato a 30 minutos fora do app.',
+        f1_t: 'Privacidade de Elite', f1_d: 'Backup encriptado com AES-256, bloqueio por biometria (digital ou rosto) e PIN anti brute-force — de imediato a 30 minutos fora do app.',
         f2_t: 'Backup Instantâneo', f2_d: 'Notas, listas, pastas, tarefas, imagens e áudios salvos automaticamente no seu Google Drive pessoal.',
         f3_t: 'Pastas & Organização', f3_d: 'Organize em pastas, fixe o importante no topo, selecione múltiplos itens e busque em tudo instantaneamente.',
         f4_t: 'Assistente de IA', f4_d: 'Pergunte sobre suas notas, gere resumos e chat integrado no editor — com a sua chave gratuita do OpenRouter.',
@@ -947,11 +1150,30 @@
         tab_nuvem_l3: 'Barra de armazenamento mostra o espaço usado no Drive em tempo real.',
         tab_nuvem_l4: 'Apagou sem querer? O backup da conta é a sua rede de segurança.',
         tab_seg_t: 'Seus dados, seus apenas',
-        tab_seg_p: 'Bloqueio por biometria com animação de cadeado estilizada e desbloqueio suave.',
-        tab_seg_l1: 'Bloqueio automático: imediato ou após 1 a 30 minutos fora do app.',
-        tab_seg_l2: 'Notas protegidas individualmente por senha.',
-        tab_seg_l3: 'Na tela de bloqueio do celular, o app não vaza conteúdo.',
-        tab_seg_l4: 'Botão de emergência para apagar tudo do aparelho com confirmação.',
+        tab_seg_p: 'Backup encriptado com AES-256, bloqueio por biometria e proteção anti brute-force — o pacote completo.',
+        tab_seg_l1: 'Backup no Drive encriptado com AES-256 — nem o Google lê suas notas.',
+        tab_seg_l2: 'Bloqueio automático: imediato ou após 1 a 30 minutos fora do app.',
+        tab_seg_l3: 'PIN com trava progressiva: erros repetidos bloqueiam por até 30 segundos.',
+        tab_seg_l4: 'Notas protegidas individualmente por senha.',
+        tab_seg_l5: 'Na tela de bloqueio do celular, o app não vaza conteúdo.',
+        cri_title: 'Nem o Google lê suas notas',
+        cri_sub: 'Todo backup é encriptado com AES-256 antes de sair do aparelho. A chave nasce do seu email, existe só nos seus dispositivos e nunca viaja. No Drive, suas notas são apenas bytes aleatórios.',
+        cri_p1: 'Sua nota', cri_p2: 'Google Drive', cri_p3: 'Só você lê',
+        cri_layers_title: 'Seis camadas de proteção',
+        cri_l1_t: 'AES-256-CBC', cri_l1_d: 'O mesmo padrão de bancos e governos. Sem a chave, quebrar por força bruta levaria mais que a idade do universo.',
+        cri_l2_t: 'IV aleatório', cri_l2_d: 'Cada backup gera bytes totalmente diferentes — impossível deduzir padrões ou comparar conteúdos.',
+        cri_l3_t: 'Chave SHA-256 × 4', cri_l3_d: 'A chave é derivada do seu email em 4 rodadas com sais únicos — rainbow tables e fazendas de GPUs não servem.',
+        cri_l4_t: 'Zero conhecimento', cri_l4_d: 'A chave nunca sai dos seus aparelhos: não viaja pela rede, não fica no Drive, não existe no nosso servidor — nós não temos servidor.',
+        cri_l5_t: 'PIN anti brute-force', cri_l5_d: '3 erros travam por 6 segundos, 4 por 8, 5 por 10... até 30 segundos. Adivinhar um PIN de 4 dígitos vira inviável.',
+        cri_l6_t: 'Cofre de hardware', cri_l6_d: 'No celular, chaves sensíveis ficam no Keychain protegido pelo hardware. No PC, a sessão fica atrás do seu login do Windows.',
+        cri_vs_title: 'A diferença que importa',
+        cri_vs_col1: 'Outros apps de notas', cri_vs_col2: 'Simple Notes Pro',
+        cri_vs_r1_c1: 'Notas nos servidores da empresa — a conta deles, as regras deles.',
+        cri_vs_r1_c2: 'Backup na pasta privada do SEU Google Drive — seu armazenamento, seu controle.',
+        cri_vs_r2_c1: 'A empresa guarda a chave de criptografia — tecnicamente, eles podem ler.',
+        cri_vs_r2_c2: 'A chave é derivada do seu email, só nos seus aparelhos. Nem nós podemos ler.',
+        cri_vs_r3_c1: 'Um vazamento na nuvem deles expõe suas notas em texto puro.',
+        cri_vs_r3_c2: 'Mesmo se o Drive vazar, seu backup é bytes aleatórios ilegíveis.',
         tab_ia_t: 'IA que conhece suas notas',
         tab_ia_p: 'Assistente integrado ao editor — sem assinatura extra, com a sua chave gratuita do OpenRouter.',
         tab_ia_l1: 'Pergunte: "quanto gastei no mercado?" e a IA busca nas suas notas.',
@@ -979,18 +1201,20 @@
         faq5_q: 'O alarme funciona com o app fechado?',
         faq5_a: 'Sim. O alarme dispara popup em tela cheia com som mesmo com o app fechado e o celular bloqueado. Em aparelhos Xiaomi existe uma tela de permissões guiada dentro do app para garantir que funcione.',
         faq6_q: 'Minhas notas são privadas?',
-        faq6_a: 'Você pode ativar bloqueio por biometria no app inteiro e proteger notas individuais por senha. Com o bloqueio ativo, o conteúdo não aparece na tela de bloqueio do celular.',
+        faq6_a: 'Totalmente. O backup no Drive é encriptado com AES-256 — nem o Google consegue ler. No aparelho, você ativa bloqueio por biometria, protege notas individuais por senha e o PIN tem trava anti brute-force. Com o bloqueio ativo, o conteúdo não aparece na tela de bloqueio do celular.',
+        faq7_q: 'O que é "encriptado de ponta a ponta" no backup?',
+        faq7_a: 'Antes de qualquer nota sair do seu aparelho, ela é encriptada com AES-256 — o padrão usado por bancos. A chave é derivada do seu email Google em 4 rodadas de SHA-256 e existe apenas nos seus aparelhos: ela nunca viaja pela internet e nunca fica armazenada na nuvem. Resultado: quem entrar na sua conta Google sem ser você baixa apenas bytes ilegíveis, e nem nós — os desenvolvedores — conseguimos ler seus backups.',
         foot_made: 'Orgulhosamente criado no Brasil'
       },
       en: {
         title: 'Simple Notes Pro | Minimalist notes with Google Drive backup',
-        nav_recursos: 'Features', nav_dif: 'Highlights', nav_premium: 'Premium', nav_faq: 'FAQ', nav_baixar: 'Download',
-        hero_badge: 'Google Drive backup · AI · Biometrics',
+        nav_recursos: 'Features', nav_dif: 'Highlights', nav_cri: 'Encryption', nav_premium: 'Premium', nav_faq: 'FAQ', nav_baixar: 'Download',
+        hero_badge: 'Encrypted Google Drive backup · AI · Biometrics',
         hero_sub: 'The notepad that redefines minimalism on your Android. Notes, lists and folders with automatic backup to your Google account.',
         cta_download: 'Download on Play Store', cta_features: 'See features',
         rec_title: 'Everything you need',
         rec_sub: 'A complete app disguised as minimalist — no ads interrupting your flow.',
-        f1_t: 'Elite Privacy', f1_d: 'Biometric lock (fingerprint or face) with configurable timing — from instant up to 30 minutes away from the app.',
+        f1_t: 'Elite Privacy', f1_d: 'AES-256 encrypted backup, biometric lock (fingerprint or face) and anti brute-force PIN — from instant up to 30 minutes away from the app.',
         f2_t: 'Instant Backup', f2_d: 'Notes, lists, folders, tasks, images and audio saved automatically to your personal Google Drive.',
         f3_t: 'Folders & Organization', f3_d: 'Organize into folders, pin what matters, select multiple items and search everything instantly.',
         f4_t: 'AI Assistant', f4_d: 'Ask about your notes, generate summaries and chat inside the editor — with your free OpenRouter key.',
@@ -1008,11 +1232,30 @@
         tab_nuvem_l3: 'The storage bar shows your Drive usage in real time.',
         tab_nuvem_l4: 'Deleted by accident? Your account backup is your safety net.',
         tab_seg_t: 'Your data, yours only',
-        tab_seg_p: 'Biometric lock with a stylish padlock animation and smooth unlock.',
-        tab_seg_l1: 'Auto-lock: instant or 1 to 30 minutes after leaving the app.',
-        tab_seg_l2: 'Individual notes protected by password.',
-        tab_seg_l3: 'On the phone lock screen, the app leaks nothing.',
-        tab_seg_l4: 'Emergency button to wipe everything on the device, with confirmation.',
+        tab_seg_p: 'AES-256 encrypted backup, biometric lock and anti brute-force protection — the complete package.',
+        tab_seg_l1: 'Drive backup encrypted with AES-256 — not even Google can read your notes.',
+        tab_seg_l2: 'Auto-lock: instant or 1 to 30 minutes after leaving the app.',
+        tab_seg_l3: 'PIN with progressive lockout: repeated errors block for up to 30 seconds.',
+        tab_seg_l4: 'Individual notes protected by password.',
+        tab_seg_l5: 'On the phone lock screen, the app leaks nothing.',
+        cri_title: 'Not even Google reads your notes',
+        cri_sub: 'Every backup is encrypted with AES-256 before leaving your device. The key is born from your email, exists only on your devices and never travels. On Drive, your notes are just random bytes.',
+        cri_p1: 'Your note', cri_p2: 'Google Drive', cri_p3: 'Only you read',
+        cri_layers_title: 'Six layers of protection',
+        cri_l1_t: 'AES-256-CBC', cri_l1_d: 'The same standard used by banks and governments. Without the key, brute-forcing would take longer than the age of the universe.',
+        cri_l2_t: 'Random IV', cri_l2_d: 'Every backup generates completely different bytes — patterns or content comparison is impossible.',
+        cri_l3_t: 'SHA-256 × 4 key', cri_l3_d: 'The key is derived from your email in 4 rounds with unique salts — rainbow tables and GPU farms are useless.',
+        cri_l4_t: 'Zero knowledge', cri_l4_d: 'The key never leaves your devices: it doesn\u2019t travel over the network, doesn\u2019t sit on Drive, doesn\u2019t exist on our server — we don\u2019t have a server.',
+        cri_l5_t: 'Anti brute-force PIN', cri_l5_d: '3 errors lock for 6 seconds, 4 for 8, 5 for 10... up to 30 seconds. Guessing a 4-digit PIN becomes unfeasible.',
+        cri_l6_t: 'Hardware vault', cri_l6_d: 'On the phone, sensitive keys live in the hardware-backed Keychain. On PC, the session sits behind your Windows login.',
+        cri_vs_title: 'The difference that matters',
+        cri_vs_col1: 'Other notes apps', cri_vs_col2: 'Simple Notes Pro',
+        cri_vs_r1_c1: 'Notes on the company\u2019s servers — their account, their rules.',
+        cri_vs_r1_c2: 'Backup in the private folder of YOUR Google Drive — your storage, your control.',
+        cri_vs_r2_c1: 'The company holds the encryption key — technically, they can read.',
+        cri_vs_r2_c2: 'The key is derived from your email, only on your devices. Not even we can read.',
+        cri_vs_r3_c1: 'A leak on their cloud exposes your notes in plain text.',
+        cri_vs_r3_c2: 'Even if Drive leaks, your backup is unreadable random bytes.',
         tab_ia_t: 'AI that knows your notes',
         tab_ia_p: 'Assistant built into the editor — no extra subscription, with your free OpenRouter key.',
         tab_ia_l1: 'Ask: "how much did I spend at the market?" and the AI searches your notes.',
@@ -1040,18 +1283,20 @@
         faq5_q: 'Does the alarm work with the app closed?',
         faq5_a: 'Yes. The alarm fires a full-screen popup with sound even with the app closed and the phone locked. On Xiaomi devices there is a guided permissions screen inside the app to make sure it works.',
         faq6_q: 'Are my notes private?',
-        faq6_a: 'You can enable biometric lock for the whole app and protect individual notes with a password. With the lock active, content never appears on the phone lock screen.',
+        faq6_a: 'Completely. The Drive backup is encrypted with AES-256 — not even Google can read it. On the device, you enable biometric lock, protect individual notes with a password, and the PIN has an anti brute-force lockout. With the lock active, content never appears on the phone lock screen.',
+        faq7_q: 'What does "end-to-end encrypted" backup mean?',
+        faq7_a: 'Before any note leaves your device, it is encrypted with AES-256 — the standard used by banks. The key is derived from your Google email in 4 rounds of SHA-256 and exists only on your devices: it never travels over the internet and is never stored in the cloud. The result: anyone who enters your Google account without being you downloads only unreadable bytes — and not even we, the developers, can read your backups.',
         foot_made: 'Proudly made in Brazil'
       },
       es: {
         title: 'Simple Notes Pro | Notas minimalistas con respaldo en Google Drive',
-        nav_recursos: 'Funciones', nav_dif: 'Destacados', nav_premium: 'Premium', nav_faq: 'FAQ', nav_baixar: 'Descargar',
-        hero_badge: 'Respaldo en Google Drive · IA · Biometría',
+        nav_recursos: 'Funciones', nav_dif: 'Destacados', nav_cri: 'Cifrado', nav_premium: 'Premium', nav_faq: 'FAQ', nav_baixar: 'Descargar',
+        hero_badge: 'Respaldo encriptado en Google Drive · IA · Biometría',
         hero_sub: 'La libreta que redefine el minimalismo en tu Android. Notas, listas y carpetas con respaldo automático en tu cuenta de Google.',
         cta_download: 'Descargar en Play Store', cta_features: 'Ver funciones',
         rec_title: 'Todo lo que necesitas',
         rec_sub: 'Una app completa disfrazada de minimalista — sin anuncios que interrumpan tus ideas.',
-        f1_t: 'Privacidad de élite', f1_d: 'Bloqueo biométrico (huella o rostro) con tiempo configurable — desde inmediato hasta 30 minutos fuera de la app.',
+        f1_t: 'Privacidad de élite', f1_d: 'Respaldo encriptado con AES-256, bloqueo biométrico (huella o rostro) y PIN anti fuerza bruta — desde inmediato hasta 30 minutos fuera de la app.',
         f2_t: 'Respaldo instantáneo', f2_d: 'Notas, listas, carpetas, tareas, imágenes y audios guardados automáticamente en tu Google Drive personal.',
         f3_t: 'Carpetas y organización', f3_d: 'Organiza en carpetas, fija lo importante, selecciona varios elementos y busca todo al instante.',
         f4_t: 'Asistente de IA', f4_d: 'Pregunta sobre tus notas, genera resúmenes y chatea dentro del editor — con tu clave gratuita de OpenRouter.',
@@ -1069,11 +1314,30 @@
         tab_nuvem_l3: 'La barra de almacenamiento muestra el espacio usado en Drive en tiempo real.',
         tab_nuvem_l4: '¿Borraste sin querer? El respaldo de tu cuenta es tu red de seguridad.',
         tab_seg_t: 'Tus datos, solo tuyos',
-        tab_seg_p: 'Bloqueo biométrico con una animación de candado estilizada y desbloqueo suave.',
-        tab_seg_l1: 'Bloqueo automático: inmediato o tras 1 a 30 minutos fuera de la app.',
-        tab_seg_l2: 'Notas individuales protegidas con contraseña.',
-        tab_seg_l3: 'En la pantalla de bloqueo del teléfono, la app no filtra contenido.',
-        tab_seg_l4: 'Botón de emergencia para borrar todo del dispositivo, con confirmación.',
+        tab_seg_p: 'Respaldo encriptado con AES-256, bloqueo biométrico y protección anti fuerza bruta — el paquete completo.',
+        tab_seg_l1: 'Respaldo en Drive encriptado con AES-256 — ni Google puede leer tus notas.',
+        tab_seg_l2: 'Bloqueo automático: inmediato o tras 1 a 30 minutos fuera de la app.',
+        tab_seg_l3: 'PIN con bloqueo progresivo: errores repetidos bloquean hasta 30 segundos.',
+        tab_seg_l4: 'Notas individuales protegidas con contraseña.',
+        tab_seg_l5: 'En la pantalla de bloqueo del teléfono, la app no filtra contenido.',
+        cri_title: 'Ni Google lee tus notas',
+        cri_sub: 'Cada respaldo se encripta con AES-256 antes de salir del dispositivo. La clave nace de tu email, existe solo en tus aparatos y nunca viaja. En Drive, tus notas son solo bytes aleatorios.',
+        cri_p1: 'Tu nota', cri_p2: 'Google Drive', cri_p3: 'Solo tú lees',
+        cri_layers_title: 'Seis capas de protección',
+        cri_l1_t: 'AES-256-CBC', cri_l1_d: 'El mismo estándar de bancos y gobiernos. Sin la clave, descifrarla por fuerza bruta tardaría más que la edad del universo.',
+        cri_l2_t: 'IV aleatorio', cri_l2_d: 'Cada respaldo genera bytes totalmente distintos — deducir patrones o comparar contenidos es imposible.',
+        cri_l3_t: 'Clave SHA-256 × 4', cri_l3_d: 'La clave se deriva de tu email en 4 rondas con sales únicas — las rainbow tables y las granjas de GPUs no sirven.',
+        cri_l4_t: 'Cero conocimiento', cri_l4_d: 'La clave nunca sale de tus aparatos: no viaja por la red, no queda en Drive, no existe en nuestro servidor — no tenemos servidor.',
+        cri_l5_t: 'PIN anti fuerza bruta', cri_l5_d: '3 errores bloquean 6 segundos, 4 son 8, 5 son 10... hasta 30 segundos. Adivinar un PIN de 4 dígitos se vuelve inviable.',
+        cri_l6_t: 'Bóveda de hardware', cri_l6_d: 'En el celular, las claves sensibles viven en el Keychain protegido por hardware. En el PC, la sesión queda detrás de tu inicio de sesión de Windows.',
+        cri_vs_title: 'La diferencia que importa',
+        cri_vs_col1: 'Otras apps de notas', cri_vs_col2: 'Simple Notes Pro',
+        cri_vs_r1_c1: 'Notas en los servidores de la empresa — su cuenta, sus reglas.',
+        cri_vs_r1_c2: 'Respaldo en la carpeta privada de TU Google Drive — tu almacenamiento, tu control.',
+        cri_vs_r2_c1: 'La empresa guarda la clave de cifrado — técnicamente, ellos pueden leer.',
+        cri_vs_r2_c2: 'La clave se deriva de tu email, solo en tus aparatos. Ni nosotros podemos leer.',
+        cri_vs_r3_c1: 'Una fuga en su nube expone tus notas en texto plano.',
+        cri_vs_r3_c2: 'Aunque Drive sufra una fuga, tu respaldo son bytes aleatorios ilegibles.',
         tab_ia_t: 'IA que conoce tus notas',
         tab_ia_p: 'Asistente integrado al editor — sin suscripción extra, con tu clave gratuita de OpenRouter.',
         tab_ia_l1: 'Pregunta: "¿cuánto gasté en el mercado?" y la IA busca en tus notas.',
@@ -1101,7 +1365,9 @@
         faq5_q: '¿La alarma funciona con la app cerrada?',
         faq5_a: 'Sí. La alarma abre pantalla completa con sonido incluso con la app cerrada y el celular bloqueado. En Xiaomi hay una pantalla de permisos guiada dentro de la app para garantizarlo.',
         faq6_q: '¿Mis notas son privadas?',
-        faq6_a: 'Puedes activar el bloqueo biométrico para toda la app y proteger notas individuales con contraseña. Con el bloqueo activo, el contenido no aparece en la pantalla de bloqueo del teléfono.',
+        faq6_a: 'Totalmente. El respaldo en Drive se encripta con AES-256 — ni Google puede leerlo. En el aparato, activas el bloqueo biométrico, proteges notas individuales con contraseña y el PIN tiene bloqueo anti fuerza bruta. Con el bloqueo activo, el contenido no aparece en la pantalla de bloqueo del teléfono.',
+        faq7_q: '¿Qué significa el respaldo "encriptado de extremo a extremo"?',
+        faq7_a: 'Antes de que cualquier nota salga de tu dispositivo, se encripta con AES-256 — el estándar usado por los bancos. La clave se deriva de tu email de Google en 4 rondas de SHA-256 y existe solo en tus aparatos: nunca viaja por internet ni se guarda en la nube. El resultado: quien entre en tu cuenta de Google sin ser tú descarga solo bytes ilegibles — y ni nosotros, los desarrolladores, podemos leer tus respaldos.',
         foot_made: 'Orgullosamente creado en Brasil'
       }
     };
