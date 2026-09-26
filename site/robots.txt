@@ -1,0 +1,3 @@
+﻿User-agent: *
+Allow: /
+Sitemap: https://simple-note-web.vercel.app/sitemap.xml
