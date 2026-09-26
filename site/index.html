@@ -218,12 +218,22 @@ h2{font-size:clamp(1.7rem,3.4vw,2.3rem);font-weight:750;letter-spacing:-.03em;li
 .price-list li b{color:var(--txt);font-weight:600}
 
 /* ===== FAQ ===== */
-details{border-bottom:1px solid var(--line);padding:4px 0}
-details summary{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:18px 4px;cursor:pointer;font-weight:600;font-size:.98rem;list-style:none}
-details summary::-webkit-details-marker{display:none}
-details summary i{color:var(--mut2);flex-shrink:0;transition:transform .25s}
-details[open] summary i{transform:rotate(45deg);color:var(--acc2)}
-details .faq-body{padding:0 4px 20px;color:var(--mut);font-size:.92rem;max-width:720px}
+.faq-list{display:flex;flex-direction:column}
+.faq-item{border-bottom:1px solid var(--line)}
+.faq-q{display:flex;justify-content:space-between;align-items:center;gap:16px;width:100%;padding:19px 4px;background:none;border:0;color:var(--txt);font:600 .99rem var(--sans);cursor:pointer;text-align:left;transition:padding .25s ease}
+.faq-q:hover{color:var(--acc2)}
+.faq-q span:first-child{transition:color .2s}
+.faq-ico{width:28px;height:28px;border:1px solid var(--line2);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .35s cubic-bezier(.4,0,.2,1)}
+.faq-ico i{width:15px;height:15px;color:var(--mut2);transition:all .35s cubic-bezier(.4,0,.2,1)}
+.faq-item.aberto .faq-ico{background:rgba(10,132,255,.12);border-color:rgba(10,132,255,.45);transform:rotate(135deg)}
+.faq-item.aberto .faq-ico i{color:var(--acc2)}
+.faq-a{display:grid;grid-template-rows:0fr;transition:grid-template-rows .45s cubic-bezier(.4,0,.2,1)}
+.faq-item.aberto .faq-a{grid-template-rows:1fr}
+.faq-a-inner{overflow:hidden}
+.faq-item.aberto .faq-a-inner{padding:0 4px 20px;color:var(--mut);font-size:.92rem;max-width:720px;animation:faqIn .5s .08s cubic-bezier(.2,.8,.2,1) both}
+@keyframes faqIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+.faq-item{transition:border-color .3s}
+.faq-item.aberto{border-bottom-color:rgba(10,132,255,.35)}
 
 /* ===== footer ===== */
 footer{border-top:1px solid var(--line);padding:52px 0 36px;background:rgba(255,255,255,.01)}
@@ -271,6 +281,37 @@ footer{border-top:1px solid var(--line);padding:52px 0 36px;background:rgba(255,
 /* @keyframes glowtxt */ 
 @keyframes sheen{0%{background-position:200% 0}100%{background-position:-200% 0}}
 .sheen{background:linear-gradient(110deg,var(--txt) 40%,var(--acc2) 50%,var(--txt) 60%);background-size:200% auto;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;animation:sheen 5s linear infinite}
+/* ===== extras: progress bar, shine, stagger, breathing ===== */
+.scroll-progress{position:fixed;top:0;left:0;right:0;height:2px;z-index:200;background:linear-gradient(90deg,var(--acc),#409CFF,rgba(10,132,255,.4));transform:scaleX(0);transform-origin:left;pointer-events:none}
+nav{transition:transform .35s ease}
+/* shine nos botoes primarios */
+.btn-primary{position:relative;overflow:hidden}
+.btn-primary::after{content:"";position:absolute;top:0;left:-80%;width:50%;height:100%;background:linear-gradient(105deg,transparent,rgba(255,255,255,.25),transparent);transform:skewX(-20deg);transition:left .5s ease}
+.btn-primary:hover::after{left:130%}
+/* stagger: linhas da spec table e comparacao */
+.spec-table .spec-row{transition:opacity .5s ease,transform .5s ease;opacity:0;transform:translateY(8px)}
+.spec-table.on .spec-row{opacity:1;transform:none}
+.spec-table .spec-row:nth-child(2){transition-delay:.06s}
+.spec-table .spec-row:nth-child(3){transition-delay:.12s}
+.spec-table .spec-row:nth-child(4){transition-delay:.18s}
+.spec-table .spec-row:nth-child(5){transition-delay:.24s}
+.cri-vs .vs-row{transition:opacity .5s ease,transform .5s ease;opacity:0;transform:translateY(8px)}
+.cri-vs.on .vs-row{opacity:1;transform:none}
+.cri-vs .vs-row:nth-child(2){transition-delay:.08s}
+.cri-vs .vs-row:nth-child(3){transition-delay:.16s}
+.cri-vs .vs-row:nth-child(4){transition-delay:.24s}
+/* phone: respiracao de sombra */
+@keyframes breath{0%,100%{box-shadow:0 40px 90px -30px rgba(0,0,0,.9),0 0 70px -30px rgba(10,132,255,.22)}50%{box-shadow:0 40px 90px -30px rgba(0,0,0,.9),0 0 90px -22px rgba(10,132,255,.38)}}
+.phone{animation:floaty 7s ease-in-out infinite,breath 7s ease-in-out infinite}
+/* faq: linha de energia ao abrir */
+.faq-item{position:relative}
+@keyframes faqline{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+.faq-item.aberto::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:linear-gradient(180deg,var(--acc),rgba(10,132,255,.2));transform-origin:top;animation:faqline .35s ease}
+/* respeito a reduced motion */
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+  .marquee-track{animation:none!important}
+}
 /* ===== responsivo ===== */
 @media(max-width:1020px){
   .nav-links a:not(.nav-cta):not(.lang-switch){display:none}
@@ -639,23 +680,23 @@ footer{border-top:1px solid var(--line);padding:52px 0 36px;background:rgba(255,
       <span class="sec-num">05 — FAQ</span>
       <h2 data-i18n="faq_title">Perguntas frequentes</h2>
     </div>
-    <div class="rv">
-      <details><summary><span data-i18n="faq1_q">O app é gratuito?</span> <i data-lucide="plus"></i></summary>
-        <div class="faq-body" data-i18n="faq1_a">Sim. Notas, listas, pastas, alarmes, biometria e backup no Drive são grátis. O plano gratuito mostra alguns anúncios em momentos específicos — que somem para sempre com a compra única do Premium.</div></details>
-      <details><summary><span data-i18n="faq2_q">Meus dados ficam salvos na nuvem?</span> <i data-lucide="plus"></i></summary>
-        <div class="faq-body" data-i18n="faq2_a">Sim — na pasta privada do seu próprio Google Drive (appDataFolder), visível apenas pelo app. Notas, listas, pastas, tarefas, imagens e áudios. Trocou de celular? Entre com a mesma conta.</div></details>
-      <details><summary><span data-i18n="faq3_q">Preciso de conta Google?</span> <i data-lucide="plus"></i></summary>
-        <div class="faq-body" data-i18n="faq3_a">Não. Tudo funciona offline, sem login. Ao entrar com uma conta, o que você criou deslogado migra automaticamente.</div></details>
-      <details><summary><span data-i18n="faq4_q">Como funciona o Premium vitalício?</span> <i data-lucide="plus"></i></summary>
-        <div class="faq-body" data-i18n="faq4_a">Pagamento único pela Play Store — sem assinatura. Fica vinculado à sua conta Google: em qualquer aparelho que você entrar com ela, os anúncios continuam removidos.</div></details>
-      <details><summary><span data-i18n="faq5_q">O alarme funciona com o app fechado?</span> <i data-lucide="plus"></i></summary>
-        <div class="faq-body" data-i18n="faq5_a">Sim. Popup em tela cheia com som mesmo com o app fechado e o celular bloqueado. Em Xiaomi há uma tela de permissões guiada dentro do app.</div></details>
-      <details><summary><span data-i18n="faq6_q">Minhas notas são privadas?</span> <i data-lucide="plus"></i></summary>
-        <div class="faq-body" data-i18n="faq6_a">Totalmente. O backup no Drive é encriptado com AES-256 — nem o Google consegue ler. No aparelho: bloqueio por biometria, senha por nota e PIN com trava anti tentativa.</div></details>
-      <details><summary><span data-i18n="faq8_q">O que é "encriptado de ponta a ponta"?</span> <i data-lucide="plus"></i></summary>
-        <div class="faq-body" data-i18n="faq8_a">Antes de qualquer nota sair do aparelho, ela é encriptada com AES-256. A chave é derivada do seu email Google em 4 rodadas de SHA-256 e existe apenas nos seus aparelhos: nunca viaja pela internet nem fica na nuvem. Quem entrar na sua conta sem ser você baixa apenas bytes ilegíveis — nem nós, desenvolvedores, conseguimos ler.</div></details>
-      <details><summary><span data-i18n="faq7_q">Existe versão para Windows?</span> <i data-lucide="plus"></i></summary>
-        <div class="faq-body" data-i18n="faq7_a">Sim — instalador e versão portátil na aba Downloads. Mesmo visual OLED, inicia com o Windows, fica na bandeja com os alarmes e se atualiza sozinho.</div></details>
+    <div class="faq-list">
+      <div class="faq-item rv"><button class="faq-q" aria-expanded="false"><span data-i18n="faq1_q">O app é gratuito?</span><span class="faq-ico"><i data-lucide="plus"></i></span></button>
+        <div class="faq-a"><div class="faq-a-inner" data-i18n="faq1_a">Sim. Notas, listas, pastas, alarmes, biometria e backup no Drive são grátis. O plano gratuito mostra alguns anúncios em momentos específicos — que somem para sempre com a compra única do Premium.</div></div></div>
+      <div class="faq-item rv"><button class="faq-q" aria-expanded="false"><span data-i18n="faq2_q">Meus dados ficam salvos na nuvem?</span><span class="faq-ico"><i data-lucide="plus"></i></span></button>
+        <div class="faq-a"><div class="faq-a-inner" data-i18n="faq2_a">Sim — na pasta privada do seu próprio Google Drive (appDataFolder), visível apenas pelo app. Notas, listas, pastas, tarefas, imagens e áudios. Trocou de celular? Entre com a mesma conta.</div></div></div>
+      <div class="faq-item rv"><button class="faq-q" aria-expanded="false"><span data-i18n="faq3_q">Preciso de conta Google?</span><span class="faq-ico"><i data-lucide="plus"></i></span></button>
+        <div class="faq-a"><div class="faq-a-inner" data-i18n="faq3_a">Não. Tudo funciona offline, sem login. Ao entrar com uma conta, o que você criou deslogado migra automaticamente.</div></div></div>
+      <div class="faq-item rv"><button class="faq-q" aria-expanded="false"><span data-i18n="faq4_q">Como funciona o Premium vitalício?</span><span class="faq-ico"><i data-lucide="plus"></i></span></button>
+        <div class="faq-a"><div class="faq-a-inner" data-i18n="faq4_a">Pagamento único pela Play Store — sem assinatura. Fica vinculado à sua conta Google: em qualquer aparelho que você entrar com ela, os anúncios continuam removidos.</div></div></div>
+      <div class="faq-item rv"><button class="faq-q" aria-expanded="false"><span data-i18n="faq5_q">O alarme funciona com o app fechado?</span><span class="faq-ico"><i data-lucide="plus"></i></span></button>
+        <div class="faq-a"><div class="faq-a-inner" data-i18n="faq5_a">Sim. Popup em tela cheia com som mesmo com o app fechado e o celular bloqueado. Em Xiaomi há uma tela de permissões guiada dentro do app.</div></div></div>
+      <div class="faq-item rv"><button class="faq-q" aria-expanded="false"><span data-i18n="faq6_q">Minhas notas são privadas?</span><span class="faq-ico"><i data-lucide="plus"></i></span></button>
+        <div class="faq-a"><div class="faq-a-inner" data-i18n="faq6_a">Totalmente. O backup no Drive é encriptado com AES-256 — nem o Google consegue ler. No aparelho: bloqueio por biometria, senha por nota e PIN com trava anti tentativa.</div></div></div>
+      <div class="faq-item rv"><button class="faq-q" aria-expanded="false"><span data-i18n="faq8_q">O que é "encriptado de ponta a ponta"?</span><span class="faq-ico"><i data-lucide="plus"></i></span></button>
+        <div class="faq-a"><div class="faq-a-inner" data-i18n="faq8_a">Antes de qualquer nota sair do aparelho, ela é encriptada com AES-256. A chave é derivada do seu email Google em 4 rodadas de SHA-256 e existe apenas nos seus aparelhos: nunca viaja pela internet nem fica na nuvem. Quem entrar na sua conta sem ser você baixa apenas bytes ilegíveis — nem nós, desenvolvedores, conseguimos ler.</div></div></div>
+      <div class="faq-item rv"><button class="faq-q" aria-expanded="false"><span data-i18n="faq7_q">Existe versão para Windows?</span><span class="faq-ico"><i data-lucide="plus"></i></span></button>
+        <div class="faq-a"><div class="faq-a-inner" data-i18n="faq7_a">Sim — instalador e versão portátil na aba Downloads. Mesmo visual OLED, inicia com o Windows, fica na bandeja com os alarmes e se atualiza sozinho.</div></div></div>
     </div>
   </div>
 </section>
@@ -717,6 +758,74 @@ document.querySelectorAll('.tab-btn').forEach(function(btn){
   if(!hamb||!links)return;
   hamb.addEventListener('click',function(){links.classList.toggle('aberto')});
   links.querySelectorAll('a').forEach(function(a){a.addEventListener('click',function(){links.classList.remove('aberto')})});
+})();
+
+// ===== FAQ acordeão: uma por vez, animação suave =====
+document.querySelectorAll('.faq-item').forEach(function(item){
+  var btn=item.querySelector('.faq-q');
+  btn.addEventListener('click',function(){
+    var aberto=item.classList.contains('aberto');
+    document.querySelectorAll('.faq-item.aberto').forEach(function(o){
+      o.classList.remove('aberto');
+      o.querySelector('.faq-q').setAttribute('aria-expanded','false');
+    });
+    if(!aberto){
+      item.classList.add('aberto');
+      btn.setAttribute('aria-expanded','true');
+    }
+  });
+});
+
+// ===== barra de progresso de scroll =====
+(function(){
+  var bar=document.createElement('div');
+  bar.className='scroll-progress';
+  document.body.appendChild(bar);
+  function att(){
+    var h=document.documentElement;
+    var max=h.scrollHeight-h.clientHeight;
+    bar.style.transform='scaleX('+(max>0?(h.scrollTop/max):0)+')';
+  }
+  window.addEventListener('scroll',att,{passive:true});
+  att();
+})();
+
+// ===== nav esconde ao rolar pra baixo, volta ao subir =====
+(function(){
+  var nav=document.querySelector('nav');
+  var ultimo=window.scrollY;
+  window.addEventListener('scroll',function(){
+    var y=window.scrollY;
+    if(y>ultimo&&y>140){nav.style.transform='translateY(-100%)'}
+    else{nav.style.transform=''}
+    ultimo=y;
+  },{passive:true});
+})();
+
+// ===== preço conta de 0 até 5,99 quando aparece =====
+(function(){
+  var el=document.querySelector('.price-val');
+  if(!el||!('IntersectionObserver' in window))return;
+  var alvo=5.99,feito=false;
+  var io=new IntersectionObserver(function(es){
+    es.forEach(function(e){
+      if(e.isIntersecting&&!feito){
+        feito=true;
+        var ini=performance.now(),dur=1100;
+        function frame(t){
+          var p=Math.min(1,(t-ini)/dur);
+          var eased=1-Math.pow(1-p,3);
+          var v=(alvo*eased).toFixed(2).replace('.',',');
+          el.innerHTML='R$ '+v.split(',')[0]+',<small>'+v.split(',')[1]+' </small>';
+          if(p<1)requestAnimationFrame(frame);
+          else el.innerHTML='R$ 5,99<small data-i18n="prem_vez"> uma vez</small>';
+        }
+        requestAnimationFrame(frame);
+        io.unobserve(e.target);
+      }
+    });
+  },{threshold:.4});
+  io.observe(el);
 })();
 </script>
 
