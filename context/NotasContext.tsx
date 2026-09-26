@@ -12,6 +12,7 @@ import { hidratarApagados, registrarApagado, registrarApagados, serializarApagad
 import { acharBackupCanonico } from './backup-drive';
 import { useTheme } from './ThemeContext';
 import { idiomaAtual, tIdioma } from './idiomas';
+import Cripto from '../desktop/src/lib/cripto';
 
 // SEM webClientId de propósito: o client OAuth do app (google-services.json,
 // projeto simple-notes-39893) é do tipo Android (android_info) — não é um Web
@@ -311,7 +312,7 @@ export function NotasProvider({ children }: any) {
         config: configTema ? (({ pinDesbloqueio, ...resto }: any) => resto)(configTema) : undefined,
       };
       const agoraIso = new Date().toISOString();
-      const bodyContent = JSON.stringify({
+      const payloadBackup = {
         notas: dados.notas,
         listas: dados.listas,
         pastas: dados.pastas,
@@ -320,7 +321,18 @@ export function NotasProvider({ children }: any) {
         chaveIA: configTema?.chaveIA || '',
         preferencias: prefsParaBackup,
         ultimaSincronizacao: agoraIso
-      });
+      };
+      // ── ENCRIPTAÇÃO: backup encriptado com AES-256 (chave derivada do email) ──
+      // Mesma derivação do PC (desktop/src/lib/cripto.js) — conta certa descriptografa.
+      let bodyContent: string;
+      try {
+        const chaveEnc = Cripto.derivarChave(user.user?.email);
+        const enc = chaveEnc ? Cripto.encriptarJSON(payloadBackup, chaveEnc) : null;
+        if (enc) bodyContent = enc;
+        else bodyContent = JSON.stringify(payloadBackup); // sem chave: sobe em claro (não deve ocorrer logado)
+      } catch {
+        bodyContent = JSON.stringify(payloadBackup);
+      }
 
       let res;
       if (fileId) {
@@ -392,7 +404,24 @@ export function NotasProvider({ children }: any) {
     const download = await fetch(`https://www.googleapis.com/drive/v3/files/${canonico.id}?alt=media`, {
       headers: { Authorization: `Bearer ${token}` }
     });
-    return await download.json();
+    const bruto = await download.json();
+    // ── DESCRIPTOGRAFIA: backup encriptado (AES-256, chave do email da conta) ──
+    // Envelope antigo (sem __enc) passa direto — compatível com backups velhos.
+    try {
+      if (bruto && Cripto.estaEncriptado(bruto)) {
+        const user = await GoogleSignin.getCurrentUser();
+        const chaveEnc = Cripto.derivarChave(user?.user?.email);
+        const dec = chaveEnc ? Cripto.descriptografarJSON(bruto, chaveEnc) : null;
+        if (!dec) {
+          console.log('[Cloud] Backup encriptado mas falhou a descriptografia (conta/chave errada).');
+          return null;
+        }
+        return dec;
+      }
+    } catch (e) {
+      console.log('[Cloud] Descriptografia falhou, segue bruto.');
+    }
+    return bruto;
   }, [obterTokenRapido]);
 
   // 3. SYNC AUTOMÁTICO LEVE — push debounce + pull por modifiedTime (sem pesar, só após defs acima)

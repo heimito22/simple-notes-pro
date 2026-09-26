@@ -138,43 +138,10 @@ function agendarTimer(id, titulo, quandoMs, recorrencia, horario){
 ipcMain.on('janela:minimizar',()=>janela&&janela.minimize());
 ipcMain.on('janela:maximizar',()=>{ if(!janela) return; janela.isMaximized()?janela.unmaximize():janela.maximize(); });
 ipcMain.on('janela:fechar',()=>janela&&janela.close());
-// ── CRIPTOGRAFIA LOCAL (store.json encriptado no disco) ──
-function chaveLocal(){
-  // Chave derivada do hostname + username (única por máquina)
-  var id = os.hostname() + '::' + (os.userInfo().username || 'user') + '::sn-pro-local';
-  return Cripto.derivarChave(id);
-}
-
-ipcMain.handle('store:ler',()=>{
-  var dados=deps().store.lerLocal();
-  // Se os dados vierem encriptados, descriptografa
-  if(dados && dados.__enc){
-    var chave=chaveLocal();
-    if(!chave) return dados;
-    var dec=Cripto.descriptografar(dados, chave);
-    if(dec){
-      try{ return JSON.parse(dec); }catch(e){ return dados; }
-    }
-  }
-  return dados;
-});
-
-ipcMain.handle('store:salvar',(_e,d)=>{
-  // Encripta antes de gravar no disco
-  var chave=chaveLocal();
-  if(chave && d){
-    var enc=Cripto.encriptar(JSON.stringify(d), chave);
-    if(enc){
-      // Salva o envelope encriptado no formato que store.js entende
-      // (store.js grava o que recebe; aqui substituímos pelo payload encriptado)
-      var envelope={ __enc:'AES-256-CBC', iv:enc.iv, dados:enc.dados };
-      deps().store.salvarLocal(envelope);
-      return true;
-    }
-  }
-  deps().store.salvarLocal(d);
-  return true;
-});
+// ── STORE LOCAL (sem encriptação — o arquivo local fica em claro; a encriptação
+//    é aplicada só no backup que vai pro Drive, onde importa) ──
+ipcMain.handle('store:ler',()=>deps().store.lerLocal());
+ipcMain.handle('store:salvar',(_e,d)=>{ deps().store.salvarLocal(d); return true; });
 ipcMain.handle('store:apagarTudo',async()=>{
   // PADRÃO DE SINCRONIZAÇÃO CORRETO (igual empresas grandes):
   // 1. Lê os IDs das notas atuais e cria TOMBSTONES
@@ -317,10 +284,10 @@ ipcMain.handle('store:sync:meta', async()=>{ try{ const t=await deps().googleAut
 // Deriva a chave do email da conta Google logada (mesma no PC e celular)
 function chaveDriveAtual(){
   try{
-    const {tokenDeAcesso}=deps().googleAuth;
-    // O email está em cache no googleAuth (obterInfo)
-    const info=deps().googleAuth.obterInfo ? deps().googleAuth.obterInfo() : null;
-    return info && info.email ? Cripto.derivarChave(info.email) : null;
+    // Email vem da sessão salva (síncrono) — mesma chave no PC e no celular
+    const s=deps().googleAuth.carregarSessao();
+    const email=s && s.user && s.user.email ? s.user.email : null;
+    return email ? Cripto.derivarChave(email) : null;
   }catch(e){ return null; }
 }
 
