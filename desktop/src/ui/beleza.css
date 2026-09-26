@@ -281,3 +281,155 @@ html[data-tema="light"] .modal-card{background:#FFFFFF;border-color:#E5E5EA}
 @media (prefers-reduced-motion: reduce){
   .sync-dot,.avatar{animation:none}
 }
+
+/* ========== 21. Texto que passa do limite — nome, email e contas ========== */
+/* Nome e email da conta do Drive: nunca vaza pra fora do card */
+.conta .grow{min-width:0;flex:1;overflow:hidden}
+.conta b,
+.conta small,
+#contaEmail,
+#cfgSyncInfo,
+#syncTxt,
+.conta .info-nome{
+  display:block;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  max-width:100%;
+}
+/* Inputs de texto (nome, email, chave IA): limita o que se vê */
+.modal-card input[type="text"],
+.modal-card input[type="email"],
+.modal-card input[type="password"],
+.config-row input[type="text"],
+.config-row input[type="password"],
+.config-row input[type="email"],
+.ia-input-row input{
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+/* Remove o overflow:hidden do INPUT enquanto o usuário digita (deixa o cursor andar) */
+.modal-card input:focus,
+.config-row input:focus,
+.ia-input-row input:focus{
+  overflow:visible;
+  text-overflow:clip;
+}
+
+/* ========== 22. Modo claro refinado — contraste, cores e sombra ========== */
+/* Fundo: azul-gelado em vez de cinza morto (mais vivo, menos lavado) */
+html[data-tema="light"]{
+  --bg:#F0F2F7;
+  --bg2:#FFFFFF;
+  --bg3:#FFFFFF;
+  --bg4:#EAECF2;
+  --bd:#D8DCE6;
+  --bd2:#C0C6D4;
+  --tx:#0D1220;
+  --tx2:#4E5568;
+  --tx3:#7B8296;
+  --azul-suave:#E3F0FF;
+}
+/* Titlebar: acompanha o tema */
+html[data-tema="light"] .titlebar{
+  background:#FFFFFF;
+  border-bottom-color:#E0E3EA;
+}
+html[data-tema="light"] .titlebar .fim button{color:#6E7480}
+html[data-tema="light"] .titlebar .fim button:hover{background:rgba(0,0,0,.06);color:#0D1220}
+/* Sidebar: branco com borda sutil */
+html[data-tema="light"] .sidebar{
+  background:#FBFBFE;
+  border-right:1px solid #E4E7EE;
+}
+/* Cards: branco puro com sombra quente e borda definida */
+html[data-tema="light"] .card{
+  background:#FFFFFF;
+  border:1px solid #E0E4EC;
+  box-shadow:0 1px 2px rgba(13,18,32,.04),0 2px 8px rgba(13,18,32,.05);
+}
+html[data-tema="light"] .card:hover{
+  border-color:#B8C4E0;
+  box-shadow:0 4px 16px rgba(13,18,32,.08),0 1px 4px rgba(13,18,32,.04);
+}
+/* Botões: mais contraste no claro */
+html[data-tema="light"] .btn{
+  background:#EDF0F6;
+  border:1px solid #D5DAE4;
+  color:#0D1220;
+}
+html[data-tema="light"] .btn:hover{
+  background:#E2E8F4;
+  border-color:#B8C4E0;
+}
+html[data-tema="light"] .btn.prim{
+  background:var(--azul);
+  border-color:var(--azul);
+  color:#fff;
+}
+html[data-tema="light"] .btn.prim:hover{
+  background:#0066E6;
+}
+/* Editor: fundo branco quente, não estéral */
+html[data-tema="light"] .editor,
+html[data-tema="light"] .editor-conteudo{
+  background:#FEFEFE;
+  color:#0D1220;
+}
+/* Placeholder mais visível no claro */
+html[data-tema="light"] ::placeholder{
+  color:#9BA2B5;
+  opacity:1;
+}
+/* Badges e selos: mais contraste */
+html[data-tema="light"] .badge{
+  background:#E8ECF6;
+  color:#3E4A6B;
+  border:1px solid #D0D6E8;
+}
+/* Modal overlay: mais opaco no claro */
+html[data-tema="light"] .modal-bg{
+  background:rgba(13,18,32,.35);
+}
+/* Inputs: fundo levemente azul-gelado (fica bonito no claro) */
+html[data-tema="light"] .config-row input[type="text"],
+html[data-tema="light"] .config-row input[type="password"],
+html[data-tema="light"] .config-row input[type="email"],
+html[data-tema="light"] .modal-card input,
+html[data-tema="light"] .modal-card select,
+html[data-tema="light"] .ia-input-row input{
+  background:#F6F8FC;
+  border:1px solid #D5DAE6;
+  color:#0D1220;
+}
+html[data-tema="light"] .config-row input:focus,
+html[data-tema="light"] .modal-card input:focus,
+html[data-tema="light"] .ia-input-row input:focus{
+  background:#FFFFFF;
+  border-color:var(--azul);
+  box-shadow:0 0 0 3px rgba(10,132,255,.12);
+}
+/* Nav items ativos no claro */
+html[data-tema="light"] .nav-item.ativo{
+  background:#E3F0FF;
+  color:#0066CC;
+}
+html[data-tema="light"] .nav-item:hover{
+  background:#EDF0F6;
+}
+/* Config groups: mais definidos */
+html[data-tema="light"] .config-group{
+  background:#FFFFFF;
+  border:1px solid #E0E4EC;
+  box-shadow:0 1px 3px rgba(13,18,32,.04);
+}
+/* Toggle/switch: mais visível */
+html[data-tema="light"] .switch{
+  background:#D0D5E0;
+  border:1px solid #C0C6D4;
+}
+html[data-tema="light"] .switch.on{
+  background:var(--azul);
+  border-color:var(--azul);
+}
