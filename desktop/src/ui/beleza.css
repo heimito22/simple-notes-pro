@@ -320,48 +320,48 @@ html[data-tema="light"] .modal-card{background:#FFFFFF;border-color:#E5E5EA}
 /* ========== 22. Modo claro refinado — contraste, cores e sombra ========== */
 /* Fundo: azul-gelado em vez de cinza morto (mais vivo, menos lavado) */
 html[data-tema="light"]{
-  --bg:#F0F2F7;
+  --bg:#EDF0F6;
   --bg2:#FFFFFF;
   --bg3:#FFFFFF;
-  --bg4:#EAECF2;
-  --bd:#D8DCE6;
-  --bd2:#C0C6D4;
-  --tx:#0D1220;
-  --tx2:#4E5568;
-  --tx3:#7B8296;
-  --azul-suave:#E3F0FF;
+  --bg4:#E4E8F0;
+  --bd:#B8BFCF;
+  --bd2:#98A0B8;
+  --tx:#0B101E;
+  --tx2:#3E4558;
+  --tx3:#6A7084;
+  --azul-suave:#DCEBFF;
 }
 /* Titlebar: acompanha o tema */
 html[data-tema="light"] .titlebar{
   background:#FFFFFF;
-  border-bottom-color:#E0E3EA;
+  border-bottom-color:#D0D6E4;
 }
-html[data-tema="light"] .titlebar .fim button{color:#6E7480}
-html[data-tema="light"] .titlebar .fim button:hover{background:rgba(0,0,0,.06);color:#0D1220}
-/* Sidebar: branco com borda sutil */
+html[data-tema="light"] .titlebar .fim button{color:#5A6070}
+html[data-tema="light"] .titlebar .fim button:hover{background:rgba(0,0,0,.07);color:#0B101E}
+/* Sidebar: branco com borda definida */
 html[data-tema="light"] .sidebar{
-  background:#FBFBFE;
-  border-right:1px solid #E4E7EE;
+  background:#F8F9FD;
+  border-right:1px solid #D0D6E4;
 }
-/* Cards: branco puro com sombra quente e borda definida */
+/* Cards: borda mais escura pra definira borda do card */
 html[data-tema="light"] .card{
   background:#FFFFFF;
-  border:1px solid #E0E4EC;
-  box-shadow:0 1px 2px rgba(13,18,32,.04),0 2px 8px rgba(13,18,32,.05);
+  border:1px solid #C4CDDC;
+  box-shadow:0 1px 3px rgba(11,16,30,.06),0 2px 10px rgba(11,16,30,.05);
 }
 html[data-tema="light"] .card:hover{
-  border-color:#B8C4E0;
-  box-shadow:0 4px 16px rgba(13,18,32,.08),0 1px 4px rgba(13,18,32,.04);
+  border-color:#98A0B8;
+  box-shadow:0 6px 20px rgba(11,16,30,.10),0 2px 8px rgba(11,16,30,.05);
 }
-/* Botões: mais contraste no claro */
+/* Botões: contraste forte */
 html[data-tema="light"] .btn{
-  background:#EDF0F6;
-  border:1px solid #D5DAE4;
-  color:#0D1220;
+  background:#E4E8F2;
+  border:1px solid #B8BFCF;
+  color:#0B101E;
 }
 html[data-tema="light"] .btn:hover{
-  background:#E2E8F4;
-  border-color:#B8C4E0;
+  background:#D5DAEA;
+  border-color:#98A0B8;
 }
 html[data-tema="light"] .btn.prim{
   background:var(--azul);
@@ -371,65 +371,142 @@ html[data-tema="light"] .btn.prim{
 html[data-tema="light"] .btn.prim:hover{
   background:#0066E6;
 }
-/* Editor: fundo branco quente, não estéral */
+/* Editor */
 html[data-tema="light"] .editor,
 html[data-tema="light"] .editor-conteudo{
-  background:#FEFEFE;
-  color:#0D1220;
+  background:#FFFFFF;
+  color:#0B101E;
 }
-/* Placeholder mais visível no claro */
 html[data-tema="light"] ::placeholder{
-  color:#9BA2B5;
+  color:#8A90A6;
   opacity:1;
 }
-/* Badges e selos: mais contraste */
+/* Badges e selos */
 html[data-tema="light"] .badge{
-  background:#E8ECF6;
-  color:#3E4A6B;
-  border:1px solid #D0D6E8;
+  background:#DCE4F6;
+  color:#2E3A5C;
+  border:1px solid #B4C0E0;
 }
-/* Modal overlay: mais opaco no claro */
+/* Modal overlay: mais opaco */
 html[data-tema="light"] .modal-bg{
-  background:rgba(13,18,32,.35);
+  background:rgba(11,16,30,.32);
 }
-/* Inputs: fundo levemente azul-gelado (fica bonito no claro) */
+html[data-tema="light"] .modal-overlay{
+  background:rgba(11,16,30,.32);
+}
+/* Inputs: borda visível + foco azul */
 html[data-tema="light"] .config-row input[type="text"],
 html[data-tema="light"] .config-row input[type="password"],
+html[data-tema="config-row"] input[type="email"],
 html[data-tema="light"] .config-row input[type="email"],
 html[data-tema="light"] .modal-card input,
 html[data-tema="light"] .modal-card select,
 html[data-tema="light"] .ia-input-row input{
-  background:#F6F8FC;
-  border:1px solid #D5DAE6;
-  color:#0D1220;
+  background:#F4F7FD;
+  border:1px solid #B8BFCF;
+  color:#0B101E;
 }
 html[data-tema="light"] .config-row input:focus,
 html[data-tema="light"] .modal-card input:focus,
 html[data-tema="light"] .ia-input-row input:focus{
   background:#FFFFFF;
   border-color:var(--azul);
-  box-shadow:0 0 0 3px rgba(10,132,255,.12);
+  box-shadow:0 0 0 3px rgba(10,132,255,.14);
 }
-/* Nav items ativos no claro */
+/* Nav items ativos */
 html[data-tema="light"] .nav-item.ativo{
-  background:#E3F0FF;
-  color:#0066CC;
+  background:#DCEBFF;
+  color:#0055AA;
+  border:1px solid #B4D4F6;
 }
 html[data-tema="light"] .nav-item:hover{
-  background:#EDF0F6;
+  background:#E8ECF6;
 }
-/* Config groups: mais definidos */
+/* Config groups */
 html[data-tema="light"] .config-group{
   background:#FFFFFF;
-  border:1px solid #E0E4EC;
-  box-shadow:0 1px 3px rgba(13,18,32,.04);
+  border:1px solid #C4CDDC;
+  box-shadow:0 1px 4px rgba(11,16,30,.05);
 }
-/* Toggle/switch: mais visível */
+/* Toggle/switch */
 html[data-tema="light"] .switch{
-  background:#D0D5E0;
-  border:1px solid #C0C6D4;
+  background:#C4CDDC;
+  border:1px solid #98A0B8;
 }
 html[data-tema="light"] .switch.on{
   background:var(--azul);
   border-color:var(--azul);
+}
+
+/* ========== 23. Bloqueio/ PIN no modo claro — VISÍVEL ========== */
+/* Overlay: menos escuro que o dark (o card branco precisa contrastar) */
+html[data-tema="light"] .bloqueio-overlay{
+  background:rgba(11,16,30,.45);
+  backdrop-filter:blur(20px) saturate(.8);
+}
+html[data-tema="light"] .pin-overlay{
+  background:rgba(11,16,30,.35);
+}
+/* Card do bloqueio: borda forte pra separar do overlay */
+html[data-tema="light"] .bloqueio-card,
+html[data-tema="light"] .pin-card{
+  background:#FFFFFF;
+  border:2px solid #98A0B8;
+  box-shadow:0 24px 80px rgba(11,16,30,.25),0 8px 32px rgba(11,16,30,.15);
+}
+html[data-tema="light"] .bloqueio-card h2{
+  color:#0B101E;
+}
+html[data-tema="light"] .bloqueio-card p,
+html[data-tema="light"] .pin-card p{
+  color:#4E5568;
+}
+/* PIN dots: círculos escuros com preenchimento azul forte */
+html[data-tema="light"] .pin-dot{
+  border:2px solid #98A0B8;
+  background:#F0F2F8;
+}
+html[data-tema="light"] .pin-dot.on{
+  background:var(--azul);
+  border-color:var(--azul);
+  box-shadow:0 0 0 5px rgba(10,132,255,.15);
+}
+/* PIN pad: botões com borda forte e fundo definido */
+html[data-tema="light"] .pin-key{
+  background:#EDF0F8;
+  border:1px solid #B8BFCF;
+  color:#0B101E;
+  box-shadow:0 1px 3px rgba(11,16,30,.08);
+}
+html[data-tema="light"] .pin-key:hover{
+  background:#DDE4F4;
+  border-color:#7880A0;
+  box-shadow:0 2px 8px rgba(11,16,30,.12);
+}
+html[data-tema="light"] .pin-key:active{
+  background:#D0D8EC;
+  border-color:#586080;
+}
+/* Dots de erro (PIN errado): vermelho visível */
+html[data-tema="light"] .pin-dot.erro{
+  border-color:#E03030;
+  background:#FFE8E8;
+}
+/* Alarme toast no claro */
+html[data-tema="light"] .alarm-toast{
+  background:#FFFFFF;
+  border:1px solid #C4CDDC;
+  box-shadow:0 12px 48px rgba(11,16,30,.18);
+  color:#0B101E;
+}
+/* Alarme overlay no claro */
+html[data-tema="light"] .alarme-overlay{
+  background:rgba(11,16,30,.45);
+  backdrop-filter:blur(18px);
+}
+html[data-tema="light"] .alarme-card{
+  background:#FFFFFF;
+  border:2px solid #98A0B8;
+  box-shadow:0 24px 80px rgba(11,16,30,.25);
+  color:#0B101E;
 }
