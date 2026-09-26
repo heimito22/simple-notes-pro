@@ -457,6 +457,9 @@ async function reconciliarComNuvem(dados, metaIso){
     try{ await S.configSalvar({ chaveIA: dados.chaveIA }); }catch(e){}
     config.chaveIA=dados.chaveIA;
   }
+  // ── Captura ANTES do wipe e do merge (pra detectar que o wipe mudou algo) ──
+  var antes=JSON.stringify({ n:store.notas, l:store.listas, p:store.pastas, t:store.tarefas });
+
   // ── WIPE MARKER: "apagar tudo" do outro aparelho ──
   // Sem isto, notas que SÓ existiam no PC sobreviviam ao "apagar tudo"
   // do celular (o celular nem sabia que elas existiam pra criar tombstone).
@@ -473,10 +476,9 @@ async function reconciliarComNuvem(dados, metaIso){
     store.pastas=(P.aplicarWipe(store.pastas, wipeAllAt, 0)).itens;
     store.tarefas=(P.aplicarWipe(store.tarefas, wipeAllAt, 0)).itens;
     try{ localStorage.setItem('sn_wipe_visto', String(wipeAllAt)); }catch(e){}
-    console.log('[Sync] WIPE processado: sobreviveram', store.notas.length, 'de', antesWipe, 'itens');
-  }
-  var antes=JSON.stringify({ n:store.notas, l:store.listas, p:store.pastas, t:store.tarefas });
-  var mesclar=function(remotos, locais){
+     console.log('[Sync] WIPE processado: sobreviveram', store.notas.length, 'de', antesWipe, 'itens');
+   }
+   var mesclar=function(remotos, locais){
     if(window.Merge) return window.Merge.mesclar(remotos, locais);
     return { itens: remotos||[], localVenceu:false };
   };
