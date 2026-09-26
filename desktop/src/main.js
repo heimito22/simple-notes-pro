@@ -128,13 +128,43 @@ ipcMain.on('janela:fechar',()=>janela&&janela.close());
 ipcMain.handle('store:ler',()=>deps().store.lerLocal());
 ipcMain.handle('store:salvar',(_e,d)=>{deps().store.salvarLocal(d); return true;});
 ipcMain.handle('store:apagarTudo',async()=>{
-  // Apaga local e, se logado, apaga backup na nuvem (igual celular)
+  // PADRÃO DE SINCRONIZAÇÃO CORRETO (igual empresas grandes):
+  // 1. Lê os IDs das notas atuais e cria TOMBSTONES
+  // 2. SOBE um backup vazio + tombstones pro Drive (NUNCA deleta o arquivo)
+  // 3. Apaga o local
+  // Sem isto: o celular via "Drive vazio", o merge mantinha tudo local
+  // dele e RE-SUBIA as notas apagadas.
   try{
-    const {apagarTudoLocal, apagarBackupDrive}=deps().store;
+    const store = deps().store;
     const {tokenDeAcesso}=deps().googleAuth;
     let nuvemOk=true;
-    try{ const t=await tokenDeAcesso(); if(t) nuvemOk=await apagarBackupDrive(t); }catch(e){ nuvemOk=false; }
-    apagarTudoLocal();
+
+    // Lê as notas atuais antes de apagar (pra criar os tombstones)
+    const dados = store.lerLocal();
+    const todosIds = [];
+    for (const campo of ['notas','listas','pastas','tarefas']) {
+      (dados?.[campo]||[]).forEach(it => { if (it?.id != null) todosIds.push(String(it.id)); });
+    }
+
+    // Se logado, sobe backup VAZIO com os tombstones (não deleta!)
+    try{
+      const t=await tokenDeAcesso();
+      if(t && todosIds.length > 0){
+        const agora = Date.now();
+        const apagados = todosIds.map(id => ({ id, ts: agora }));
+        const backupVazio = { notas: [], listas: [], pastas: [], tarefas: [], apagados: apagados };
+        const r = await store.enviarBackupDrive(t, backupVazio);
+        nuvemOk = r?.ok ?? false;
+      } else if (t) {
+        // Sem notas locais (já vazio): só sobe o backup vazio
+        const r = await store.enviarBackupDrive(t, { notas: [], listas: [], pastas: [], tarefas: [], apagados: [] });
+        nuvemOk = r?.ok ?? false;
+      }
+    }catch(e){ nuvemOk=false; }
+
+    // Apaga o local
+    store.apagarTudoLocal();
+
     // cancela timers
     for(const k of timersAlarme.keys()) limparTimer(k);
     return {ok:true, nuvemOk};

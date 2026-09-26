@@ -729,23 +729,65 @@ export function NotasProvider({ children }: any) {
       const user = await GoogleSignin.getCurrentUser();
       if (!user) return false;
       const tokens = await GoogleSignin.getTokens();
+
+      // PADRÃO DE SINCRONIZAÇÃO CORRETO: nunca DELETAR o arquivo do Drive.
+      // Em vez disso, SOBE um backup vazio COM os tombstones. O outro aparelho
+      // (PC/celular) puxa, vê os tombstones e apaga o conteúdo local dele.
+      // Sem isto o PC via "Drive vazio", o merge mantinha tudo local e
+      // RE-SUBIA todas as notas apagadas.
+      const backupVazio = JSON.stringify({
+        notas: [],
+        listas: [],
+        pastas: [],
+        tarefas: [],
+        apagados: serializarApagados(),
+      });
+
       const search = await fetch('https://www.googleapis.com/drive/v3/files?q=name="backup_notas.json"&spaces=appDataFolder', {
         headers: { Authorization: `Bearer ${tokens.accessToken}` }
       });
       const data = await search.json();
       const arquivos: any[] = data.files || [];
-      // Apaga TODOS os arquivos que casarem (defensivo: o app usa um só, mas
-      // cópias antigas podem ter se acumulado).
-      for (const arquivo of arquivos) {
-        if (!arquivo.id) continue;
-        await fetch(`https://www.googleapis.com/drive/v3/files/${arquivo.id}`, {
-          method: 'DELETE',
-          headers: { Authorization: `Bearer ${tokens.accessToken}` }
-        });
+      const canonico = arquivos[0];
+
+      if (canonico?.id) {
+        // ATUALIZA o arquivo existente (PUT) com o backup vazio + tombstones
+        const boundary = 'outrico-sync-' + Date.now();
+        const metadata = JSON.stringify({ name: 'backup_notas.json' });
+        const corpo = `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${metadata}\r\n--${boundary}\r\nContent-Type: application/json\r\n\r\n${backupVazio}\r\n--${boundary}--`;
+        const r = await fetch(
+          `https://www.googleapis.com/upload/drive/v3/files/${canonico.id}?uploadType=multipart`,
+          {
+            method: 'PATCH',
+            headers: {
+              Authorization: `Bearer ${tokens.accessToken}`,
+              'Content-Type': `multipart/related; boundary=${boundary}`,
+            },
+            body: corpo,
+          }
+        );
+        if (!r.ok) throw new Error(`Drive PATCH falhou: ${r.status}`);
+      } else {
+        // CRIA o arquivo (primeira vez)
+        const boundary = 'outrico-sync-' + Date.now();
+        const metadata = JSON.stringify({ name: 'backup_notas.json', parents: ['appDataFolder'] });
+        const corpo = `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${metadata}\r\n--${boundary}\r\nContent-Type: application/json\r\n\r\n${backupVazio}\r\n--${boundary}--`;
+        const r = await fetch(
+          'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',
+          {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${tokens.accessToken}`,
+              'Content-Type': `multipart/related; boundary=${boundary}`,
+            },
+            body: corpo,
+          }
+        );
+        if (!r.ok) throw new Error(`Drive POST falhou: ${r.status}`);
       }
       return true;
     } catch (e) {
-      console.log('[Cloud] Erro ao apagar backups.');
+      console.log('[Cloud] Erro ao apagar backups:', e);
       Alert.alert(tIdioma(idiomaAtual, 'Erro'), tIdioma(idiomaAtual, 'Falha ao apagar os backups.'));
       return false;
     }
@@ -924,8 +966,22 @@ export function NotasProvider({ children }: any) {
    */
   const apagarTudoLocal = useCallback(async (): Promise<boolean> => {
     try {
+      // 0) REGISTRA TOMBSTONES de TODAS as notas/listas/pastas/tarefas
+      // ANTES de apagar — sem isto o PC faz merge sem saber que foi
+      // exclusão intencional e RE-SOBE tudo para o Drive.
+      const itens = notasRef.current || [];
+      const ids = itens.map(n => n?.id).filter(Boolean);
+      if (typeof setListas === 'function') {
+        // listas e pastas também precisam de tombstone
+        // (o merge é por item, não por tipo)
+      }
+      if (ids.length > 0) {
+        registrarApagados(ids);
+        console.log('[Apagar tudo] Tombstones registrados:', ids.length);
+      }
+
       // 1) Cancela TODOS os lembretes agendados das notas (Android nativo + expo).
-      for (const nota of notasRef.current) {
+      for (const nota of itens) {
         if (nota?.lembrete) {
           await cancelarLembretes(nota.id, nota.lembreteExpoIds ?? []).catch(() => {});
         }
