@@ -786,8 +786,8 @@ export default function SettingsScreen() {
                   <View style={{ flex: 1, marginLeft: 12 }}>
                     <Text style={[styles.somNome, { color: cores.somNome }]}>{idioma.rotulo}</Text>
                     <Text style={[styles.somDesc, { color: cores.sheetSub }]}>
-                      {idioma.cod === 'pt' && t('Português (padrão)')}
-                      {idioma.cod === 'en' && t('Inglês')}
+                      {idioma.cod === 'pt' && t('Português')}
+                      {idioma.cod === 'en' && t('Inglês (universal)')}
                       {idioma.cod === 'es' && t('Espanhol')}
                     </Text>
                   </View>

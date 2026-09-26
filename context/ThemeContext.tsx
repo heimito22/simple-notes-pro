@@ -1,9 +1,31 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Platform } from 'react-native';
+import { NativeModules, Platform } from 'react-native';
 import { definirSomAlarme } from '../modules/minhasnotas-alarm';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { ehSomAlarme, SOM_PADRAO, type SomAlarme } from './sons-alarme';
 import { definirIdiomaAtual, ehIdioma, tIdioma, type Idioma } from './idiomas';
+
+/**
+ * Idioma do DISPOSITIVO (primeira execução, antes de qualquer escolha do usuário).
+ * pt* → pt · es* → es · qualquer outro → en (universal).
+ */
+function idiomaDoDispositivo(): Idioma {
+  try {
+    const locale =
+      (NativeModules.I18nManager && NativeModules.I18nManager.localeIdentifier) ||
+      (NativeModules.SettingsManager &&
+        NativeModules.SettingsManager.settings &&
+        (NativeModules.SettingsManager.settings.AppleLocale ||
+          (NativeModules.SettingsManager.settings.AppleLanguages || [])[0])) ||
+      'en';
+    const cod = String(locale).toLowerCase().split(/[-_]/)[0];
+    if (cod === 'pt') return 'pt';
+    if (cod === 'es') return 'es';
+    return 'en';
+  } catch {
+    return 'en';
+  }
+}
 
 // 1. Defina a interface para as configurações
 interface Config {
@@ -74,7 +96,15 @@ export default function ThemeProvider({ children }: { children: React.ReactNode 
           if (parseada.idioma !== undefined && !ehIdioma(parseada.idioma)) {
             delete parseada.idioma;
           }
+          // Sem idioma salvo (primeira execução): segue o idioma do DISPOSITIVO.
+          // Escolha manual explícita (idioma válido salvo) sempre vence.
+          if (parseada.idioma === undefined) {
+            parseada.idioma = idiomaDoDispositivo();
+          }
           setConfig({ ...CONFIG_PADRAO, ...parseada });
+        } else {
+          // Nunca configurado: idioma do dispositivo (fallback en universal)
+          setConfig({ ...CONFIG_PADRAO, idioma: idiomaDoDispositivo() });
         }
       } catch (e) {
         console.error("Erro ao carregar preferências", e);

@@ -1005,16 +1005,27 @@ if(alarmSonecaEl) alarmSonecaEl.addEventListener('click', async function(){
 });
 
 async function carregar(){
+  function idiomaDoSistema(){
+    // Idioma do Windows/navegador: pt* → pt · es* → es · resto → en (universal)
+    try{
+      var nav=(navigator.languages && navigator.languages[0]) || navigator.language || '';
+      var cod=String(nav).toLowerCase().split(/[-_]/)[0];
+      if(cod==='pt') return 'pt';
+      if(cod==='es') return 'es';
+    }catch(e){}
+    return 'en';
+  }
   try{
     store=await S.storeLer();
     config=store.config || await S.configLer().catch(function(){return null;}) || store.config;
-    if(!config) config={ temaEscuro:true, idioma:'pt', chaveIA:'', pinDesbloqueio:'', exigirBiometriaApp:false, tempoBloqueio:0, tempoSoneca:10, somAlarme:'classico', exibirAjudaFAB:true };
+    if(!config) config={ temaEscuro:true, idioma:idiomaDoSistema(), chaveIA:'', pinDesbloqueio:'', exigirBiometriaApp:false, tempoBloqueio:0, tempoSoneca:10, somAlarme:'classico', exibirAjudaFAB:true };
+    if(!config.idioma) config.idioma=idiomaDoSistema();
     if(store.chaveIA && !config.chaveIA) config.chaveIA=store.chaveIA;
-  }catch(e){ console.error('storeLer',e); store={notas:[],listas:[],pastas:[],tarefas:[],chaveIA:'',config:null}; config={ temaEscuro:true, idioma:'pt', chaveIA:'', pinDesbloqueio:'', exigirBiometriaApp:false, tempoBloqueio:0, tempoSoneca:10, somAlarme:'classico' }; }
+  }catch(e){ console.error('storeLer',e); store={notas:[],listas:[],pastas:[],tarefas:[],chaveIA:'',config:null}; config={ temaEscuro:true, idioma:idiomaDoSistema(), chaveIA:'', pinDesbloqueio:'', exigirBiometriaApp:false, tempoBloqueio:0, tempoSoneca:10, somAlarme:'classico' }; }
   store.notas=Array.isArray(store.notas)?store.notas:[]; store.listas=Array.isArray(store.listas)?store.listas:[]; store.pastas=Array.isArray(store.pastas)?store.pastas:[]; store.tarefas=Array.isArray(store.tarefas)?store.tarefas:[]; 
   aplicarTema();
   // idioma: aplica antes do primeiro render (I18N traduz o HTML estático)
-  if(window.I18N) window.I18N.definir(config.idioma||'pt');
+  if(window.I18N) window.I18N.definir(config.idioma||idiomaDoSistema());
   // Estado inicial é "o que já está aqui": o merge é quem decide o que a nuvem
   // acrescenta. Antes o boot SUBSTITUÍA o store inteiro pelo backup — nota
   // criada offline/não logado era apagada ao abrir o app logado.

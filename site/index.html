@@ -122,6 +122,8 @@
             text-decoration: none;
             color: var(--text-main);
             margin-right: auto;
+            white-space: nowrap;
+            flex-shrink: 0;
         }
 
         /* Logo = ícone real do app (a arte do favicon ampliada) */
@@ -143,6 +145,8 @@
         .nav-links {
             display: flex;
             gap: 4px;
+            align-items: center;
+            flex-wrap: nowrap;
         }
 
         .nav-links a {
@@ -150,9 +154,10 @@
             text-decoration: none;
             font-size: 0.9rem;
             font-weight: 600;
-            padding: 9px 16px;
+            padding: 9px 14px;
             border-radius: 100px;
             transition: all 0.25s ease;
+            white-space: nowrap;
         }
 
         .nav-links a:hover { color: #fff; background: rgba(255,255,255,0.06); }
@@ -169,7 +174,7 @@
 
         .nav-cta:hover { background: var(--primary-strong) !important; }
 
-        @media (max-width: 720px) {
+        @media (max-width: 900px) {
             .nav-links a:not(.nav-cta) { display: none; }
         }
 
