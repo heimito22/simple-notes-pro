@@ -77,6 +77,7 @@ header{padding:150px 0 0}
 .hero{display:grid;grid-template-columns:1.05fr .95fr;gap:56px;align-items:center}
 .overline{font:600 .72rem var(--mono);letter-spacing:.14em;color:var(--acc2);text-transform:uppercase;margin-bottom:18px;display:flex;align-items:center;gap:10px}
 .overline::before{content:"";width:22px;height:1px;background:var(--acc)}
+.overline{white-space:nowrap}
 h1{font-size:clamp(2.6rem,5.4vw,4.1rem);font-weight:800;line-height:1.04;letter-spacing:-.035em;margin-bottom:22px}
 h1 em{font-style:normal;color:var(--acc)}
 .hero-sub{color:var(--mut);font-size:1.06rem;max-width:520px;margin-bottom:30px}
@@ -87,31 +88,18 @@ h1 em{font-style:normal;color:var(--acc)}
 .btn-primary:hover{background:#0a74e0;transform:translateY(-1px)}
 .btn-ghost{border-color:var(--line2);color:var(--txt)}
 .btn-ghost:hover{border-color:var(--acc);color:var(--acc2)}
-.trust{display:flex;gap:10px;flex-wrap:wrap}
-.trust span{font:500 .7rem var(--mono);color:var(--mut2);letter-spacing:.06em;border:1px solid var(--line);border-radius:6px;padding:5px 10px;white-space:nowrap}
+.trust{display:flex;gap:8px;flex-wrap:wrap}
+.trust span{font:500 .68rem var(--mono);color:var(--mut2);letter-spacing:.05em;border:1px solid var(--line);border-radius:6px;padding:4px 9px;white-space:nowrap}
 .trust span b{color:var(--mut);font-weight:600}
 
 /* phone */
 .phone-wrap{display:flex;justify-content:center;position:relative}
-.phone-back{position:absolute;right:calc(50% - 200px);top:26px;transform:rotate(7deg) scale(.92);opacity:.5;filter:saturate(.8);z-index:-1;animation-delay:-3.5s}
-@media(max-width:880px){.phone-back{display:none}}
+
+@media(max-width:880px){}
 .phone{width:288px;aspect-ratio:9/19;border-radius:38px;border:1px solid var(--line2);background:#0d0d0f;padding:8px;box-shadow:0 40px 90px -30px rgba(0,0,0,.9),0 0 70px -30px rgba(10,132,255,.22);position:relative}
 .phone-screen{width:100%;height:100%;border-radius:30px;overflow:hidden;background:#000;position:relative}
 .phone-screen img{width:100%;height:100%;object-fit:cover}
-.phone-ui{position:absolute;inset:0;display:flex;flex-direction:column;background:#000;color:#fff;padding:14px 14px 0}
-.pu-status{display:flex;justify-content:space-between;font:600 .58rem var(--sans);color:rgba(255,255,255,.8)}
-.pu-title{font-weight:800;font-size:1.3rem;letter-spacing:-.02em;margin-top:10px}
-.pu-search{margin-top:8px;background:#131315;border:1px solid #232326;border-radius:10px;padding:7px 10px;font-size:.58rem;color:#7c7c82}
-.pu-notas{display:flex;flex-direction:column;gap:8px;margin-top:10px}
-.pu-nota{background:#131315;border:1px solid #232326;border-radius:12px;padding:9px 11px}
-.pu-nota b{font-size:.66rem;font-weight:700;display:block}
-.pu-nota span{font-size:.55rem;color:#7c7c82;display:block;margin-top:2px}
-.pu-fab{position:absolute;right:14px;bottom:54px;width:42px;height:42px;border-radius:12px;background:var(--acc);display:flex;align-items:center;justify-content:center}
-.pu-fab i{width:18px;height:18px;color:#fff}
-.pu-tabbar{position:absolute;left:0;right:0;bottom:0;background:#09090b;border-top:1px solid rgba(255,255,255,.06);display:flex;justify-content:space-around;padding:8px 0 12px}
-.pu-tab{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:.48rem;font-weight:600;color:#7c7c82}
-.pu-tab i{width:14px;height:14px}
-.pu-tab.ativa{color:var(--acc)}
+/* phone-ui removido: print real no lugar */
 
 /* ===== strip specs ===== */
 .strip{border-top:1px solid var(--line);border-bottom:1px solid var(--line);margin-top:90px;background:rgba(255,255,255,.014)}
@@ -201,20 +189,17 @@ h2{font-size:clamp(1.7rem,3.4vw,2.3rem);font-weight:750;letter-spacing:-.03em;li
 .vs-head .vs-cell:last-child{color:var(--ok)}
 
 /* ===== desktop ===== */
-.win-mock{border:1px solid var(--line2);border-radius:12px;overflow:hidden;background:#0d0d0f;box-shadow:0 40px 80px -30px rgba(0,0,0,.85),0 0 60px -30px rgba(10,132,255,.18)}
-.win-shot img{width:100%;height:auto;display:block}
-.win-bar{display:flex;align-items:center;gap:8px;background:#131316;border-bottom:1px solid var(--line);padding:10px 14px}
-.win-dot{width:11px;height:11px;border-radius:50%}
-.win-title{font:500 .72rem var(--mono);color:var(--mut2);margin-left:8px}
-.win-body{display:grid;grid-template-columns:170px 1fr;min-height:300px}
-.win-side{border-right:1px solid var(--line);padding:16px 0;background:#0a0a0c}
-.win-side-item{font-size:.78rem;color:var(--mut);padding:8px 16px;display:flex;align-items:center;gap:9px}
-.win-side-item i{width:14px;height:14px}
-.win-side-item.ativa{color:var(--txt);background:rgba(255,255,255,.04);border-right:2px solid var(--acc)}
-.win-main{padding:18px}
-.win-note{border:1px solid var(--line);border-radius:10px;background:#101013;padding:12px 14px;margin-bottom:10px}
-.win-note b{font-size:.8rem;display:block}
-.win-note span{font-size:.7rem;color:var(--mut)}
+.win-mock{border:1px solid var(--line2);border-radius:14px;overflow:hidden;background:#0d0d0f;box-shadow:0 40px 80px -30px rgba(0,0,0,.85),0 0 60px -30px rgba(10,132,255,.18)}
+.win-shot-img,.win-mock img{width:100%;height:auto;display:block}
+
+
+
+
+
+
+
+
+
 .desk-feats{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:32px}
 .desk-feat{border:1px solid var(--line);border-radius:12px;padding:20px;background:var(--surface)}
 .desk-feat h4{font-size:.92rem;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:9px}
@@ -273,10 +258,9 @@ footer{border-top:1px solid var(--line);padding:52px 0 36px;background:rgba(255,
 .marquee-track span i{width:12px;height:12px;color:var(--acc);flex-shrink:0}
 @keyframes marq{to{transform:translateX(-50%)}}
 .marquee:hover .marquee-track{animation-play-state:paused}
-/* borda animada no price */
+/* borda superior do price (estática, limpa) */
 .price-card{position:relative}
-@keyframes orbit{to{transform:rotate(1turn)}}
-.price-card::before{content:"";position:absolute;inset:-1px;border-radius:17px;padding:1px;background:conic-gradient(from var(--a,0deg),transparent 0 30%,rgba(255,214,10,.5) 50%,transparent 70% 100%);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;animation:orbit 6s linear infinite;pointer-events:none;opacity:.8}
+.price-card::before{content:"";position:absolute;top:0;left:24px;right:24px;height:1px;background:linear-gradient(90deg,transparent,rgba(255,214,10,.55),transparent)}
 /* stagger bento */
 .bento .b-card:nth-child(2n){transition-delay:.07s}
 .bento .b-card:nth-child(3n){transition-delay:.14s}
@@ -301,10 +285,10 @@ footer{border-top:1px solid var(--line);padding:52px 0 36px;background:rgba(255,
   .b-card,.b-card.wide,.b-card.half{grid-column:span 12}
   .tab-panel.ativo{grid-template-columns:1fr}
   .desk-feats{grid-template-columns:1fr}
-  .win-body{grid-template-columns:1fr}
-  .win-side{display:flex;overflow-x:auto;border-right:none;border-bottom:1px solid var(--line);padding:8px}
-  .win-side-item{white-space:nowrap;padding:8px 12px}
-  .win-side-item.ativa{border-right:none;border-bottom:2px solid var(--acc)}
+  
+  
+  
+  
   .spec-row{grid-template-columns:1fr}
   .spec-k{border-right:none;border-bottom:1px solid var(--line)}
   .vs-row{grid-template-columns:1fr}
@@ -343,7 +327,7 @@ footer{border-top:1px solid var(--line);padding:52px 0 36px;background:rgba(255,
 <header>
   <div class="wrap hero">
     <div class="rv">
-      <div class="overline" data-i18n="hero_badge">Notas · Listas · Tarefas · Sync PC — Celular</div>
+      <div class="overline" data-i18n="hero_badge">Notas · Listas · Tarefas · Sync</div>
       <h1><span data-i18n="hero_h1a">Simple Notes</span> <em data-i18n="hero_h1b">Pro</em></h1>
       <p class="hero-sub" data-i18n="hero_sub">Backup automático no <b>seu</b> Google Drive, encriptado com AES-256 antes de sair do aparelho. No celular e no PC, sempre sincronizados.</p>
       <div class="hero-actions">
@@ -358,30 +342,9 @@ footer{border-top:1px solid var(--line);padding:52px 0 36px;background:rgba(255,
       </div>
     </div>
     <div class="phone-wrap rv">
-      <div class="phone phone-back">
-        <div class="phone-screen">
-          <img src="print-celular-2.jpg" alt="" onerror="this.parentNode.parentNode.style.display='none'">
-        </div>
-      </div>
       <div class="phone">
         <div class="phone-screen">
           <img src="print-celular.jpg" alt="Simple Notes Pro no Android" onerror="this.remove()">
-          <div class="phone-ui">
-            <div class="pu-status"><span>9:41</span><span>5G</span></div>
-            <div class="pu-title">Notas</div>
-            <div class="pu-search">Procurar em suas notas...</div>
-            <div class="pu-notas">
-              <div class="pu-nota"><b>Lista do mercado</b><span>Arroz, feijão, café...</span></div>
-              <div class="pu-nota"><b>Ideias do app</b><span>Tema escuro OLED e azul...</span></div>
-              <div class="pu-nota"><b>Treino concluído</b><span>Segunda e quinta, 7h</span></div>
-            </div>
-            <div class="pu-fab"><i data-lucide="plus"></i></div>
-            <div class="pu-tabbar">
-              <span class="pu-tab ativa"><i data-lucide="notebook-pen"></i>Notas</span>
-              <span class="pu-tab"><i data-lucide="list-checks"></i>Tarefas</span>
-              <span class="pu-tab"><i data-lucide="settings"></i>Ajustes</span>
-            </div>
-          </div>
         </div>
       </div>
     </div>
@@ -642,15 +605,7 @@ footer{border-top:1px solid var(--line);padding:52px 0 36px;background:rgba(255,
       <p class="sec-sub" data-i18n="desk_sub">O mesmo app, a mesma conta, o mesmo backup. Inicia com o Windows e fica na bandeja com os alarmes ativos.</p>
     </div>
     <div class="win-mock rv">
-      <div class="win-bar">
-        <span class="win-dot" style="background:#FF5F57"></span>
-        <span class="win-dot" style="background:#FEBC2E"></span>
-        <span class="win-dot" style="background:#28C840"></span>
-        <span class="win-title">Simple Notes Pro</span>
-      </div>
-      <div class="win-shot">
-        <img src="print-pc.png" alt="Simple Notes Pro no Windows" onerror="this.remove()">
-      </div>
+      <img class="win-shot-img" src="print-pc.png" alt="Simple Notes Pro no Windows" onerror="this.remove()">
     </div>
     <div class="desk-feats">
       <div class="desk-feat rv"><h4><i data-lucide="power"></i><span data-i18n="desk_c1_t">Inicia com o Windows</span></h4><p data-i18n="desk_c1_d">Ligou o PC? Já está aberto na bandeja — alarmes tocam na hora, mesmo em segundo plano.</p></div>
@@ -771,7 +726,7 @@ var I18N={
   pt:{
     title:'Simple Notes Pro | Notas com backup encriptado no Google Drive',
     nav_recursos:'Recursos',nav_dif:'Diferenciais',nav_cri:'Criptografia',nav_premium:'Premium',nav_faq:'FAQ',nav_baixar:'Baixar',nav_downloads:'Downloads',
-    hero_badge:'Notas · Listas · Tarefas · Sync PC — Celular',
+    hero_badge:'Notas · Listas · Tarefas · Sync',
     hero_h1a:'Simple Notes',hero_h1b:'Pro',
     hero_sub:'Notas, listas e tarefas com backup automático no <b>seu</b> Google Drive — encriptado com AES-256 antes de sair do aparelho. Funciona no Android e no Windows, sempre sincronizados.',
     cta_download:'Baixar agora',cta_features:'Ver recursos',
@@ -872,7 +827,7 @@ var I18N={
   },  en:{
     title:'Simple Notes Pro | Notes with encrypted Google Drive backup',
     nav_recursos:'Features',nav_dif:'Highlights',nav_cri:'Encryption',nav_premium:'Premium',nav_faq:'FAQ',nav_baixar:'Download',nav_downloads:'Downloads',
-    hero_badge:'Notes · Lists · Tasks · PC — Phone Sync',
+    hero_badge:'Notes · Lists · Tasks · Sync',
     hero_h1a:'Simple Notes',hero_h1b:'Pro',
     hero_sub:'Notes, lists and tasks with automatic backup to <b>your</b> Google Drive — encrypted with AES-256 before leaving the device. Works on Android and Windows, always in sync.',
     cta_download:'Download now',cta_features:'See features',
@@ -973,7 +928,7 @@ var I18N={
   },  es:{
     title:'Simple Notes Pro | Notas con respaldo encriptado en Google Drive',
     nav_recursos:'Funciones',nav_dif:'Destacados',nav_cri:'Cifrado',nav_premium:'Premium',nav_faq:'FAQ',nav_baixar:'Descargar',nav_downloads:'Descargas',
-    hero_badge:'Notas · Listas · Tareas · Sync PC — Celular',
+    hero_badge:'Notas · Listas · Tareas · Sync',
     hero_h1a:'Simple Notes',hero_h1b:'Pro',
     hero_sub:'Notas, listas y tareas con respaldo automático en <b>tu</b> Google Drive — encriptado con AES-256 antes de salir del aparato. Funciona en Android y Windows, siempre sincronizados.',
     cta_download:'Descargar ahora',cta_features:'Ver funciones',
