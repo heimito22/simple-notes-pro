@@ -308,6 +308,65 @@ nav{transition:transform .35s ease}
 .faq-item{position:relative}
 @keyframes faqline{from{transform:scaleX(0)}to{transform:scaleX(1)}}
 .faq-item.aberto::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:linear-gradient(180deg,var(--acc),rgba(10,132,255,.2));transform-origin:top;animation:faqline .35s ease}
+/* ===== polimento visual ===== */
+/* grain sutil sobre tudo (textura, mata o liso) */
+body::before{content:"";position:fixed;inset:0;z-index:2;pointer-events:none;opacity:.05;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E")}
+/* scrollbar */
+html{scrollbar-width:thin;scrollbar-color:#232326 #000}
+::-webkit-scrollbar{width:10px}
+::-webkit-scrollbar-track{background:#000}
+::-webkit-scrollbar-thumb{background:#232326;border-radius:6px;border:2px solid #000}
+::-webkit-scrollbar-thumb:hover{background:#3a3a3e}
+/* foco visivel */
+:focus-visible{outline:2px solid var(--acc2);outline-offset:2px;border-radius:6px}
+/* nav: cta gradiente, logo com brilho, link da secao ativa */
+.nav-cta{background:linear-gradient(180deg,#1a92ff,#0a74e0);box-shadow:0 6px 18px -6px rgba(10,132,255,.5)}
+.nav-cta:hover{background:linear-gradient(180deg,#2a9aff,#0a74e0)!important;box-shadow:0 10px 24px -6px rgba(10,132,255,.6)}
+.nav-logo .logo-badge{box-shadow:0 0 0 1px rgba(255,255,255,.05),0 4px 16px rgba(10,132,255,.18)}
+.nav-links a.ativa-secao{color:var(--txt)}
+.nav-links a.ativa-secao:not(.nav-cta){background:rgba(255,255,255,.04)}
+/* botoes com profundidade */
+.btn-primary{background:linear-gradient(180deg,#1a92ff,#0a74e0);box-shadow:0 10px 26px -10px rgba(10,132,255,.55),inset 0 1px 0 rgba(255,255,255,.18)}
+.btn-primary:hover{background:linear-gradient(180deg,#2a9aff,#0a74e0);box-shadow:0 14px 32px -10px rgba(10,132,255,.65),inset 0 1px 0 rgba(255,255,255,.2)}
+.btn-ghost:hover{background:rgba(255,255,255,.03)}
+/* h1: traco de luz sob o Pro */
+h1 em{position:relative}
+h1 em::after{content:"";position:absolute;left:.02em;right:.02em;bottom:.05em;height:3px;border-radius:3px;background:linear-gradient(90deg,var(--acc),rgba(10,132,255,.1));opacity:.55}
+/* bento: linha de energia no topo + icones vivos no hover */
+.b-card::before{content:"";position:absolute;top:0;left:14%;right:14%;height:2px;border-radius:0 0 3px 3px;background:linear-gradient(90deg,transparent,rgba(10,132,255,.65),transparent);transform:scaleX(0);transition:transform .45s cubic-bezier(.2,.8,.2,1)}
+.b-card:hover::before{transform:scaleX(1)}
+.b-card .b-ico{transition:all .3s ease}
+.b-card .b-ico i{transition:transform .3s ease}
+.b-card:hover .b-ico{border-color:rgba(10,132,255,.45);background:rgba(10,132,255,.13)}
+.b-card:hover .b-ico i{transform:scale(1.1)}
+.b-card:hover .b-num{color:var(--acc2)}
+/* ritmo entre secoes: wash alternado + brilho radial na cripto */
+section#diferenciais,section#desktop,section#faq{background:#050507}
+section#criptografia{position:relative}
+section#criptografia .wrap::before{content:"";position:absolute;top:-30px;left:50%;transform:translateX(-50%);width:900px;height:340px;background:radial-gradient(50% 50% at 50% 50%,rgba(10,132,255,.055),transparent 70%);pointer-events:none}
+section#criptografia .wrap{position:relative}
+section#recursos .wrap{position:relative}
+section#recursos .wrap::before{content:"";position:absolute;top:-20px;left:50%;transform:translateX(-50%);width:760px;height:300px;background:radial-gradient(50% 50% at 50% 50%,rgba(10,132,255,.04),transparent 70%);pointer-events:none}
+/* comparacao: coluna pro delineada */
+.vs-cell.pro{box-shadow:inset 1px 0 0 rgba(52,199,89,.22),inset -1px 0 0 rgba(52,199,89,.08)}
+/* faq: numeros editoriais */
+.faq-q .qnum{font:600 .68rem var(--mono);color:var(--mut2);min-width:26px;padding-top:2px;transition:color .25s}
+.faq-item:hover .qnum,.faq-item.aberto .qnum{color:var(--acc2)}
+/* footer: setas nos links + voltar ao topo */
+.foot-col a{display:inline-flex;align-items:center;gap:7px}
+.foot-col a::before{content:"";width:0;height:1px;background:var(--acc);transition:width .25s ease}
+.foot-col a:hover::before{width:12px}
+.foot-top{color:var(--mut);display:inline-flex;align-items:center;gap:6px;transition:color .2s}
+.foot-top:hover{color:var(--acc2)}
+/* badges flutuantes ao redor do celular */
+.pbadge{position:absolute;z-index:3;display:inline-flex;align-items:center;gap:7px;font:600 .72rem var(--sans);color:var(--txt);background:rgba(16,16,18,.85);border:1px solid rgba(255,255,255,.12);border-radius:100px;padding:8px 14px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);box-shadow:0 14px 34px rgba(0,0,0,.55);white-space:nowrap;animation:floaty 6s ease-in-out infinite}
+.pbadge i{width:13px;height:13px;color:var(--acc2);flex-shrink:0}
+.pbadge.ok i{color:var(--ok)}
+.pb1{top:11%;left:calc(50% - 225px)}
+.pb2{top:49%;right:calc(50% - 235px);animation-delay:-2s}
+.pb3{bottom:11%;left:calc(50% - 205px);animation-delay:-4s}
+/* legenda do print do windows */
+.win-caption{margin-top:16px;text-align:center;font:500 .68rem var(--mono);color:var(--mut2);letter-spacing:.14em;text-transform:uppercase}
 /* ===== responsivo ===== */
 @media(max-width:1020px){
   .nav-links a:not(.nav-cta):not(.lang-switch){display:none}
@@ -374,6 +433,17 @@ nav{transition:transform .35s ease}
 @media(max-width:400px){
   .hero-actions .btn{width:100%;justify-content:center}
   .trust span{font-size:.62rem;padding:4px 7px}
+}
+@media(max-width:880px){
+  .pbadge{font-size:.64rem;padding:6px 11px;gap:6px}
+  .pbadge i{width:11px;height:11px}
+  .pb1{top:7%;left:-6px}
+  .pb2{top:47%;right:-6px}
+  .pb3{bottom:7%;left:-2px}
+  .faq-q .qnum{min-width:22px;font-size:.64rem}
+}
+@media(max-width:400px){
+  .pb2{display:none}
 }</style>
 </head>
 <body>
@@ -426,6 +496,9 @@ nav{transition:transform .35s ease}
           <img src="print-celular.jpg" alt="Simple Notes Pro no Android" onerror="this.remove()">
         </div>
       </div>
+      <span class="pbadge pb1"><i data-lucide="lock"></i><span data-i18n="badge_lock">AES-256 ativo</span></span>
+      <span class="pbadge pb2"><i data-lucide="refresh-cw"></i><span data-i18n="badge_sync">Sync há 2s</span></span>
+      <span class="pbadge ok pb3"><i data-lucide="check"></i><span data-i18n="badge_ok">Backup ok</span></span>
     </div>
   </div>
 </header>
@@ -686,6 +759,7 @@ nav{transition:transform .35s ease}
     <div class="win-mock rv">
       <img class="win-shot-img" src="print-pc.png" alt="Simple Notes Pro no Windows" onerror="this.remove()">
     </div>
+    <div class="win-caption rv">Simple Notes Pro · Windows</div>
     <div class="desk-feats">
       <div class="desk-feat rv"><h4><i data-lucide="power"></i><span data-i18n="desk_c1_t">Inicia com o Windows</span></h4><p data-i18n="desk_c1_d">Ligou o PC? Já está aberto na bandeja — alarmes tocam na hora, mesmo em segundo plano.</p></div>
       <div class="desk-feat rv"><h4><i data-lucide="download-cloud"></i><span data-i18n="desk_c2_t">Atualiza sozinho</span></h4><p data-i18n="desk_c2_d">Detecta a versão nova, baixa em segundo plano e instala ao fechar. Como uma loja, sem você notar.</p></div>
@@ -719,21 +793,21 @@ nav{transition:transform .35s ease}
       <h2 data-i18n="faq_title">Perguntas frequentes</h2>
     </div>
     <div class="faq-list">
-      <div class="faq-item rv"><button class="faq-q" aria-expanded="false"><span data-i18n="faq1_q">O app é gratuito?</span><span class="faq-ico"><i data-lucide="plus"></i></span></button>
+      <div class="faq-item rv"><button class="faq-q" aria-expanded="false"><span class="qnum">01</span><span data-i18n="faq1_q">O app é gratuito?</span><span class="faq-ico"><i data-lucide="plus"></i></span></button>
         <div class="faq-a"><div class="faq-a-inner" data-i18n="faq1_a">Sim. Notas, listas, pastas, alarmes, biometria e backup no Drive são grátis. O plano gratuito mostra alguns anúncios em momentos específicos — que somem para sempre com a compra única do Premium.</div></div></div>
-      <div class="faq-item rv"><button class="faq-q" aria-expanded="false"><span data-i18n="faq2_q">Meus dados ficam salvos na nuvem?</span><span class="faq-ico"><i data-lucide="plus"></i></span></button>
+      <div class="faq-item rv"><button class="faq-q" aria-expanded="false"><span class="qnum">02</span><span data-i18n="faq2_q">Meus dados ficam salvos na nuvem?</span><span class="faq-ico"><i data-lucide="plus"></i></span></button>
         <div class="faq-a"><div class="faq-a-inner" data-i18n="faq2_a">Sim — na pasta privada do seu próprio Google Drive (appDataFolder), visível apenas pelo app. Notas, listas, pastas, tarefas, imagens e áudios. Trocou de celular? Entre com a mesma conta.</div></div></div>
-      <div class="faq-item rv"><button class="faq-q" aria-expanded="false"><span data-i18n="faq3_q">Preciso de conta Google?</span><span class="faq-ico"><i data-lucide="plus"></i></span></button>
+      <div class="faq-item rv"><button class="faq-q" aria-expanded="false"><span class="qnum">03</span><span data-i18n="faq3_q">Preciso de conta Google?</span><span class="faq-ico"><i data-lucide="plus"></i></span></button>
         <div class="faq-a"><div class="faq-a-inner" data-i18n="faq3_a">Não. Tudo funciona offline, sem login. Ao entrar com uma conta, o que você criou deslogado migra automaticamente.</div></div></div>
-      <div class="faq-item rv"><button class="faq-q" aria-expanded="false"><span data-i18n="faq4_q">Como funciona o Premium vitalício?</span><span class="faq-ico"><i data-lucide="plus"></i></span></button>
+      <div class="faq-item rv"><button class="faq-q" aria-expanded="false"><span class="qnum">04</span><span data-i18n="faq4_q">Como funciona o Premium vitalício?</span><span class="faq-ico"><i data-lucide="plus"></i></span></button>
         <div class="faq-a"><div class="faq-a-inner" data-i18n="faq4_a">Pagamento único pela Play Store — sem assinatura. Fica vinculado à sua conta Google: em qualquer aparelho que você entrar com ela, os anúncios continuam removidos.</div></div></div>
-      <div class="faq-item rv"><button class="faq-q" aria-expanded="false"><span data-i18n="faq5_q">O alarme funciona com o app fechado?</span><span class="faq-ico"><i data-lucide="plus"></i></span></button>
+      <div class="faq-item rv"><button class="faq-q" aria-expanded="false"><span class="qnum">05</span><span data-i18n="faq5_q">O alarme funciona com o app fechado?</span><span class="faq-ico"><i data-lucide="plus"></i></span></button>
         <div class="faq-a"><div class="faq-a-inner" data-i18n="faq5_a">Sim. Popup em tela cheia com som mesmo com o app fechado e o celular bloqueado. Em Xiaomi há uma tela de permissões guiada dentro do app.</div></div></div>
-      <div class="faq-item rv"><button class="faq-q" aria-expanded="false"><span data-i18n="faq6_q">Minhas notas são privadas?</span><span class="faq-ico"><i data-lucide="plus"></i></span></button>
+      <div class="faq-item rv"><button class="faq-q" aria-expanded="false"><span class="qnum">06</span><span data-i18n="faq6_q">Minhas notas são privadas?</span><span class="faq-ico"><i data-lucide="plus"></i></span></button>
         <div class="faq-a"><div class="faq-a-inner" data-i18n="faq6_a">Totalmente. O backup no Drive é encriptado com AES-256 — nem o Google consegue ler. No aparelho: bloqueio por biometria, senha por nota e PIN com trava anti tentativa.</div></div></div>
-      <div class="faq-item rv"><button class="faq-q" aria-expanded="false"><span data-i18n="faq8_q">O que é "encriptado de ponta a ponta"?</span><span class="faq-ico"><i data-lucide="plus"></i></span></button>
+      <div class="faq-item rv"><button class="faq-q" aria-expanded="false"><span class="qnum">07</span><span data-i18n="faq8_q">O que é "encriptado de ponta a ponta"?</span><span class="faq-ico"><i data-lucide="plus"></i></span></button>
         <div class="faq-a"><div class="faq-a-inner" data-i18n="faq8_a">Antes de qualquer nota sair do aparelho, ela é encriptada com AES-256. A chave é derivada do seu email Google em 4 rodadas de SHA-256 e existe apenas nos seus aparelhos: nunca viaja pela internet nem fica na nuvem. Quem entrar na sua conta sem ser você baixa apenas bytes ilegíveis — nem nós, desenvolvedores, conseguimos ler.</div></div></div>
-      <div class="faq-item rv"><button class="faq-q" aria-expanded="false"><span data-i18n="faq7_q">Existe versão para Windows?</span><span class="faq-ico"><i data-lucide="plus"></i></span></button>
+      <div class="faq-item rv"><button class="faq-q" aria-expanded="false"><span class="qnum">08</span><span data-i18n="faq7_q">Existe versão para Windows?</span><span class="faq-ico"><i data-lucide="plus"></i></span></button>
         <div class="faq-a"><div class="faq-a-inner" data-i18n="faq7_a">Sim — instalador e versão portátil na aba Downloads. Mesmo visual OLED, inicia com o Windows, fica na bandeja com os alarmes e se atualiza sozinho.</div></div></div>
     </div>
   </div>
@@ -843,6 +917,26 @@ document.querySelectorAll('.faq-item').forEach(function(item){
   },{passive:true});
 })();
 
+// ===== scrollspy: link da secao ativa acende na nav =====
+(function(){
+  var map={};
+  document.querySelectorAll('nav .nav-links a[href^="#"]').forEach(function(a){
+    var id=a.getAttribute('href').slice(1);
+    var sec=document.getElementById(id);
+    if(sec)map[id]=a;
+  });
+  var atual=null;
+  var io=new IntersectionObserver(function(es){
+    es.forEach(function(e){
+      if(e.isIntersecting&&map[e.target.id]){
+        if(atual)atual.classList.remove('ativa-secao');
+        atual=map[e.target.id];
+        atual.classList.add('ativa-secao');
+      }
+    });
+  },{rootMargin:'-25% 0px -65% 0px'});
+  Object.keys(map).forEach(function(id){io.observe(document.getElementById(id))});
+})();
 // ===== menu mobile: fecha ao tocar fora =====
 document.addEventListener('click',function(e){
   var links=document.getElementById('navLinks');
@@ -983,7 +1077,8 @@ var I18N={
     faq7_q:'Existe versão para Windows?',
     faq7_a:'Sim — instalador e versão portátil na aba Downloads. Mesmo visual OLED, inicia com o Windows, fica na bandeja com os alarmes e se atualiza sozinho.',
     foot_prod:'Produto',foot_sobre:'Sobre',
-    foot_made:'Orgulhosamente criado no Brasil',foot_rights:'Todos os direitos reservados.'
+    foot_made:'Orgulhosamente criado no Brasil',foot_rights:'Todos os direitos reservados.',
+    badge_lock:'AES-256 ativo',badge_sync:'Sync há 2s',badge_ok:'Backup ok',foot_topo:'Voltar ao topo'
   },  en:{
     title:'Simple Notes Pro | Notes with encrypted Google Drive backup',
     nav_recursos:'Features',nav_dif:'Highlights',nav_cri:'Encryption',nav_premium:'Premium',nav_faq:'FAQ',nav_baixar:'Download',nav_downloads:'Downloads',
@@ -1084,7 +1179,8 @@ var I18N={
     faq7_q:'Is there a Windows version?',
     faq7_a:'Yes — installer and portable version in the Downloads tab. Same OLED look, starts with Windows, sits in the tray with alarms and updates itself.',
     foot_prod:'Product',foot_sobre:'About',
-    foot_made:'Proudly made in Brazil',foot_rights:'All rights reserved.'
+    foot_made:'Proudly made in Brazil',foot_rights:'All rights reserved.',
+    badge_lock:'AES-256 active',badge_sync:'Synced 2s ago',badge_ok:'Backup ok',foot_topo:'Back to top'
   },  es:{
     title:'Simple Notes Pro | Notas con respaldo encriptado en Google Drive',
     nav_recursos:'Funciones',nav_dif:'Destacados',nav_cri:'Cifrado',nav_premium:'Premium',nav_faq:'FAQ',nav_baixar:'Descargar',nav_downloads:'Descargas',
@@ -1185,7 +1281,8 @@ var I18N={
     faq7_q:'¿Existe versión para Windows?',
     faq7_a:'Sí — instalador y versión portátil en la pestaña Descargas. Mismo visual OLED, inicia con Windows, queda en la bandeja con las alarmas y se actualiza solo.',
     foot_prod:'Producto',foot_sobre:'Acerca',
-    foot_made:'Orgullosamente creado en Brasil',foot_rights:'Todos los derechos reservados.'
+    foot_made:'Orgullosamente creado en Brasil',foot_rights:'Todos los derechos reservados.',
+    badge_lock:'AES-256 activo',badge_sync:'Sync hace 2s',badge_ok:'Respaldo ok',foot_topo:'Volver arriba'
   }
 };
 
