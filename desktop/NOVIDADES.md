@@ -1,5 +1,5 @@
-**Versão 1.4.5**
+**Versão 1.4.6**
 
-- Isolamento total de contas: nada cruza de uma conta para outra ao trocar
-- Ao sair da conta, os dados não ficam no aparelho — continuam no Drive de cada um
-- Notas criadas offline continuam migrando normalmente para a primeira conta que entrar
+- Correção da 1.4.5: a sincronização e as exclusões voltaram a funcionar (hotfix)
+- Ao trocar de conta os dados continuam isolados — nada cruza de conta para conta
+- Ao entrar na conta, a sincronização automática começa na hora, sem reiniciar o app

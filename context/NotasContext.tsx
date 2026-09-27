@@ -50,14 +50,6 @@ export function NotasProvider({ children }: any) {
   // Ref espelhado do estado (para agendar lembretes com o título atual em handlers)
   const notasRef = useRef<any[]>([]);
   /**
-   * ISOLAMENTO DE CONTAS: dono do estado em memória. O efeito de save só
-   * persiste o estado sob a chave da conta que o CARREGOU — impede que itens
-   * da conta anterior sejam gravados no bucket offline ou na chave da nova
-   * conta durante trocas de conta (a causa das pastas cruzando de conta
-   * para conta).
-   */
-  const donoRef = useRef<string>('?');
-  /**
    * Estado MAIS RECENTE de tudo que sobe para a nuvem. O push pode ser disparado
    * de dentro de uma closure antiga (tick do poll automático) — sem isto ele
    * enviava notas velhas por cima das novas no Drive, e a alteração "voltava".
@@ -148,11 +140,13 @@ export function NotasProvider({ children }: any) {
     try {
       const key = await getStorageKey();
       const dados = await AsyncStorage.getItem(key);
-      // O estado que entra agora pertence à conta desta chave (ou ao modo
-      // offline). Sem isto, o save-guard bloquearia a primeira gravação.
+      // FIX CRÍTICO: o id da conta ativa precisa bater com o estado AQUI.
+      // Antes ele só atualizava no boot do app — um login em execução deixava
+      // currentUserId apontando para a conta antiga e o ciclo de sync morria.
       const user = GoogleSignin.getCurrentUser();
-      donoRef.current = user ? user.user.id : 'local';
-      
+      const userId = user ? user.user.id : 'local';
+      if (userId !== currentUserId) setCurrentUserId(userId);
+
       if (dados) {
         const parsed = JSON.parse(dados);
         if (Array.isArray(parsed)) {
@@ -185,7 +179,7 @@ export function NotasProvider({ children }: any) {
     } finally {
       setDadosCarregados(true);
     }
-  }, [setListas]);
+  }, [setListas, currentUserId]);
 
   useEffect(() => {
     const checkUserChange = async () => {
@@ -207,10 +201,6 @@ export function NotasProvider({ children }: any) {
   // 2. SALVAMENTO LOCAL SEMPRE ATIVO (+ carimbo do que mudou de verdade)
   useEffect(() => {
     if (!dadosCarregados) return;
-    // GUARDA DE ISOLAMENTO: o estado atual só pode ser persistido se
-    // pertencer à conta ativa. Durante troca de conta o estado em memória
-    // ainda é da conta anterior — gravar aqui cruzaria os dados.
-    if (donoRef.current !== currentUserId) return;
     // Espelha o estado para o push (uma closure antiga não pode enviar dado velho)
     dadosRef.current = { notas, listas: listas || [], pastas: pastas || [], tarefas: tarefas || [] };
     // Carimba dataModificacao só no que MUDOU: é o que permite ao merge decidir
@@ -923,8 +913,11 @@ export function NotasProvider({ children }: any) {
     } catch (e) {
       console.warn('[Isolamento] falha ao limpar bucket/tombstones:', e);
     }
-    // O próximo save-guard só libera quando o dono bater com a conta ativa.
-    donoRef.current = novoId || '?';
+    // Solta na próxima volta do event loop — os efeitos já reagiram ao
+    // estado limpo (sem isto, o push ficava travado se a conta nova não
+    // tiver backup no Drive para aplicar e resetar a bandeira).
+    await new Promise(r => setTimeout(r, 60));
+    suprimirPushRef.current = false;
     console.log('[Isolamento] dados da conta anterior removidos do aparelho.');
   }, [setListas, tarefasContext]);
 
@@ -941,7 +934,6 @@ export function NotasProvider({ children }: any) {
     idsRef.current = '';
     haMudancasLocaisRef.current = false;
     setCurrentUserId('local');
-    donoRef.current = 'local';
     // Nada da conta pode ficar offline no aparelho (isolamento de contas):
     // bucket offline + tombstones da conta saem junto.
     try {
