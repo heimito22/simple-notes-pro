@@ -2,7 +2,9 @@
 <html lang="pt-br">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Simple Notes Pro | Notas com backup encriptado no Google Drive</title>
 <meta name="description" content="Notas, listas e tarefas com sincronização automática entre PC e celular via seu Google Drive. Backup encriptado com AES-256. Sem servidores.">
 <meta name="theme-color" content="#000000">
@@ -254,8 +256,8 @@ footer{border-top:1px solid var(--line);padding:52px 0 36px;background:rgba(255,
 
 /* ===== animacoes ===== */
 @keyframes floaty{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
-@keyframes lockpulse{0%{box-shadow:0 0 0 0 rgba(10,132,255,.35)}70%{box-shadow:0 0 0 12px rgba(10,132,255,0)}100%{box-shadow:0 0 0 0 rgba(10,132,255,0)}}
-.pipe-box.enc{animation:lockpulse 2.6s ease-out infinite}
+/* lockpulse antigo (box-shadow) removido — versao opacity acima */
+.pipe-box.enc{}
 @keyframes typing{0%,60%,100%{transform:translateY(0);opacity:.4}30%{transform:translateY(-4px);opacity:1}}
 .typing{display:inline-flex;gap:4px;margin-left:6px}
 .typing i{width:5px;height:5px;border-radius:50%;background:var(--acc2);animation:typing 1.4s infinite;display:inline-block}
@@ -319,6 +321,25 @@ section#recursos .wrap{position:relative}
 section#recursos .wrap::before{content:"";position:absolute;top:-20px;left:50%;transform:translateX(-50%);width:760px;height:300px;background:radial-gradient(50% 50% at 50% 50%,rgba(10,132,255,.04),transparent 70%);pointer-events:none}
 .vs-cell.pro{box-shadow:inset 1px 0 0 rgba(52,199,89,.22),inset -1px 0 0 rgba(52,199,89,.08)}
 
+/* ===== mobile fino: toque, feedback e perf ===== */
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{-webkit-tap-highlight-color:rgba(10,132,255,.12)}
+button,a,.btn,.faq-q,.tab-btn{touch-action:manipulation}
+.btn:active{transform:scale(.97)!important}
+.faq-q:active .faq-ico{transform:scale(.9)}
+.tab-btn:active{transform:scale(.95)}
+/* lockpulse via opacity (barato) — box-shadow animava = repaint */
+.pipe-box{position:relative}
+.pipe-box.enc::after{content:"";position:absolute;inset:-7px;border-radius:16px;background:radial-gradient(closest-side,rgba(10,132,255,.4),transparent 72%);opacity:0;animation:lockpulse 2.6s ease-out infinite;pointer-events:none;z-index:-1}
+@keyframes lockpulse{0%{opacity:.85}70%{opacity:0}100%{opacity:0}}
+/* menu mobile: entrada deslizante + hamburger rotaciona */
+.nav-links.aberto{animation:menuIn .28s cubic-bezier(.2,.8,.2,1)}
+@keyframes menuIn{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:none}}
+#navHamb{transition:transform .3s ease}
+#navHamb.aberto{transform:rotate(90deg);border-color:rgba(10,132,255,.45);color:var(--acc2)}
+/* print do windows rolavel no dedo */
+.win-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.win-scroll::-webkit-scrollbar{display:none}
 /* ===== responsivo ===== */
 @media(max-width:1020px){
   .nav-links a:not(.nav-cta):not(.lang-switch){display:none}
@@ -372,6 +393,9 @@ section#recursos .wrap::before{content:"";position:absolute;top:-20px;left:50%;t
   .vs-cell{padding:13px 16px;font-size:.85rem}
   .vs-cell::before{content:attr(data-rotulo);display:block;font:600 .62rem var(--mono);color:var(--mut2);letter-spacing:.1em;text-transform:uppercase;margin-bottom:5px}
   .desk-feats{grid-template-columns:1fr}
+  .win-scroll .win-mock{min-width:560px}
+  .win-scroll{margin:0 -24px;padding:14px 24px 56px;margin-bottom:-42px}
+  .win-caption{margin-top:34px}
   .price-card{padding:32px 20px}
   .price-val{font-size:2.5rem}
   .price-list{gap:10px}
@@ -695,10 +719,10 @@ section#recursos .wrap::before{content:"";position:absolute;top:-20px;left:50%;t
       <h2 data-i18n="desk_title">Também no seu PC</h2>
       <p class="sec-sub" data-i18n="desk_sub">O mesmo app, a mesma conta, o mesmo backup. Inicia com o Windows e fica na bandeja com os alarmes ativos.</p>
     </div>
-    <div class="win-mock rv">
+    <div class="win-scroll"><div class="win-mock rv">
       <img class="win-shot-img" src="print-pc.png" alt="Simple Notes Pro no Windows" onerror="this.remove()">
     </div>
-    <div class="win-caption rv">Simple Notes Pro · Windows</div>
+    </div><div class="win-caption rv">Simple Notes Pro · Windows</div>
     <div class="desk-feats">
       <div class="desk-feat rv"><h4><i data-lucide="power"></i><span data-i18n="desk_c1_t">Inicia com o Windows</span></h4><p data-i18n="desk_c1_d">Ligou o PC? Já está aberto na bandeja — alarmes tocam na hora, mesmo em segundo plano.</p></div>
       <div class="desk-feat rv"><h4><i data-lucide="download-cloud"></i><span data-i18n="desk_c2_t">Atualiza sozinho</span></h4><p data-i18n="desk_c2_d">Detecta a versão nova, baixa em segundo plano e instala ao fechar. Como uma loja, sem você notar.</p></div>
@@ -807,7 +831,7 @@ document.querySelectorAll('.tab-btn').forEach(function(btn){
   var hamb=document.getElementById('navHamb');
   var links=document.getElementById('navLinks');
   if(!hamb||!links)return;
-  hamb.addEventListener('click',function(){links.classList.toggle('aberto')});
+  hamb.addEventListener('click',function(){links.classList.toggle('aberto');hamb.classList.toggle('aberto');});
   links.querySelectorAll('a').forEach(function(a){a.addEventListener('click',function(){links.classList.remove('aberto')})});
 })();
 
@@ -849,7 +873,7 @@ document.querySelectorAll('.faq-item').forEach(function(item){
     var y=window.scrollY;
     var links=document.getElementById('navLinks');
     if(y>ultimo&&y>140){
-      if(links)links.classList.remove('aberto');
+      if(links)links.classList.remove('aberto');if(hamb)hamb.classList.remove('aberto');
       nav.style.transform='translateY(-100%)';
     }else{nav.style.transform=''}
     ultimo=y;
