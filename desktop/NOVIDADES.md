@@ -1,6 +1,4 @@
-**Versão 1.5.0**
+**Versão 1.5.1**
 
-- Contas perfeitamente isoladas no PC, igual no celular
-- Trocar de conta agora atualiza a lista de notas na hora — sem precisar trocar de aba
-- Sair da conta também limpa a tela imediatamente
-- Conta nova sem backup: a lista abre vazia na hora certa
+- Botão "Reiniciar agora" do aviso de atualização responde em toda a área
+- A faixa de arrastar da janela estava engolindo os cliques da parte de cima do banner
