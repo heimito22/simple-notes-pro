@@ -102,6 +102,7 @@ export default function HomeScreen() {
     fazerBackupCloud, 
     recarregarTudo,
     migrarLocaisParaConta,
+    isolarDadosDeConta,
     migrarTarefasLocaisParaConta,
     alternarFixarNota, 
     logout,
@@ -437,6 +438,7 @@ export default function HomeScreen() {
       Alert.alert(t('Offline'), t('Você está offline. Conecte-se à internet para trocar de conta.'));
       return;
     }
+    const contaAnterior = user; // conta logada antes da troca (pode ser null)
     try {
       setModalContaVisible(false);
       await GoogleSignin.signOut();
@@ -461,6 +463,12 @@ export default function HomeScreen() {
         cancelarCompraPendente();
         sincronizarPremium(null).catch(() => {});
         return;
+      }
+      // ISOLAMENTO DE CONTAS: so quando TROCA de uma conta real para OUTRA.
+      // Primeiro login (deslogado) preserva a migracao do que foi criado offline.
+      const idAnterior = contaAnterior?.id || null;
+      if (idAnterior && idAnterior !== userInfo.data.user.id) {
+        if (isolarDadosDeConta) await isolarDadosDeConta(userInfo.data.user.id);
       }
       setUser(userInfo.data.user);
       // O convite de premium e a compra vinculada ao email só valem na conta

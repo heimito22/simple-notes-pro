@@ -50,6 +50,14 @@ export function NotasProvider({ children }: any) {
   // Ref espelhado do estado (para agendar lembretes com o título atual em handlers)
   const notasRef = useRef<any[]>([]);
   /**
+   * ISOLAMENTO DE CONTAS: dono do estado em memória. O efeito de save só
+   * persiste o estado sob a chave da conta que o CARREGOU — impede que itens
+   * da conta anterior sejam gravados no bucket offline ou na chave da nova
+   * conta durante trocas de conta (a causa das pastas cruzando de conta
+   * para conta).
+   */
+  const donoRef = useRef<string>('?');
+  /**
    * Estado MAIS RECENTE de tudo que sobe para a nuvem. O push pode ser disparado
    * de dentro de uma closure antiga (tick do poll automático) — sem isto ele
    * enviava notas velhas por cima das novas no Drive, e a alteração "voltava".
@@ -140,6 +148,10 @@ export function NotasProvider({ children }: any) {
     try {
       const key = await getStorageKey();
       const dados = await AsyncStorage.getItem(key);
+      // O estado que entra agora pertence à conta desta chave (ou ao modo
+      // offline). Sem isto, o save-guard bloquearia a primeira gravação.
+      const user = GoogleSignin.getCurrentUser();
+      donoRef.current = user ? user.user.id : 'local';
       
       if (dados) {
         const parsed = JSON.parse(dados);
@@ -180,7 +192,7 @@ export function NotasProvider({ children }: any) {
       try {
         const user = await GoogleSignin.getCurrentUser();
         const userId = user ? user.user.id : 'local';
-        
+
         if (userId !== currentUserId) {
           setCurrentUserId(userId);
           await carregarTudo();
@@ -195,6 +207,10 @@ export function NotasProvider({ children }: any) {
   // 2. SALVAMENTO LOCAL SEMPRE ATIVO (+ carimbo do que mudou de verdade)
   useEffect(() => {
     if (!dadosCarregados) return;
+    // GUARDA DE ISOLAMENTO: o estado atual só pode ser persistido se
+    // pertencer à conta ativa. Durante troca de conta o estado em memória
+    // ainda é da conta anterior — gravar aqui cruzaria os dados.
+    if (donoRef.current !== currentUserId) return;
     // Espelha o estado para o push (uma closure antiga não pode enviar dado velho)
     dadosRef.current = { notas, listas: listas || [], pastas: pastas || [], tarefas: tarefas || [] };
     // Carimba dataModificacao só no que MUDOU: é o que permite ao merge decidir
@@ -232,7 +248,8 @@ export function NotasProvider({ children }: any) {
     if (mudou) salvarLocal();
     // Dependência é o estado real do contexto (e não o fallback `|| []`, que
     // criava um array novo a cada render e disparava gravação sem parar).
-  }, [notas, listas, pastas, tarefasContext?.tarefas, dadosCarregados]);
+  }, [notas, listas, pastas, tarefasContext?.tarefas, dadosCarregados, currentUserId]);
+  // O dono do estado muda quando carregarTudo carrega dados de uma conta.
 
   // Sincroniza a chave de IA no backup assim que ela mudar (sem esperar
   // o usuário editar uma nota). Usa um efeito separado para não depender
@@ -492,7 +509,10 @@ export function NotasProvider({ children }: any) {
     // do celular (o celular nem sabia que elas existiam pra criar tombstone).
     const wipeAllAt = Number(backupData.wipeAllAt || 0) || 0;
     if (wipeAllAt > 0) {
-      const ultimoWipeVisto = Number(await AsyncStorage.getItem('@sn_wipe_visto').catch(() => '0')) || 0;
+      // marcador POR CONTA: o "apagar tudo" visto na conta A não pode travar
+      // o marcador da conta B (cada backup traz o seu próprio wipeAllAt).
+      const chaveWipe = `@sn_wipe_visto_${currentUserId}`;
+      const ultimoWipeVisto = Number(await AsyncStorage.getItem(chaveWipe).catch(() => '0')) || 0;
       if (wipeAllAt > ultimoWipeVisto) {
         const P = require('../desktop/src/lib/politica-sync');
         const sobrevivemNotas = P.aplicarWipe(notasRef.current, wipeAllAt, 0).itens;
@@ -505,7 +525,7 @@ export function NotasProvider({ children }: any) {
         if (typeof tarefasContext?.definirTarefas === 'function') {
           await (tarefasContext.definirTarefas as any)(sobrevivemTarefas).catch(() => {});
         }
-        await AsyncStorage.setItem('@sn_wipe_visto', String(wipeAllAt)).catch(() => {});
+        await AsyncStorage.setItem(chaveWipe, String(wipeAllAt)).catch(() => {});
         console.log('[Sync] WIPE processado — sobreviveram:', sobrevivemNotas.length, 'notas');
       }
     }
@@ -558,7 +578,7 @@ export function NotasProvider({ children }: any) {
       suprimirPushRef.current = false;
     }
     return true;
-  }, [pastas, tarefas, listas, configTema?.chaveIA, aplicarPreferenciasRemotas, mesclarComLocais]);
+  }, [pastas, tarefas, listas, configTema?.chaveIA, aplicarPreferenciasRemotas, mesclarComLocais, currentUserId]);
 
   // Pull polling: modifiedTime a cada 12s quando em primeiro plano (só metadados, barato)
   useEffect(() => {
@@ -877,12 +897,57 @@ export function NotasProvider({ children }: any) {
     return () => clearTimeout(t);
   }, [estaOnline, configTema?.chaveIA, buscarBackupDrive]);
 
+  /**
+   * ISOLAMENTO DE CONTAS — troca de conta A → B: NADA cruza. Limpa o estado em
+   * memória, o bucket offline (`@minhas_notas_locais`) e os tombstones da conta
+   * anterior ANTES de qualquer sync da conta nova. Os dados da conta antiga
+   * continuam salvos no Drive DELA — nunca migram para a nova.
+   * (Chamado ao trocar de conta direto e como rede de segurança no boot.)
+   */
+  const isolarDadosDeConta = useCallback(async (novoId?: string) => {
+    setNotas([]);
+    if (typeof setListas === 'function') setListas([]);
+    setPastas([]);
+    notasRef.current = [];
+    dadosRef.current = { notas: [], listas: [], pastas: [], tarefas: [] };
+    snapRef.current = {};
+    idsRef.current = '';
+    haMudancasLocaisRef.current = false;
+    suprimirPushRef.current = true;
+    if (typeof tarefasContext?.definirTarefas === 'function') {
+      await (tarefasContext.definirTarefas as any)([]).catch(() => {});
+    }
+    try {
+      await AsyncStorage.removeItem('@minhas_notas_locais');
+      await limparApagados();
+    } catch (e) {
+      console.warn('[Isolamento] falha ao limpar bucket/tombstones:', e);
+    }
+    // O próximo save-guard só libera quando o dono bater com a conta ativa.
+    donoRef.current = novoId || '?';
+    console.log('[Isolamento] dados da conta anterior removidos do aparelho.');
+  }, [setListas, tarefasContext]);
+
   const logout = async () => {
+    // Última chance de subir o que mudou antes de sair (se online).
+    try { await fazerBackupCloud(); } catch {}
     await GoogleSignin.signOut();
     setNotas([]);
     if (typeof setListas === 'function') setListas([]);
     setPastas([]);
+    notasRef.current = [];
+    dadosRef.current = { notas: [], listas: [], pastas: [], tarefas: [] };
+    snapRef.current = {};
+    idsRef.current = '';
+    haMudancasLocaisRef.current = false;
     setCurrentUserId('local');
+    donoRef.current = 'local';
+    // Nada da conta pode ficar offline no aparelho (isolamento de contas):
+    // bucket offline + tombstones da conta saem junto.
+    try {
+      await AsyncStorage.removeItem('@minhas_notas_locais');
+      await limparApagados();
+    } catch {}
     // Tarefas voltam ao conjunto local imediatamente (força a recarga).
     if (typeof tarefasContext?.recarregarTarefas === 'function') {
       await tarefasContext.recarregarTarefas(true).catch(() => {});
@@ -1184,6 +1249,7 @@ export function NotasProvider({ children }: any) {
       salvarNota, salvarLembreteNota, excluirNota, alternarFixarNota,      logout, 
       migrarLocaisParaConta,
       migrarTarefasLocaisParaConta,
+      isolarDadosDeConta,
       apagarTudoLocal,
       fazerBackupCloud, apagarBackupsCloud, buscarCotaDrive, estaOnline,
       restaurarBackupCloud, isAppBloqueado, toggleBloqueioApp,

@@ -377,14 +377,55 @@ async function refreshConta(){
     }
   }catch(e){ console.error('refreshConta',e); }
 }
+/* === ISOLAMENTO DE CONTAS (PC) ===
+ * O store.json é ÚNICO para todas as contas — sem isto, os itens da conta
+ * anterior eram mergeados com o backup da conta nova e EMPURRADOS para o
+ * Drive dela (pastas/notas cruzando de conta para conta).
+ * Regra: store.conta grava a quem pertencem os dados locais.
+ *  - 'local' = criado offline (migra para a próxima conta que entrar, como sempre)
+ *  - email   = dados daquela conta; se entrar OUTRA conta, limpa TUDO antes
+ *              do primeiro sync: os dados dela seguem no Drive DELA.
+ */
+async function isolarContaSeTrocou(){
+  try{
+    var u=await S.googleUsuario().catch(function(){return null;});
+    var email=u&&u.email?String(u.email).toLowerCase():null;
+    if(!email) return; // deslogado: nada a fazer
+    var contaAtual=store.conta||'local';
+    if(contaAtual && contaAtual!=='local' && contaAtual!==email){
+      console.log('[conta] troca detectada:',contaAtual,'->',email,'— dados locais isolados');
+      store.notas=[]; store.listas=[]; store.pastas=[]; store.tarefas=[];
+      store.conta=email;
+      try{ if(window.Tombstones) window.Tombstones.limpar(); }catch(e){}
+      await S.storeSalvar(store);
+      if(window.Merge) window.Merge.registrar(store);
+      toast(T('Conta trocada — os dados ficam na conta de cada um.'));
+    } else if(store.conta!==email){
+      store.conta=email;
+      S.storeSalvar(store).catch(function(){});
+    }
+  }catch(e){ console.warn('[conta] isolarConta falhou:', e&&e.message); }
+}
+
 async function doLoginToggle(){
   var u=await S.googleUsuario().catch(function(){return null;});
-  if(u && u.email){ await S.googleSair(); await refreshConta(); renderConfig(); toast(T('Desconectado')); return; }
+  if(u && u.email){
+    // SAIR: nada da conta pode ficar offline no PC (senão migra para a
+    // próxima conta conectada). Os dados dela estão salvos no Drive dela.
+    try{ await syncEnviar(); }catch(e){} // última chance de subir mudanças
+    await S.googleSair();
+    store.notas=[]; store.listas=[]; store.pastas=[]; store.tarefas=[];
+    store.conta='local';
+    try{ if(window.Tombstones) window.Tombstones.limpar(); }catch(e){}
+    await S.storeSalvar(store);
+    if(window.Merge) window.Merge.registrar(store);
+    await refreshConta(); renderConfig(); toast(T('Desconectado')); return;
+  }
   var st=$('#syncTxt'); if(st) st.textContent=T('Abrindo navegador…');
   var sd=$('#syncDot'); if(sd) sd.style.background='var(--warn)';
   try{
     var r=await S.googleEntrar();
-    if(r && r.type==='success'){ await refreshConta(); renderConfig(); toast(T('Conectado! Sincronizando…')); await syncBaixar(); }
+    if(r && r.type==='success'){ await isolarContaSeTrocou(); await refreshConta(); renderConfig(); toast(T('Conectado! Sincronizando…')); await syncBaixar(); }
     else if(r && r.type==='cancelled'){ toast(T('Login cancelado')); await refreshConta(); renderConfig(); }
     else { toast(T('Falha no login')); await refreshConta(); renderConfig(); }
   }catch(e){
@@ -1021,6 +1062,9 @@ async function carregar(){
     if(!config) config={ temaEscuro:true, idioma:idiomaDoSistema(), chaveIA:'', pinDesbloqueio:'', exigirBiometriaApp:false, tempoBloqueio:0, tempoSoneca:10, somAlarme:'classico', exibirAjudaFAB:true };
     if(!config.idioma) config.idioma=idiomaDoSistema();
     if(store.chaveIA && !config.chaveIA) config.chaveIA=store.chaveIA;
+    // ISOLAMENTO DE CONTAS: o store pertence a uma conta ('local' = offline).
+    store.conta=store.conta||'local';
+    await isolarContaSeTrocou();
   }catch(e){ console.error('storeLer',e); store={notas:[],listas:[],pastas:[],tarefas:[],chaveIA:'',config:null}; config={ temaEscuro:true, idioma:idiomaDoSistema(), chaveIA:'', pinDesbloqueio:'', exigirBiometriaApp:false, tempoBloqueio:0, tempoSoneca:10, somAlarme:'classico' }; }
   store.notas=Array.isArray(store.notas)?store.notas:[]; store.listas=Array.isArray(store.listas)?store.listas:[]; store.pastas=Array.isArray(store.pastas)?store.pastas:[]; store.tarefas=Array.isArray(store.tarefas)?store.tarefas:[]; 
   aplicarTema();
