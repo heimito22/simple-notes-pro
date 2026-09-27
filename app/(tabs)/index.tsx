@@ -95,7 +95,8 @@ export default function HomeScreen() {
     excluirNota,
     excluirPasta,
     sincronizarAgora, 
-    restaurarBackupCloud, 
+    restaurarBackupCloud,
+    buscarBackupDrive, aplicarBackupSilencioso, 
     apagarBackupsCloud,
     buscarCotaDrive,
     apagarTudoLocal,
@@ -483,7 +484,18 @@ export default function HomeScreen() {
       // logada: reavalia na hora (compra/convite saem se a conta não tem).
       sincronizarPremium({ user: userInfo.data.user }).catch(() => {});
       if (recarregarTudo) await recarregarTudo();
-      await restaurarBackupCloud();
+      // PUXA o backup da conta nova MESCLANDO por item (nunca substituindo).
+      // O restore antigo (restaurarBackupCloud) SUBSTITUIA o estado inteiro:
+      // (1) apagava edicoes locais da conta B ainda nao subidas;
+      // (2) jogava por cima o backup do Drive dela - poluido com notas da
+      // conta A subidas pelas versoes antigas. Por isso 'as notas da outra
+      // conta vinham' logo apos o carregamento do backup.
+      try {
+        const backupNovo = await buscarBackupDrive();
+        if (backupNovo) await aplicarBackupSilencioso(backupNovo);
+      } catch (e) {
+        console.warn('[Troca conta] merge do backup falhou:', e);
+      }
       // Traz para a conta o que o usuário criou deslogado (notas/listas/pastas
       // de @minhas_notas_locais), preservando o que já veio do Drive.
       let migrados = 0;

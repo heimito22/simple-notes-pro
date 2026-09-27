@@ -1333,7 +1333,7 @@ export function NotasProvider({ children }: any) {
       travarSync, destravarSync,
       apagarTudoLocal,
       fazerBackupCloud, apagarBackupsCloud, buscarCotaDrive, estaOnline,
-      restaurarBackupCloud, isAppBloqueado, toggleBloqueioApp,
+      restaurarBackupCloud, isAppBloqueado, buscarBackupDrive, aplicarBackupSilencioso, toggleBloqueioApp,
       recarregarTudo: carregarTudo,
       // Identidade da conta logada ('local' quando deslogado) — usada, ex., para
       // saber se a conta já deu feedback no plano gratuito.

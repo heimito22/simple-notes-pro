@@ -1,5 +1,5 @@
-**Versão 1.4.9**
+**Versão 1.4.10**
 
-- Troca de conta agora é atômica: nada sobe para a nuvem durante a transição
-- Backup só sobe para o Drive da MESMA conta dona dos dados — impossível cruzar
-- Problema da nota "acompanhando" contas e do apagamento na entrada: resolvidos
+- Trocar de conta agora MESCLA o backup da nova conta — nunca mais substitui seus dados
+- Edições locais da conta não são mais perdidas ao entrar nela
+- Notas da conta anterior não podem mais reaparecer vindo do backup
