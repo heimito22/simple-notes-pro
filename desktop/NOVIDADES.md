@@ -1,5 +1,5 @@
-**Versão 1.4.8**
+**Versão 1.4.9**
 
-- Trocar de conta nunca mais leva nada de uma conta para a outra (dupla proteção)
-- Conta anterior detectada direto do Google (não dependia mais do estado do app)
-- Estado de uma conta não pode mais ser gravado no armazenamento offline
+- Troca de conta agora é atômica: nada sobe para a nuvem durante a transição
+- Backup só sobe para o Drive da MESMA conta dona dos dados — impossível cruzar
+- Problema da nota "acompanhando" contas e do apagamento na entrada: resolvidos

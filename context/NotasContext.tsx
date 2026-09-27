@@ -59,6 +59,21 @@ export function NotasProvider({ children }: any) {
    */
   const contaEstadoRef = useRef<string | null>(null);
   /**
+   * TRAVA DE TRANSIÇÃO DE CONTA: engatada antes do signOut, solta depois do
+   * restore da conta nova. Enquanto travada, NADA sobe pro Drive — nem o
+   * timer de push pendente, nem o ciclo automático. Sem isto, um push
+   * agendado (900ms) que caísse no meio da troca subia o estado da conta A
+   * para o Drive da conta B (notas "acompanhando") — ou subia o estado
+   * VAZIO do isolamento, apagando o backup da conta nova no Drive.
+   */
+  const transicaoContaRef = useRef(false);
+  /** Trava/solta usadas pelo fluxo de troca de conta (index.tsx). */
+  const travarSync = useCallback(() => {
+    transicaoContaRef.current = true;
+    if (pushTimerRef.current) clearTimeout(pushTimerRef.current);
+  }, []);
+  const destravarSync = useCallback(() => { transicaoContaRef.current = false; }, []);
+  /**
    * Estado MAIS RECENTE de tudo que sobe para a nuvem. O push pode ser disparado
    * de dentro de uma closure antiga (tick do poll automático) — sem isto ele
    * enviava notas velhas por cima das novas no Drive, e a alteração "voltava".
@@ -291,6 +306,9 @@ export function NotasProvider({ children }: any) {
    */
   const fazerBackupCloud = useCallback(async () => {
     if (!estaOnline) return;
+    // TRANSICAO DE CONTA: nada sobe enquanto troca de conta. O push final
+    // da nova conta acontece depois do destravar, ja com os dados dela.
+    if (transicaoContaRef.current) { haMudancasLocaisRef.current = true; return; }
     // Exclusões do disco ANTES de montar o backup: subir `apagados` incompleto
     // apagaria na nuvem o registro das exclusões feitas no PC/celular e o
     // aparelho reenviaria o que já tinha sido apagado.
@@ -303,6 +321,14 @@ export function NotasProvider({ children }: any) {
     try {
       const user = await GoogleSignin.getCurrentUser();
       if (!user) return;
+      // PUSH AMARRADO AO DONO: o Drive que recebe o backup tem que ser da
+      // MESMA conta dona do estado em memoria. Um push que caia no meio da
+      // troca subiria os dados da conta A para o Drive da conta B.
+      if (contaEstadoRef.current && contaEstadoRef.current !== 'local' && contaEstadoRef.current !== user.user.id) {
+        console.log('[Isolamento] push bloqueado: estado e da conta', contaEstadoRef.current, '- logado e', user.user.id);
+        return;
+      }
+
       setSyncStatus(s => ({ ...s, estado: 'ocupado' }));
 
       // Token válido após reinício do app (sessão fria): renova em silêncio.
@@ -478,6 +504,9 @@ export function NotasProvider({ children }: any) {
     if (!dadosCarregados) return;
     if (!estaOnline) return;
     if (!currentUserId || currentUserId === 'local') return;
+    // Transicao de conta em andamento: nao agenda push (o fluxo da troca
+    // faz o push final ja com os dados da conta nova).
+    if (transicaoContaRef.current) return;
     // Pull em andamento: NÃO descarta a mudança — marca pendência. Antes um
     // `return` seco aqui jogava fora o push de uma exclusão que coincidia
     // com o pull de 12s, e a exclusão nunca chegava ao Drive.
@@ -624,6 +653,7 @@ export function NotasProvider({ children }: any) {
     const sub = AppState.addEventListener('change', s => { appAtivo = s === 'active'; });
     const tick = async () => {
       if (!appAtivo || syncEmAndamentoRef.current) return;
+      if (transicaoContaRef.current) return; // trocando de conta: nada sobe/desce
       if (Date.now() - ultimoPushTsRef.current < 4000) return;
       // Anexos pendentes (imagem/áudio que nunca subiu — ex.: nota criada antes
       // do login ou antes do fix de upload): tenta a cada ciclo, best-effort.
@@ -972,8 +1002,10 @@ export function NotasProvider({ children }: any) {
   }, [setListas, tarefasContext]);
 
   const logout = async () => {
-    // Última chance de subir o que mudou antes de sair (se online).
+    // Última chance de subir o que mudou antes de sair (se online) -
+    // tem que ser ANTES de travar (com a trava o push e bloqueado).
     try { await fazerBackupCloud(); } catch {}
+    if (travarSync) travarSync();
     await GoogleSignin.signOut();
     setNotas([]);
     if (typeof setListas === 'function') setListas([]);
@@ -995,7 +1027,8 @@ export function NotasProvider({ children }: any) {
     if (typeof tarefasContext?.recarregarTarefas === 'function') {
       await tarefasContext.recarregarTarefas(true).catch(() => {});
     }
-    Alert.alert(tIdioma(idiomaAtual, 'Sair'), tIdioma(idiomaAtual, 'Desconectado.'));
+    if (destravarSync) destravarSync();
+        Alert.alert(tIdioma(idiomaAtual, 'Sair'), tIdioma(idiomaAtual, 'Desconectado.'));
   };
 
   /**
@@ -1297,6 +1330,7 @@ export function NotasProvider({ children }: any) {
       migrarLocaisParaConta,
       migrarTarefasLocaisParaConta,
       isolarDadosDeConta,
+      travarSync, destravarSync,
       apagarTudoLocal,
       fazerBackupCloud, apagarBackupsCloud, buscarCotaDrive, estaOnline,
       restaurarBackupCloud, isAppBloqueado, toggleBloqueioApp,

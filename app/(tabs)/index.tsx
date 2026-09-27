@@ -103,6 +103,7 @@ export default function HomeScreen() {
     recarregarTudo,
     migrarLocaisParaConta,
     isolarDadosDeConta,
+    travarSync, destravarSync,
     migrarTarefasLocaisParaConta,
     alternarFixarNota, 
     logout,
@@ -443,6 +444,10 @@ export default function HomeScreen() {
     // seria pulado, deixando os dados da conta antiga migrarem para a nova.
     const contaAntes = GoogleSignin.getCurrentUser();
     const idAnterior = contaAntes?.user?.id || null;
+    // TRAVA: a partir daqui NADA sobe pro Drive ate a conta nova estar
+    // carregada e restaurada. Um push pendente no meio da troca era o que
+    // subia notas da conta A para o Drive da B (ou subia vazio e apagava).
+    if (travarSync) travarSync();
     try {
       setModalContaVisible(false);
       await GoogleSignin.signOut();
@@ -483,8 +488,9 @@ export default function HomeScreen() {
       // de @minhas_notas_locais), preservando o que já veio do Drive.
       let migrados = 0;
       if (migrarLocaisParaConta) migrados = await migrarLocaisParaConta();
-      // Tarefas criadas deslogado também entram na conta (chave por usuário).
       if (migrarTarefasLocaisParaConta) migrados += await migrarTarefasLocaisParaConta();
+      // DESTRAVA: agora sim pode subir - o estado ja e 100% da conta nova.
+      if (destravarSync) destravarSync();
       // Sobe um backup logo após o login: garante que a chave de IA (e as notas)
       // digitadas ANTES de entrar cheguem à conta Google — não precisa repor.
       fazerBackupCloud().catch(() => {});
@@ -530,6 +536,10 @@ export default function HomeScreen() {
         setUser(null);
         sincronizarPremium(null).catch(() => {});
       }
+    } finally {
+      // Se algo falhar no meio da troca, NUNCA deixa a trava engatilhada:
+      // o sync da conta ativa precisa voltar a funcionar sozinho.
+      if (destravarSync) destravarSync();
     }
   };
 
