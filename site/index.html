@@ -307,11 +307,6 @@ nav{transition:transform .35s ease}
 .faq-item{position:relative}
 @keyframes faqline{from{transform:scaleX(0)}to{transform:scaleX(1)}}
 .faq-item.aberto::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:linear-gradient(180deg,var(--acc),rgba(10,132,255,.2));transform-origin:top;animation:faqline .35s ease}
-/* respeito a reduced motion */
-@media(prefers-reduced-motion:reduce){
-  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
-  .marquee-track{animation:none!important}
-}
 /* ===== responsivo ===== */
 @media(max-width:1020px){
   .nav-links a:not(.nav-cta):not(.lang-switch){display:none}
