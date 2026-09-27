@@ -300,9 +300,10 @@ nav{transition:transform .35s ease}
 .cri-vs .vs-row:nth-child(2){transition-delay:.08s}
 .cri-vs .vs-row:nth-child(3){transition-delay:.16s}
 .cri-vs .vs-row:nth-child(4){transition-delay:.24s}
-/* phone: respiracao de sombra */
-@keyframes breath{0%,100%{box-shadow:0 40px 90px -30px rgba(0,0,0,.9),0 0 70px -30px rgba(10,132,255,.22)}50%{box-shadow:0 40px 90px -30px rgba(0,0,0,.9),0 0 90px -22px rgba(10,132,255,.38)}}
-.phone{animation:floaty 7s ease-in-out infinite,breath 7s ease-in-out infinite}
+/* phone: respiracao de sombra (opacity = barato, sem repaint) */
+.phone{position:relative;animation:floaty 7s ease-in-out infinite}
+.phone::after{content:"";position:absolute;inset:-46px;border-radius:56px;background:radial-gradient(60% 60% at 50% 62%,rgba(10,132,255,.22),transparent 70%);z-index:-1;pointer-events:none;animation:breath 7s ease-in-out infinite}
+@keyframes breath{0%,100%{opacity:.3}50%{opacity:.75}}
 /* faq: linha de energia ao abrir */
 .faq-item{position:relative}
 @keyframes faqline{from{transform:scaleX(0)}to{transform:scaleX(1)}}
@@ -310,28 +311,70 @@ nav{transition:transform .35s ease}
 /* ===== responsivo ===== */
 @media(max-width:1020px){
   .nav-links a:not(.nav-cta):not(.lang-switch){display:none}
-  .nav-links.aberto{position:absolute;top:60px;right:0;left:0;background:#000;border-bottom:1px solid var(--line);flex-direction:column;align-items:stretch;padding:12px 24px;gap:2px}
-  .nav-links.aberto a:not(.nav-cta){display:block;padding:12px 4px;border-bottom:1px solid var(--line)}
   .nav-hamburger{display:flex}
+  .nav-links.aberto{position:absolute;top:60px;right:0;left:0;background:rgba(0,0,0,.97);border-bottom:1px solid var(--line);flex-direction:column;align-items:stretch;padding:10px 24px 18px;gap:0;box-shadow:0 30px 60px rgba(0,0,0,.55)}
+  .nav-links.aberto a:not(.nav-cta){display:block;padding:15px 2px;border-bottom:1px solid var(--line);font-size:.98rem}
+  .nav-links.aberto .nav-cta{display:inline-flex;width:100%;justify-content:center;margin-top:16px;font-size:1rem;padding:15px 20px}
+  .nav-links.aberto .lang-switch{margin:16px 0 4px;justify-content:flex-start}
+  .nav-links.aberto .lang-switch button{padding:8px 14px;font-size:.75rem}
 }
 @media(max-width:880px){
-  .hero{grid-template-columns:1fr;gap:44px}
-  .phone-wrap{order:-1}
-  header{padding-top:120px}
-  .b-card,.b-card.wide,.b-card.half{grid-column:span 12}
-  .tab-panel.ativo{grid-template-columns:1fr}
-  .desk-feats{grid-template-columns:1fr}
-  
-  
-  
-  
+  html{scroll-padding-top:70px}
+  body{font-size:15px}
+  header{padding-top:92px}
+  .hero{grid-template-columns:1fr;gap:36px;text-align:left}
+  .overline{margin-bottom:14px}
+  h1{margin-bottom:16px}
+  .hero-sub{font-size:.98rem;margin-bottom:24px}
+  .hero-actions{margin-bottom:22px}
+  .btn{padding:14px 20px;font-size:.92rem}
+  .phone{width:min(258px,72vw)}
+  .phone::after{inset:-30px}
+  section{padding:62px 0}
+  .sec-head{margin-bottom:32px}
+  .sec-sub{font-size:.94rem}
+  .sec-head.center .sec-num::after{display:none}
+  .b-card,.b-card.wide,.b-card.half{grid-column:span 12;padding:22px}
+  .b-card h3{font-size:1rem}
+  .b-card p{font-size:.88rem}
+  .chat-mock{font-size:.76rem}
+  .chat-line{padding:8px 10px}
+  .strip-inner{display:flex;flex-wrap:nowrap;overflow-x:auto;gap:20px;padding:14px 24px;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .strip-inner::-webkit-scrollbar{display:none}
+  .strip-item{flex-shrink:0;scroll-snap-align:start}
+  .tabs-nav{width:100%;justify-content:flex-start;flex-wrap:nowrap;overflow-x:auto;gap:4px;padding:5px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  .tabs-nav::-webkit-scrollbar{display:none}
+  .tab-btn{flex-shrink:0;padding:10px 14px;font-size:.84rem}
+  .tab-panel{padding:26px 20px}
+  .tab-panel h3{font-size:1.14rem}
+  .tab-panel li{font-size:.86rem}
+  .pipe{display:grid;grid-template-columns:1fr 1fr;gap:16px 8px;margin-bottom:44px}
+  .pipe-arrow{display:none}
+  .pipe-step{flex-direction:row;align-items:center;gap:12px;min-width:0}
+  .pipe-box{width:50px;height:50px;flex-shrink:0}
+  .pipe-lbl{font-size:.66rem;text-align:left}
   .spec-row{grid-template-columns:1fr}
-  .spec-k{border-right:none;border-bottom:1px solid var(--line)}
+  .spec-k{border-right:none;border-bottom:1px solid var(--line);padding:13px 16px}
+  .spec-v{padding:13px 16px;font-size:.78rem;gap:6px}
   .vs-row{grid-template-columns:1fr}
   .vs-head{display:none}
+  .vs-cell{padding:13px 16px;font-size:.85rem}
   .vs-cell::before{content:attr(data-rotulo);display:block;font:600 .62rem var(--mono);color:var(--mut2);letter-spacing:.1em;text-transform:uppercase;margin-bottom:5px}
+  .desk-feats{grid-template-columns:1fr}
+  .price-card{padding:32px 20px}
+  .price-val{font-size:2.5rem}
+  .price-list{gap:10px}
+  .faq-q{padding:16px 2px;font-size:.95rem}
+  .faq-ico{width:26px;height:26px}
+  .faq-item.aberto .faq-a-inner{padding:0 2px 18px;font-size:.89rem}
+  footer{padding:40px 0 28px}
+  .foot-grid{flex-direction:column;align-items:flex-start;gap:22px;margin-bottom:28px}
+  .foot-base{flex-direction:column;gap:8px;align-items:flex-start}
 }
-</style>
+@media(max-width:400px){
+  .hero-actions .btn{width:100%;justify-content:center}
+  .trust span{font-size:.62rem;padding:4px 7px}
+}</style>
 </head>
 <body>
 <div class="hero-bg"></div>
@@ -791,11 +834,24 @@ document.querySelectorAll('.faq-item').forEach(function(item){
   var ultimo=window.scrollY;
   window.addEventListener('scroll',function(){
     var y=window.scrollY;
-    if(y>ultimo&&y>140){nav.style.transform='translateY(-100%)'}
-    else{nav.style.transform=''}
+    var links=document.getElementById('navLinks');
+    if(y>ultimo&&y>140){
+      if(links)links.classList.remove('aberto');
+      nav.style.transform='translateY(-100%)';
+    }else{nav.style.transform=''}
     ultimo=y;
   },{passive:true});
 })();
+
+// ===== menu mobile: fecha ao tocar fora =====
+document.addEventListener('click',function(e){
+  var links=document.getElementById('navLinks');
+  var hamb=document.getElementById('navHamb');
+  if(!links||!links.classList.contains('aberto'))return;
+  if(links.contains(e.target))return;
+  if(hamb&&hamb.contains(e.target))return;
+  links.classList.remove('aberto');
+});
 
 // ===== preço conta de 0 até 5,99 quando aparece =====
 (function(){
