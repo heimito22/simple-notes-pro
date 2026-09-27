@@ -76,7 +76,6 @@ section{padding:20px 0 90px}
 .dl-card:hover::before{transform:scaleX(1)}
 .dl-card.destaque{border-color:rgba(10,132,255,.45);background:linear-gradient(180deg,rgba(10,132,255,.05),transparent 45%),var(--surface)}
 .rec-tag{position:absolute;top:16px;right:16px;font:600 .6rem var(--mono);letter-spacing:.1em;color:var(--acc2);border:1px solid rgba(10,132,255,.35);border-radius:6px;padding:3px 9px;background:rgba(10,132,255,.08)}
-.seu-so{position:absolute;top:16px;left:16px;font:600 .6rem var(--mono);letter-spacing:.08em;color:var(--ok);border:1px solid rgba(52,199,89,.35);border-radius:6px;padding:3px 9px;background:rgba(52,199,89,.08)}
 .os-chip{display:inline-flex;align-items:center;gap:8px;font:600 .68rem var(--mono);letter-spacing:.1em;color:var(--mut2);margin-bottom:18px;text-transform:uppercase;margin-top:6px}
 .os-chip i{width:15px;height:15px;color:var(--mut2)}
 .dl-card.destaque .os-chip i{color:var(--acc2)}
@@ -157,7 +156,6 @@ footer a:hover{color:var(--txt)}
     <div class="dl-grid">
       <div class="dl-card destaque rv" id="cardWin">
         <span class="rec-tag" data-i18n="dl_recomendado">Recomendado</span>
-        <span class="seu-so" id="tagWin" style="display:none" data-i18n="dl_para_voce">Para você</span>
         <span class="os-chip"><i data-lucide="monitor"></i>Windows</span>
         <h3 data-i18n="dl_win_t">Windows — Instalador</h3>
         <p data-i18n="dl_win_d">Instala no PC, inicia com o Windows e fica na bandeja com os alarmes ativos. Sincroniza com o celular pelo Google Drive.</p>
@@ -187,7 +185,6 @@ footer a:hover{color:var(--txt)}
       </div>
 
       <div class="dl-card rv" id="cardDroid">
-        <span class="seu-so" id="tagDroid" style="display:none" data-i18n="dl_para_voce">Para você</span>
         <span class="os-chip"><i data-lucide="smartphone"></i>Android</span>
         <h3 data-i18n="dl_droid_t">Android — Play Store</h3>
         <p data-i18n="dl_droid_d">Atualizações automáticas pelo Google Play. O Premium vitalício é comprado por lá.</p>
@@ -229,14 +226,6 @@ lucide.createIcons({attrs:{'stroke-width':2}});
   if(!('IntersectionObserver' in window)){els.forEach(function(e){e.classList.add('on')});return}
   var io=new IntersectionObserver(function(es){es.forEach(function(e){e.target.classList.toggle('on',e.isIntersecting)})},{threshold:.1});
   els.forEach(function(e){io.observe(e)});
-})();
-// detecta o SO do visitante
-(function(){
-  var ua=navigator.userAgent;
-  var win=/Windows/i.test(ua);
-  var droid=/Android/i.test(ua);
-  if(win){var t=document.getElementById('tagWin');if(t)t.style.display='';}
-  if(droid){var d=document.getElementById('tagDroid');if(d)d.style.display='';}
 })();
 // ===== versão mais nova via GitHub Releases =====
 var GITHUB_REPO='heimito22/simple-notes-pro';
@@ -298,7 +287,6 @@ var I18N={
     dl_sub:'No PC (Windows) e no celular (Android) — sempre a versão mais recente, direto do repositório oficial.',
     dl_ultima:'Última versão:',
     dl_recomendado:'Recomendado',
-    dl_para_voce:'Para você',
     dl_win_t:'Windows — Instalador',
     dl_win_d:'Instala no PC, inicia com o Windows e fica na bandeja com os alarmes ativos. Sincroniza com o celular pelo Google Drive.',
     dl_win_btn:'Baixar para Windows',
@@ -321,7 +309,6 @@ var I18N={
     dl_sub:'On PC (Windows) and mobile (Android) — always the latest version, straight from the official repository.',
     dl_ultima:'Latest version:',
     dl_recomendado:'Recommended',
-    dl_para_voce:'For you',
     dl_win_t:'Windows — Installer',
     dl_win_d:'Installs on your PC, starts with Windows and sits in the tray with alarms active. Syncs with your phone via Google Drive.',
     dl_win_btn:'Download for Windows',
@@ -344,7 +331,6 @@ var I18N={
     dl_sub:'En PC (Windows) y celular (Android) — siempre la versión más reciente, directo del repositorio oficial.',
     dl_ultima:'Última versión:',
     dl_recomendado:'Recomendado',
-    dl_para_voce:'Para ti',
     dl_win_t:'Windows — Instalador',
     dl_win_d:'Se instala en el PC, inicia con Windows y queda en la bandeja con las alarmas activas. Sincroniza con el celular vía Google Drive.',
     dl_win_btn:'Descargar para Windows',
