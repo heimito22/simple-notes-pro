@@ -8,7 +8,7 @@ import { useTarefas } from './TarefasContext';
 import { agendarLembretes, cancelarLembretes, type LembreteNota } from './lembrete-notas';
 import { verificarTelaCheia } from './permissao-alarme';
 import { sincronizarAnexosUpload, restaurarAnexosDownload } from './anexos-cloud';
-import { hidratarApagados, registrarApagado, registrarApagados, serializarApagados, carregarApagados, mesclarPorItem, limparApagados, assinaturaItem } from './tombstones';
+import { hidratarApagados, registrarApagado, registrarApagados, serializarApagados, carregarApagados, mesclarPorItem, assinaturaItem } from './tombstones';
 import { acharBackupCanonico } from './backup-drive';
 import { useTheme } from './ThemeContext';
 import { idiomaAtual, tIdioma } from './idiomas';
@@ -457,7 +457,10 @@ export function NotasProvider({ children }: any) {
     if (!dadosCarregados) return;
     if (!estaOnline) return;
     if (!currentUserId || currentUserId === 'local') return;
-    if (suprimirPushRef.current) return; // aplicando remoto — não é mudança local
+    // Pull em andamento: NÃO descarta a mudança — marca pendência. Antes um
+    // `return` seco aqui jogava fora o push de uma exclusão que coincidia
+    // com o pull de 12s, e a exclusão nunca chegava ao Drive.
+    if (suprimirPushRef.current) { haMudancasLocaisRef.current = true; return; }
     // há mudança local não enviada: o pull NÃO pode rodar antes do push,
     // senão ele aplica o backup antigo e apaga a nota/tarefa/lista recém-criada.
     haMudancasLocaisRef.current = true;
@@ -493,6 +496,28 @@ export function NotasProvider({ children }: any) {
     await hidratarApagados();
     // tombstones remotos chegam antes do merge — defines o que ficou apagado
     if (Array.isArray(backupData.apagados)) carregarApagados(backupData.apagados);
+
+    // ── FILTRO DIRETO POR TOMBSTONE (mesma rede de segurança do PC) ──
+    // O mesclarPorItem já processa tombstones, mas condições sutis (formato
+    // de ts, clock skew) podem deixá-lo escapar e a exclusão "voltava".
+    // Aqui é garantido: item do backup com tombstone >= à data do item morre
+    // ANTES do merge — exclusão não ressuscita mais.
+    const mapaApagados: Record<string, number> = {};
+    serializarApagados().forEach((t: any) => {
+      if (t && t.id) mapaApagados[String(t.id)] = Number(t.ts) || 0;
+    });
+    (['notas', 'listas', 'pastas', 'tarefas'] as const).forEach((campo) => {
+      const lista = (backupData as any)[campo];
+      if (Array.isArray(lista) && lista.length > 0) {
+        (backupData as any)[campo] = lista.filter((it: any) => {
+          if (!it || it.id == null) return true;
+          const tsAp = mapaApagados[String(it.id)] || 0;
+          if (!tsAp) return true;
+          const tsItem = Number(it.dataModificacao) || 0;
+          return tsItem > tsAp; // editado DEPOIS da exclusão: sobrevive
+        });
+      }
+    });
 
     // ── WIPE MARKER: "apagar tudo" do outro aparelho ──
     // Sem isto, notas que SÓ existiam no PC sobreviviam ao "apagar tudo"
@@ -909,9 +934,11 @@ export function NotasProvider({ children }: any) {
     }
     try {
       await AsyncStorage.removeItem('@minhas_notas_locais');
-      await limparApagados();
+      // TOMBSTONES FICAM: são a memória das exclusões (id + data, 60 dias).
+      // Limpar aqui fazia tudo que já foi excluído RESSUSCITAR ao voltar para
+      // a conta — o backup do Drive ainda tem o item e nada o impede de voltar.
     } catch (e) {
-      console.warn('[Isolamento] falha ao limpar bucket/tombstones:', e);
+      console.warn('[Isolamento] falha ao limpar bucket offline:', e);
     }
     // Solta na próxima volta do event loop — os efeitos já reagiram ao
     // estado limpo (sem isto, o push ficava travado se a conta nova não
@@ -935,10 +962,10 @@ export function NotasProvider({ children }: any) {
     haMudancasLocaisRef.current = false;
     setCurrentUserId('local');
     // Nada da conta pode ficar offline no aparelho (isolamento de contas):
-    // bucket offline + tombstones da conta saem junto.
+    // o bucket offline sai. TOMBSTONES FICAM — sem eles, cada exclusão já
+    // feita volta do Drive na próxima sincronização.
     try {
       await AsyncStorage.removeItem('@minhas_notas_locais');
-      await limparApagados();
     } catch {}
     // Tarefas voltam ao conjunto local imediatamente (força a recarga).
     if (typeof tarefasContext?.recarregarTarefas === 'function') {
@@ -1079,17 +1106,21 @@ export function NotasProvider({ children }: any) {
     try {
       // 0) REGISTRA TOMBSTONES de TODAS as notas/listas/pastas/tarefas
       // ANTES de apagar — sem isto o PC faz merge sem saber que foi
-      // exclusão intencional e RE-SOBE tudo para o Drive.
-      const itens = notasRef.current || [];
-      const ids = itens.map(n => n?.id).filter(Boolean);
-      if (typeof setListas === 'function') {
-        // listas e pastas também precisam de tombstone
-        // (o merge é por item, não por tipo)
-      }
+      // exclusão intencional e RE-SOBE tudo para o Drive. Antes só as
+      // NOTAS eram registradas: pastas e listas ressuscitavam (o eco
+      // que perseguia entre contas e aparelhos).
+      const d = dadosRef.current || { notas: [], listas: [], pastas: [], tarefas: [] };
+      const ids = [
+        ...((d.notas || []) as any[]),
+        ...((d.listas || []) as any[]),
+        ...((d.pastas || []) as any[]),
+        ...((d.tarefas || []) as any[]),
+      ].map(x => x?.id).filter(Boolean) as string[];
       if (ids.length > 0) {
         registrarApagados(ids);
         console.log('[Apagar tudo] Tombstones registrados:', ids.length);
       }
+      const itens = notasRef.current || [];
 
       // 1) Cancela TODOS os lembretes agendados das notas (Android nativo + expo).
       for (const nota of itens) {
