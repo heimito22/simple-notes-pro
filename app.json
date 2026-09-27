@@ -2,7 +2,7 @@
   "expo": {
     "name": "Simple Notes",
     "slug": "MinhasNotas",
-    "version": "1.4.12",
+    "version": "1.4.13",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "simplesnotes",

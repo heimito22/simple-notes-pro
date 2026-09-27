@@ -1,5 +1,5 @@
-**Versão 1.4.12**
+**Versão 1.4.13**
 
-- Encontrado o contrabandista de notas entre contas: era o PC
-- O PC esquecia de quem eram os dados a cada reinício e os passava adiante na troca de conta
-- Agora ele lembra permanentemente — troca de conta no PC também limpa os dados da anterior
+- Encontrada a causa-raiz: conta com Google Drive cheio fazia as notas caírem no modo offline
+- Modo offline agora é etiquetado por conta: nota de uma conta nunca é entregue a outra
+- Aviso claro quando o Drive está cheio — o app nunca mais finge que sincronizou

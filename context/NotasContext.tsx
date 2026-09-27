@@ -67,6 +67,8 @@ export function NotasProvider({ children }: any) {
    * VAZIO do isolamento, apagando o backup da conta nova no Drive.
    */
   const transicaoContaRef = useRef(false);
+  /** Avisou sobre cota de Drive cheia nesta sessão (evita spam de alerta). */
+  const avisouCotaRef = useRef(false);
   /** Trava/solta usadas pelo fluxo de troca de conta (index.tsx). */
   const travarSync = useCallback(() => {
     transicaoContaRef.current = true;
@@ -179,7 +181,17 @@ export function NotasProvider({ children }: any) {
       console.log('[SYNC-DBG] LOAD chave=' + key + ' tem_dados=' + (!!dados));
       if (dados) {
         const parsed = JSON.parse(dados);
-        if (Array.isArray(parsed)) {
+        // BUCKET DE OUTRA CONTA: sessão quebrada deixou notas de uma conta
+        // estacionadas no offline. NÃO vira estado "offline" (senão o app
+        // mostra notas de outra conta como se fossem suas, deslogado).
+        // Fica estacionado — o próximo login da conta dona recebe de volta.
+        const origemBucket = (!Array.isArray(parsed) && parsed && typeof parsed.origem === 'string') ? parsed.origem : 'local';
+        if (key === '@minhas_notas_locais' && origemBucket !== 'local') {
+          console.log('[Isolamento] bucket é da conta', origemBucket, '— não carrega como offline');
+          setNotas([]);
+          if (typeof setListas === 'function') setListas([]);
+          setPastas([]);
+        } else if (Array.isArray(parsed)) {
           // Formato legado: array puro de notas
           setNotas(parsed);
           registrarSnap([parsed]);
@@ -268,7 +280,13 @@ export function NotasProvider({ children }: any) {
           console.log('[Isolamento] save local bloqueado: estado da conta', contaEstadoRef.current, 'não entra em', donoChave);
           return;
         }
-        const payload = JSON.stringify({ notas, listas, pastas });
+        const payload = key === '@minhas_notas_locais'
+          // BUCKET ETIQUETADO: tudo que cai no offline carrega a ORIGEM. Na
+          // migração do login, o pacote volta para a conta dona — nunca é
+          // entregue a outra conta (Drive cheio/sessão quebrada derrubava
+          // notas de uma conta no offline e a próxima herdava tudo).
+          ? JSON.stringify({ origem: contaEstadoRef.current || 'local', notas, listas, pastas })
+          : JSON.stringify({ notas, listas, pastas });
         console.log('[SYNC-DBG] SAVE chave=' + key + ' notas=' + (notas||[]).length + ' pastas=' + (pastas||[]).length);
         await AsyncStorage.setItem(key, payload);
       } catch (e) {
@@ -431,6 +449,16 @@ export function NotasProvider({ children }: any) {
         const corpo = await res.text().catch(() => '');
         setSyncStatus({ estado: 'erro', pendentes });
         console.log(`[Cloud] Backup recusado pelo Drive (${res.status}): ${corpo.slice(0, 260)}`);
+        // DRIVE CHEIO: o usuário PRECISA saber por que não sobe. Sem isso o
+        // app parece 'deslogado' e as notas ficam só no aparelho — a origem
+        // de todo o problema de contas que 'se misturavam'.
+        if (res.status === 403 && !avisouCotaRef.current) {
+          avisouCotaRef.current = true;
+          Alert.alert(
+            tIdioma(idiomaAtual, 'Google Drive sem espaço'),
+            tIdioma(idiomaAtual, 'O backup não subiu: o Drive desta conta está cheio. Suas notas ficaram salvas apenas neste aparelho — libere espaço no Google Drive para voltar a sincronizar.')
+          );
+        }
       }
     } catch (e: any) {
       setSyncStatus(s => ({ ...s, estado: 'erro' }));
@@ -1062,6 +1090,38 @@ export function NotasProvider({ children }: any) {
       // Estado atual da conta (pode já ter dados de backup/restore).
       const user = await GoogleSignin.getCurrentUser();
       if (!user) return 0;
+
+      // ── PORTEIRO DE CONTAS ──
+      // O bucket sabe de quem é (etiqueta gravada em todo save). Se as notas
+      // estacionadas pertencem a OUTRA conta (Drive cheio/sessão quebrada
+      // derrubou elas no offline), NÃO migram: são devolvidas à chave do
+      // dono e o bucket limpa. Só migra o que é genuinamente offline
+      // ('local') ou da própria conta que está entrando.
+      const origem = (!Array.isArray(locais) && locais && typeof locais.origem === 'string') ? locais.origem : 'local';
+      if (origem !== 'local' && origem !== user.user.id) {
+        try {
+          const keyDono = `@notas_user_${origem}`;
+          const brutoDono = await AsyncStorage.getItem(keyDono);
+          const dono = brutoDono ? JSON.parse(brutoDono) : {};
+          const notasDono: any[] = Array.isArray(dono) ? dono : (dono.notas || []);
+          const listasDono: any[] = Array.isArray(dono) ? [] : (dono.listas || []);
+          const pastasDono: any[] = Array.isArray(dono) ? [] : (dono.pastas || []);
+          const idsN = new Set(notasDono.map((n: any) => n?.id));
+          const idsL = new Set(listasDono.map((l: any) => l?.id));
+          const idsP = new Set(pastasDono.map((p: any) => p?.id));
+          const payloadDono = {
+            notas: [...notasLocais.filter((n: any) => n?.id && !idsN.has(n.id)), ...notasDono],
+            listas: [...listasLocais.filter((l: any) => l?.id && !idsL.has(l.id)), ...listasDono],
+            pastas: [...pastasLocais.filter((p: any) => p?.id && !idsP.has(p.id)), ...pastasDono],
+          };
+          await AsyncStorage.setItem(keyDono, JSON.stringify(payloadDono));
+          console.log('[Isolamento] bucket devolvido à conta dona:', origem, '— NADA migrou para', user.user.email);
+        } catch (e) {
+          console.warn('[Isolamento] falha ao devolver bucket ao dono:', e);
+        }
+        await AsyncStorage.removeItem('@minhas_notas_locais');
+        return 0;
+      }
       const keyConta = `@notas_user_${user.user.id}`;
       const brutoConta = await AsyncStorage.getItem(keyConta);
       const conta = brutoConta ? JSON.parse(brutoConta) : {};
