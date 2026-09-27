@@ -1,5 +1,5 @@
-**Versão 1.4.11**
+**Versão 1.4.12**
 
-- Exclusões agora têm escopo por conta: apagar na conta B nunca mais afeta a conta A
-- Fim das notas "vinculadas" entre contas (o registro de exclusões era global)
-- Suas exclusões antigas migram automaticamente para o escopo da conta
+- Encontrado o contrabandista de notas entre contas: era o PC
+- O PC esquecia de quem eram os dados a cada reinício e os passava adiante na troca de conta
+- Agora ele lembra permanentemente — troca de conta no PC também limpa os dados da anterior

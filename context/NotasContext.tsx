@@ -176,6 +176,7 @@ export function NotasProvider({ children }: any) {
       // nunca tocam a conta A - antes eram globais e 'vinculavam' as contas).
       await definirEscopoApagados(userId);
 
+      console.log('[SYNC-DBG] LOAD chave=' + key + ' tem_dados=' + (!!dados));
       if (dados) {
         const parsed = JSON.parse(dados);
         if (Array.isArray(parsed)) {
@@ -268,6 +269,7 @@ export function NotasProvider({ children }: any) {
           return;
         }
         const payload = JSON.stringify({ notas, listas, pastas });
+        console.log('[SYNC-DBG] SAVE chave=' + key + ' notas=' + (notas||[]).length + ' pastas=' + (pastas||[]).length);
         await AsyncStorage.setItem(key, payload);
       } catch (e) {
         console.error("[Storage] Erro no save local:", e);
@@ -327,6 +329,7 @@ export function NotasProvider({ children }: any) {
       // PUSH AMARRADO AO DONO: o Drive que recebe o backup tem que ser da
       // MESMA conta dona do estado em memoria. Um push que caia no meio da
       // troca subiria os dados da conta A para o Drive da conta B.
+      console.log('[SYNC-DBG] PUSH email=' + (user.user?.email||'?') + ' dono=' + contaEstadoRef.current + ' notas=' + (dadosRef.current.notas||[]).length + ' pastas=' + (dadosRef.current.pastas||[]).length);
       if (contaEstadoRef.current && contaEstadoRef.current !== 'local' && contaEstadoRef.current !== user.user.id) {
         console.log('[Isolamento] push bloqueado: estado e da conta', contaEstadoRef.current, '- logado e', user.user.id);
         return;
@@ -1053,6 +1056,7 @@ export function NotasProvider({ children }: any) {
       const pastasLocais: Pasta[] = Array.isArray(locais) ? [] : (locais.pastas || []);
 
       const totalItensLocais = notasLocais.length + listasLocais.length;
+      console.log('[SYNC-DBG] MIGRA bucket: notas=' + notasLocais.length + ' listas=' + listasLocais.length + ' pastas=' + pastasLocais.length + ' ids=' + notasLocais.map((n:any)=>n?.id).join(','));
       if (totalItensLocais === 0 && pastasLocais.length === 0) return 0;
 
       // Estado atual da conta (pode já ter dados de backup/restore).

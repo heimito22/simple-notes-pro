@@ -52,8 +52,13 @@ function lerLocal() {
       chaveIA: typeof j.chaveIA === 'string' ? j.chaveIA : '',
       config: normalizarConfig(j.config),
       ultimaSincronizacao: typeof j.ultimaSincronizacao === 'string' ? j.ultimaSincronizacao : null,
+      // ISOLAMENTO DE CONTAS: a conta DONA dos dados locais. Antes este campo
+      // era perdido a cada boot (lerLocal não copiava) — o PC esquecia que os
+      // dados eram da conta B e, ao trocar para a A, empurrava as notas da B
+      // para o Drive da A. É o campo que decide trocar-de-conta = limpar.
+      conta: typeof j.conta === 'string' ? j.conta : 'local',
     };
-  } catch { return { notas: [], listas: [], pastas: [], tarefas: [], chaveIA: '', config: Object.assign({}, CONFIG_PADRAO), ultimaSincronizacao: null }; }
+  } catch { return { notas: [], listas: [], pastas: [], tarefas: [], chaveIA: '', config: Object.assign({}, CONFIG_PADRAO), ultimaSincronizacao: null, conta: 'local' }; }
 }
 function lerConfig(){ return lerLocal().config; }
 function salvarLocal(d) {
