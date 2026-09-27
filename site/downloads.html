@@ -19,11 +19,17 @@
   --sans:'Inter',-apple-system,sans-serif;--mono:'JetBrains Mono',ui-monospace,monospace;
 }
 *{margin:0;padding:0;box-sizing:border-box}
-html{scroll-behavior:smooth;scroll-padding-top:80px}
+html{scroll-behavior:smooth;scrollbar-width:thin;scrollbar-color:#232326 #000}
+::-webkit-scrollbar{width:10px}
+::-webkit-scrollbar-track{background:#000}
+::-webkit-scrollbar-thumb{background:#232326;border-radius:6px;border:2px solid #000}
+::-webkit-scrollbar-thumb:hover{background:#3a3a3e}
 body{background:var(--bg);color:var(--txt);font-family:var(--sans);line-height:1.6;-webkit-font-smoothing:antialiased;overflow-x:hidden}
 ::selection{background:var(--acc);color:#fff}
+:focus-visible{outline:2px solid var(--acc2);outline-offset:2px;border-radius:6px}
 a{color:inherit;text-decoration:none}
 .wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+body::before{content:"";position:fixed;inset:0;z-index:2;pointer-events:none;opacity:.05;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E")}
 .hero-bg{position:fixed;inset:0 0 30% 0;z-index:-2;background:radial-gradient(60% 50% at 50% 0%,rgba(10,132,255,.07),transparent 70%)}
 .hero-grid{position:fixed;inset:0 0 30% 0;z-index:-1;pointer-events:none;
   background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);
@@ -34,38 +40,45 @@ a{color:inherit;text-decoration:none}
 /* nav */
 nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(0,0,0,.72);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
 .nav-inner{display:flex;align-items:center;gap:14px;height:60px}
-.nav-logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:.98rem;white-space:nowrap;flex-shrink:0;letter-spacing:-.01em}
-.nav-logo .logo-badge{width:28px;height:28px;border-radius:8px;overflow:hidden;border:1px solid var(--line2)}
+.nav-logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:.98rem;white-space:nowrap;flex-shrink:0}
+.nav-logo .logo-badge{width:28px;height:28px;border-radius:8px;overflow:hidden;border:1px solid var(--line2);box-shadow:0 0 0 1px rgba(255,255,255,.05),0 4px 16px rgba(10,132,255,.18)}
 .nav-logo .logo-badge img{width:100%;height:100%;object-fit:cover}
 .nav-links{display:flex;align-items:center;gap:2px;margin-left:auto}
 .nav-links a{color:var(--mut);font-size:.88rem;font-weight:500;padding:7px 12px;border-radius:8px;transition:color .2s,background .2s;white-space:nowrap}
 .nav-links a:hover{color:var(--txt);background:rgba(255,255,255,.05)}
 .nav-links a.ativo{color:var(--txt)}
-.nav-cta{background:var(--acc);color:#fff!important;font-weight:600;display:inline-flex;align-items:center;gap:7px}
-.nav-cta:hover{background:#0a74e0!important}
+.nav-cta{background:linear-gradient(180deg,#1a92ff,#0a74e0);color:#fff!important;font-weight:600;display:inline-flex;align-items:center;gap:7px;box-shadow:0 6px 18px -6px rgba(10,132,255,.5)}
+.nav-cta:hover{background:linear-gradient(180deg,#2a9aff,#0a74e0)!important}
 .lang-switch{display:flex;gap:2px;margin-left:8px}
 .lang-switch button{background:none;border:1px solid transparent;color:var(--mut2);font:600 .68rem var(--mono);padding:4px 8px;border-radius:6px;cursor:pointer;letter-spacing:.5px;transition:all .2s}
 .lang-switch button:hover{color:var(--txt)}
 .lang-switch button.ativo{color:var(--txt);border-color:var(--line2);background:rgba(255,255,255,.04)}
 /* head */
-header{padding:150px 0 60px}
+header{padding:150px 0 40px}
 .overline{font:600 .72rem var(--mono);letter-spacing:.14em;color:var(--acc2);text-transform:uppercase;margin-bottom:18px;display:flex;align-items:center;gap:10px}
 .overline::before{content:"";width:22px;height:1px;background:var(--acc)}
 h1{font-size:clamp(2.2rem,4.6vw,3.4rem);font-weight:800;line-height:1.05;letter-spacing:-.035em;margin-bottom:14px}
-h1 em{font-style:normal;color:var(--acc)}
+h1 em{font-style:normal;color:var(--acc);position:relative}
+h1 em::after{content:"";position:absolute;left:.02em;right:.02em;bottom:.05em;height:3px;border-radius:3px;background:linear-gradient(90deg,var(--acc),rgba(10,132,255,.1));opacity:.55}
 .sub{color:var(--mut);font-size:1.05rem;max-width:560px}
 .sub b{color:var(--txt);font-weight:600}
+.ver-chip{display:inline-flex;align-items:center;gap:9px;margin-top:22px;font:500 .74rem var(--mono);color:var(--mut);border:1px solid var(--line);border-radius:100px;padding:8px 16px;background:var(--surface)}
+.ver-chip b{color:var(--ok);font-weight:600}
+.ver-chip i{width:13px;height:13px;color:var(--ok)}
+.rv{opacity:0;transform:translateY(14px);transition:opacity .6s ease,transform .6s ease}
+.rv.on{opacity:1;transform:none}
 /* cards */
-section{padding:10px 0 96px}
+section{padding:20px 0 90px}
 .dl-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
-.dl-card{border:1px solid var(--line);border-radius:14px;background:var(--surface);padding:28px;position:relative;transition:border-color .25s,background .25s;overflow:hidden}
-.dl-card:hover{border-color:var(--line2);background:var(--surface2)}
-.dl-card::after{content:"";position:absolute;inset:0;border-radius:14px;opacity:0;transition:opacity .3s;pointer-events:none;background:radial-gradient(360px circle at var(--mx,50%) var(--my,50%),rgba(10,132,255,.08),transparent 65%)}
-.dl-card:hover::after{opacity:1}
-.dl-card.destaque{border-color:rgba(10,132,255,.45);background:linear-gradient(180deg,rgba(10,132,255,.05),transparent 50%),var(--surface)}
+.dl-card{border:1px solid var(--line);border-radius:14px;background:var(--surface);padding:28px;position:relative;transition:border-color .25s,background .25s,transform .25s;overflow:hidden}
+.dl-card:hover{border-color:var(--line2);background:var(--surface2);transform:translateY(-4px)}
+.dl-card::before{content:"";position:absolute;top:0;left:14%;right:14%;height:2px;border-radius:0 0 3px 3px;background:linear-gradient(90deg,transparent,rgba(10,132,255,.65),transparent);transform:scaleX(0);transition:transform .45s cubic-bezier(.2,.8,.2,1)}
+.dl-card:hover::before{transform:scaleX(1)}
+.dl-card.destaque{border-color:rgba(10,132,255,.45);background:linear-gradient(180deg,rgba(10,132,255,.05),transparent 45%),var(--surface)}
 .rec-tag{position:absolute;top:16px;right:16px;font:600 .6rem var(--mono);letter-spacing:.1em;color:var(--acc2);border:1px solid rgba(10,132,255,.35);border-radius:6px;padding:3px 9px;background:rgba(10,132,255,.08)}
-.os-chip{display:inline-flex;align-items:center;gap:8px;font:600 .68rem var(--mono);letter-spacing:.1em;color:var(--mut2);margin-bottom:18px;text-transform:uppercase}
-.os-chip i{width:15px;height:15px;color:var(--mut)}
+.seu-so{position:absolute;top:16px;left:16px;font:600 .6rem var(--mono);letter-spacing:.08em;color:var(--ok);border:1px solid rgba(52,199,89,.35);border-radius:6px;padding:3px 9px;background:rgba(52,199,89,.08)}
+.os-chip{display:inline-flex;align-items:center;gap:8px;font:600 .68rem var(--mono);letter-spacing:.1em;color:var(--mut2);margin-bottom:18px;text-transform:uppercase;margin-top:6px}
+.os-chip i{width:15px;height:15px;color:var(--mut2)}
 .dl-card.destaque .os-chip i{color:var(--acc2)}
 .dl-card h3{font-size:1.1rem;font-weight:700;letter-spacing:-.015em;margin-bottom:8px}
 .dl-card p{color:var(--mut);font-size:.88rem;margin-bottom:22px;min-height:66px}
@@ -73,31 +86,36 @@ section{padding:10px 0 96px}
 .dl-meta span{font:500 .68rem var(--mono);color:var(--mut);border:1px solid var(--line);border-radius:6px;padding:4px 9px;letter-spacing:.03em}
 .dl-meta span b{color:var(--txt);font-weight:600}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;font-weight:600;font-size:.92rem;padding:13px 20px;border-radius:10px;transition:all .2s;cursor:pointer;border:1px solid transparent;width:100%}
-.btn-primary{background:var(--acc);color:#fff}
-.btn-primary:hover{background:#0a74e0;transform:translateY(-1px)}
+.btn-primary{background:linear-gradient(180deg,#1a92ff,#0a74e0);color:#fff;box-shadow:0 10px 26px -10px rgba(10,132,255,.55),inset 0 1px 0 rgba(255,255,255,.18);position:relative;overflow:hidden}
+.btn-primary::after{content:"";position:absolute;top:0;left:-80%;width:50%;height:100%;background:linear-gradient(105deg,transparent,rgba(255,255,255,.25),transparent);transform:skewX(-20deg);transition:left .5s ease}
+.btn-primary:hover::after{left:130%}
+.btn-primary:hover{background:linear-gradient(180deg,#2a9aff,#0a74e0);transform:translateY(-1px)}
 .btn-ghost{border-color:var(--line2);color:var(--txt)}
-.btn-ghost:hover{border-color:var(--acc);color:var(--acc2)}
+.btn-ghost:hover{border-color:var(--acc);color:var(--acc2);background:rgba(255,255,255,.03)}
 .dl-erro{display:none;border:1px solid rgba(255,69,58,.35);border-radius:12px;background:rgba(255,69,58,.04);color:var(--mut);font-size:.88rem;padding:16px 20px;margin-top:26px;max-width:560px}
+/* changelog */
+.changelog{margin-top:44px;border:1px solid var(--line);border-radius:14px;background:var(--surface);padding:28px 30px;max-width:900px}
+.changelog-head{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.changelog-head i{width:16px;height:16px;color:var(--acc2)}
+.changelog-head b{font:600 .78rem var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--txt)}
+.changelog-head span{font:500 .72rem var(--mono);color:var(--mut2)}
+.changelog-body{color:var(--mut);font-size:.88rem;line-height:1.7;white-space:pre-line}
 .dl-nota{margin-top:34px;color:var(--mut2);font:500 .74rem var(--mono);letter-spacing:.04em;display:flex;gap:9px;align-items:flex-start;max-width:560px}
 .dl-nota i{width:14px;height:14px;flex-shrink:0;margin-top:3px;color:var(--mut2)}
-/* reveal infinito */
-.rv{opacity:0;transform:translateY(14px);transition:opacity .6s ease,transform .6s ease}
-.rv.on{opacity:1;transform:none}
-@keyframes floaty{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
-.dl-card{animation:floaty 8s ease-in-out infinite}
-.dl-card:nth-child(2){animation-delay:-2.6s}
-.dl-card:nth-child(3){animation-delay:-5.2s}
 /* footer */
 footer{border-top:1px solid var(--line);padding:34px 0;background:rgba(255,255,255,.01)}
 .foot-base{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;font:500 .72rem var(--mono);color:var(--mut2);letter-spacing:.03em}
-footer a{color:var(--mut);font-size:.88rem;transition:color .2s}
+footer a{color:var(--mut);font-size:.88rem;transition:color .2s;display:inline-flex;align-items:center;gap:6px}
 footer a:hover{color:var(--txt)}
 @media(max-width:1020px){.nav-links a:not(.nav-cta):not(.lang-switch){display:none}}
 @media(max-width:880px){
+  header{padding-top:110px}
   .dl-grid{grid-template-columns:1fr}
-  .dl-card{animation:none}
   .dl-card p{min-height:0}
+  .changelog{padding:22px 20px}
+  .foot-base{flex-direction:column;gap:8px;align-items:flex-start}
 }
+@media(max-width:400px){.os-chip{font-size:.6rem}}
 </style>
 </head>
 <body>
@@ -130,14 +148,16 @@ footer a:hover{color:var(--txt)}
     <div class="overline" data-i18n="dl_overline">Downloads</div>
     <h1 data-i18n="dl_title">Baixe o <em>Simple Notes Pro</em></h1>
     <p class="sub" data-i18n="dl_sub">No PC (Windows) e no celular (Android) — sempre a versão mais recente, direto do repositório oficial.</p>
+    <span class="ver-chip"><i data-lucide="git-branch"></i><span data-i18n="dl_ultima">Última versão:</span> <b id="dlVerTopo">…</b></span>
   </div>
 </header>
 
 <section>
   <div class="wrap">
     <div class="dl-grid">
-      <div class="dl-card destaque rv">
+      <div class="dl-card destaque rv" id="cardWin">
         <span class="rec-tag" data-i18n="dl_recomendado">Recomendado</span>
+        <span class="seu-so" id="tagWin" style="display:none" data-i18n="dl_para_voce">Para você</span>
         <span class="os-chip"><i data-lucide="monitor"></i>Windows</span>
         <h3 data-i18n="dl_win_t">Windows — Instalador</h3>
         <p data-i18n="dl_win_d">Instala no PC, inicia com o Windows e fica na bandeja com os alarmes ativos. Sincroniza com o celular pelo Google Drive.</p>
@@ -145,26 +165,29 @@ footer a:hover{color:var(--txt)}
           <span><b id="dlWinVersao">v—</b></span>
           <span id="dlWinTamanho">— MB</span>
           <span id="dlWinData"></span>
+          <span id="dlWinDownloads"></span>
         </div>
         <a id="btnDlWin" href="https://github.com/heimito22/simple-notes-pro/releases" class="btn btn-primary">
           <i data-lucide="download" size="16"></i><span data-i18n="dl_win_btn">Baixar para Windows</span>
         </a>
       </div>
 
-      <div class="dl-card rv">
+      <div class="dl-card rv" id="cardPort">
         <span class="os-chip"><i data-lucide="usb"></i>Windows</span>
         <h3 data-i18n="dl_port_t">Windows — Portátil</h3>
         <p data-i18n="dl_port_d">Sem instalação: um único .exe que roda direto do pen drive ou de qualquer pasta.</p>
         <div class="dl-meta">
           <span><b id="dlPortVersao">v—</b></span>
           <span id="dlPortTamanho">— MB</span>
+          <span id="dlPortDownloads"></span>
         </div>
         <a id="btnDlPort" href="https://github.com/heimito22/simple-notes-pro/releases" class="btn btn-ghost">
           <i data-lucide="download" size="16"></i><span data-i18n="dl_port_btn">Baixar portátil</span>
         </a>
       </div>
 
-      <div class="dl-card rv">
+      <div class="dl-card rv" id="cardDroid">
+        <span class="seu-so" id="tagDroid" style="display:none" data-i18n="dl_para_voce">Para você</span>
         <span class="os-chip"><i data-lucide="smartphone"></i>Android</span>
         <h3 data-i18n="dl_droid_t">Android — Play Store</h3>
         <p data-i18n="dl_droid_d">Atualizações automáticas pelo Google Play. O Premium vitalício é comprado por lá.</p>
@@ -177,6 +200,14 @@ footer a:hover{color:var(--txt)}
       </div>
     </div>
     <div class="dl-erro" id="dlErro" data-i18n="dl_erro">Não foi possível carregar a versão mais recente agora — use os botões acima para ir até a página de downloads.</div>
+    <div class="changelog rv" id="changelog" style="display:none">
+      <div class="changelog-head">
+        <i data-lucide="git-commit-horizontal"></i>
+        <b data-i18n="dl_novidades">Novidades</b>
+        <span id="dlChangelogVer"></span>
+      </div>
+      <div class="changelog-body" id="dlChangelogBody"></div>
+    </div>
     <div class="dl-nota">
       <i data-lucide="shield-check"></i>
       <span data-i18n="dl_nota">Instalador assinado · Auto-update embutido · Windows 10 ou superior · Android 8 ou superior</span>
@@ -193,15 +224,20 @@ footer a:hover{color:var(--txt)}
 
 <script>
 lucide.createIcons({attrs:{'stroke-width':2}});
-// reveal infinito
 (function(){
   var els=document.querySelectorAll('.rv');
   if(!('IntersectionObserver' in window)){els.forEach(function(e){e.classList.add('on')});return}
   var io=new IntersectionObserver(function(es){es.forEach(function(e){e.target.classList.toggle('on',e.isIntersecting)})},{threshold:.1});
   els.forEach(function(e){io.observe(e)});
 })();
-// spotlight
-document.querySelectorAll('.dl-card').forEach(function(card){card.addEventListener('mousemove',function(ev){var r=card.getBoundingClientRect();card.style.setProperty('--mx',(ev.clientX-r.left)+'px');card.style.setProperty('--my',(ev.clientY-r.top)+'px')})});
+// detecta o SO do visitante
+(function(){
+  var ua=navigator.userAgent;
+  var win=/Windows/i.test(ua);
+  var droid=/Android/i.test(ua);
+  if(win){var t=document.getElementById('tagWin');if(t)t.style.display='';}
+  if(droid){var d=document.getElementById('tagDroid');if(d)d.style.display='';}
+})();
 // ===== versão mais nova via GitHub Releases =====
 var GITHUB_REPO='heimito22/simple-notes-pro';
 (function(){
@@ -211,23 +247,39 @@ var GITHUB_REPO='heimito22/simple-notes-pro';
   var erro=document.getElementById('dlErro');
   fetch(api).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json()}).then(function(rel){
     var versao=(rel.tag_name||'').replace(/^v/,'')||'-';
+    var topo=document.getElementById('dlVerTopo');if(topo)topo.textContent='v'+versao;
     var assets=rel.assets||[];
     function acha(padrao){for(var i=0;i<assets.length;i++){var n=String(assets[i].name||'');if(padrao.test(n))return assets[i]}return null}
     var setup=acha(/setup/i);
     var port=acha(/portable/i);
     function mb(bytes){return (bytes/1024/1024).toFixed(1)+' MB'}
+    function milhar(n){return n>=1000?(n/1000).toFixed(1).replace('.',',')+'k':String(n)}
     function data(iso){try{return new Date(iso).toLocaleDateString(document.documentElement.lang==='en'?'en-US':(document.documentElement.lang==='es'?'es-ES':'pt-BR'))}catch(e){return ''}}
     if(setup&&btnWin){
       btnWin.href=setup.browser_download_url;
       var v1=document.getElementById('dlWinVersao');if(v1)v1.textContent='v'+versao;
       var t1=document.getElementById('dlWinTamanho');if(t1)t1.textContent=mb(setup.size);
       var d1=document.getElementById('dlWinData');if(d1)d1.textContent=data(setup.updated_at);
+      var n1=document.getElementById('dlWinDownloads');if(n1)n1.innerHTML='<b>'+milhar(setup.download_count||0)+'</b> '+(document.documentElement.lang==='en'?'downloads':'downloads');
     }else if(btnWin){btnWin.href='https://github.com/'+GITHUB_REPO+'/releases'}
     if(port&&btnPort){
       btnPort.href=port.browser_download_url;
       var v2=document.getElementById('dlPortVersao');if(v2)v2.textContent='v'+versao;
       var t2=document.getElementById('dlPortTamanho');if(t2)t2.textContent=mb(port.size);
+      var n2=document.getElementById('dlPortDownloads');if(n2)n2.innerHTML='<b>'+milhar(port.download_count||0)+'</b> downloads';
     }else if(btnPort){btnPort.href='https://github.com/'+GITHUB_REPO+'/releases'}
+    var corpo=String(rel.body||'').trim();
+    if(corpo){
+      var box=document.getElementById('changelog');
+      var verEl=document.getElementById('dlChangelogVer');
+      var body=document.getElementById('dlChangelogBody');
+      if(box&&body){
+        corpo=corpo.replace(/[#*_`]/g,'').split('\n').filter(function(l){return l.trim()}).slice(0,6).join('\n');
+        body.textContent=corpo;
+        if(verEl)verEl.textContent='v'+versao;
+        box.style.display='';
+      }
+    }
   }).catch(function(e){
     if(btnWin)btnWin.href='https://github.com/'+GITHUB_REPO+'/releases';
     if(btnPort)btnPort.href='https://github.com/'+GITHUB_REPO+'/releases';
@@ -244,7 +296,9 @@ var I18N={
     dl_overline:'Downloads',
     dl_title:'Baixe o <em>Simple Notes Pro</em>',
     dl_sub:'No PC (Windows) e no celular (Android) — sempre a versão mais recente, direto do repositório oficial.',
+    dl_ultima:'Última versão:',
     dl_recomendado:'Recomendado',
+    dl_para_voce:'Para você',
     dl_win_t:'Windows — Instalador',
     dl_win_d:'Instala no PC, inicia com o Windows e fica na bandeja com os alarmes ativos. Sincroniza com o celular pelo Google Drive.',
     dl_win_btn:'Baixar para Windows',
@@ -255,6 +309,7 @@ var I18N={
     dl_droid_d:'Atualizações automáticas pelo Google Play. O Premium vitalício é comprado por lá.',
     dl_droid_meta:'Atualização automática',
     dl_droid_btn:'Abrir na Play Store',
+    dl_novidades:'Novidades',
     dl_erro:'Não foi possível carregar a versão mais recente agora — use os botões acima para ir até a página de downloads.',
     dl_nota:'Instalador assinado · Auto-update embutido · Windows 10 ou superior · Android 8 ou superior',
     foot_voltar:'Voltar ao site',foot_rights:'Todos os direitos reservados.'
@@ -264,7 +319,9 @@ var I18N={
     dl_overline:'Downloads',
     dl_title:'Download <em>Simple Notes Pro</em>',
     dl_sub:'On PC (Windows) and mobile (Android) — always the latest version, straight from the official repository.',
+    dl_ultima:'Latest version:',
     dl_recomendado:'Recommended',
+    dl_para_voce:'For you',
     dl_win_t:'Windows — Installer',
     dl_win_d:'Installs on your PC, starts with Windows and sits in the tray with alarms active. Syncs with your phone via Google Drive.',
     dl_win_btn:'Download for Windows',
@@ -275,6 +332,7 @@ var I18N={
     dl_droid_d:'Automatic updates via Google Play. The lifetime Premium is purchased there.',
     dl_droid_meta:'Automatic updates',
     dl_droid_btn:'Open Play Store',
+    dl_novidades:"What's new",
     dl_erro:'Could not load the latest version right now — use the buttons above to go to the downloads page.',
     dl_nota:'Signed installer · Built-in auto-update · Windows 10 or later · Android 8 or later',
     foot_voltar:'Back to site',foot_rights:'All rights reserved.'
@@ -284,7 +342,9 @@ var I18N={
     dl_overline:'Descargas',
     dl_title:'Descarga <em>Simple Notes Pro</em>',
     dl_sub:'En PC (Windows) y celular (Android) — siempre la versión más reciente, directo del repositorio oficial.',
+    dl_ultima:'Última versión:',
     dl_recomendado:'Recomendado',
+    dl_para_voce:'Para ti',
     dl_win_t:'Windows — Instalador',
     dl_win_d:'Se instala en el PC, inicia con Windows y queda en la bandeja con las alarmas activas. Sincroniza con el celular vía Google Drive.',
     dl_win_btn:'Descargar para Windows',
@@ -295,6 +355,7 @@ var I18N={
     dl_droid_d:'Actualizaciones automáticas por Google Play. El Premium vitalicio se compra allí.',
     dl_droid_meta:'Actualización automática',
     dl_droid_btn:'Abrir en Play Store',
+    dl_novidades:'Novedades',
     dl_erro:'No fue posible cargar la versión más reciente ahora — usa los botones de arriba para ir a la página de descargas.',
     dl_nota:'Instalador firmado · Auto-update integrado · Windows 10 o superior · Android 8 o superior',
     foot_voltar:'Volver al sitio',foot_rights:'Todos los derechos reservados.'
