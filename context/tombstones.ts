@@ -25,11 +25,19 @@ import {
  * conhecidas sumiam, o próximo push subia `apagados: []` (apagando o registro
  * que estava na nuvem) e o aparelho, vendo a nota apagada no outro como
  * "só-local", a REENVIAVA — a exclusão não se sustentava.
+ *
+ * ESCOPO POR CONTA (isolamento de contas): cada conta tem o SEU registro
+ * (`@sn_apagados_<userId>`). Antes o registro era GLOBAL: apagar uma nota na
+ * conta B criava um tombstone que também matava a mesma nota (mesmo id) na
+ * conta A — as contas ficavam "vinculadas" nas exclusões. O escopo troca
+ * junto com o login (definirEscopoApagados), com migração do registro
+ * global antigo na primeira passada.
  */
-const CHAVE_DISCO = '@sn_apagados';
+let CHAVE_DISCO = '@sn_apagados_local';
+const CHAVE_LEGADO = '@sn_apagados';
 let hidratado = false;
 
-const registro = criarRegistroApagados({
+const montarRegistro = () => criarRegistroApagados({
   gravar: (apagados) => {
     // No disco do celular ficam só os LIMITE mais recentes: é o aparelho que
     // mais registra exclusão e não pode crescer sem fim.
@@ -42,14 +50,41 @@ const registro = criarRegistroApagados({
   },
 });
 
-/** Carrega o registro do disco (uma vez, no boot do NotasProvider). */
+let registro = montarRegistro();
+
+/**
+ * Troca o escopo do registro para a conta informada (ou 'local' se deslogado).
+ * Deve ser chamado a cada login/logout/troca — o NotasContext faz no
+ * carregarTudo e no isolamento. Migra o registro global antigo na primeira
+ * vez que a conta ganha escopo próprio (exclusões recentes não se perdem).
+ */
+export const definirEscopoApagados = async (userId: string) => {
+  const novaChave = userId && userId !== 'local' ? `@sn_apagados_${userId}` : '@sn_apagados_local';
+  if (novaChave === CHAVE_DISCO) {
+    if (!hidratado) await hidratarApagados();
+    return;
+  }
+  CHAVE_DISCO = novaChave;
+  registro = montarRegistro();
+  hidratado = false;
+  await hidratarApagados();
+  // Migração única: registro global antigo -> escopo desta conta (se vazio).
+  try {
+    const atual = await AsyncStorage.getItem(CHAVE_DISCO);
+    if (!atual) {
+      const legado = await AsyncStorage.getItem(CHAVE_LEGADO);
+      if (legado) registro.hidratar(JSON.parse(legado), { janelaMs: JANELA_MS });
+    }
+  } catch {}
+};
+
+/** Carrega o registro do disco (a cada troca de escopo / boot do provider). */
 export const hidratarApagados = async () => {
   if (hidratado) return;
   hidratado = true;
   try {
     const bruto = await AsyncStorage.getItem(CHAVE_DISCO);
-    if (!bruto) return;
-    registro.hidratar(JSON.parse(bruto || '{}'), { janelaMs: JANELA_MS });
+    if (bruto) registro.hidratar(JSON.parse(bruto), { janelaMs: JANELA_MS });
   } catch {}
 };
 

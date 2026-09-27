@@ -1,5 +1,5 @@
-**Versão 1.4.10**
+**Versão 1.4.11**
 
-- Trocar de conta agora MESCLA o backup da nova conta — nunca mais substitui seus dados
-- Edições locais da conta não são mais perdidas ao entrar nela
-- Notas da conta anterior não podem mais reaparecer vindo do backup
+- Exclusões agora têm escopo por conta: apagar na conta B nunca mais afeta a conta A
+- Fim das notas "vinculadas" entre contas (o registro de exclusões era global)
+- Suas exclusões antigas migram automaticamente para o escopo da conta

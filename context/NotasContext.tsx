@@ -8,7 +8,7 @@ import { useTarefas } from './TarefasContext';
 import { agendarLembretes, cancelarLembretes, type LembreteNota } from './lembrete-notas';
 import { verificarTelaCheia } from './permissao-alarme';
 import { sincronizarAnexosUpload, restaurarAnexosDownload } from './anexos-cloud';
-import { hidratarApagados, registrarApagado, registrarApagados, serializarApagados, carregarApagados, mesclarPorItem, assinaturaItem } from './tombstones';
+import { hidratarApagados, definirEscopoApagados, registrarApagado, registrarApagados, serializarApagados, carregarApagados, mesclarPorItem, assinaturaItem } from './tombstones';
 import { acharBackupCanonico } from './backup-drive';
 import { useTheme } from './ThemeContext';
 import { idiomaAtual, tIdioma } from './idiomas';
@@ -172,6 +172,9 @@ export function NotasProvider({ children }: any) {
       if (userId !== currentUserId) setCurrentUserId(userId);
       // Dono do estado que entra agora (chave da conta ou modo offline).
       contaEstadoRef.current = userId;
+      // Tombstones desta conta (escopo por conta: exclusoes da conta B
+      // nunca tocam a conta A - antes eram globais e 'vinculavam' as contas).
+      await definirEscopoApagados(userId);
 
       if (dados) {
         const parsed = JSON.parse(dados);
@@ -985,9 +988,11 @@ export function NotasProvider({ children }: any) {
     }
     try {
       await AsyncStorage.removeItem('@minhas_notas_locais');
-      // TOMBSTONES FICAM: são a memória das exclusões (id + data, 60 dias).
-      // Limpar aqui fazia tudo que já foi excluído RESSUSCITAR ao voltar para
-      // a conta — o backup do Drive ainda tem o item e nada o impede de voltar.
+      // TOMBSTONES: o escopo troca para a conta que entra (por conta, agora —
+      // exclusões da B nunca tocam a A; as antigas do registro global migram
+      // para o escopo da conta na primeira passada). Limpar tudo fazia o
+      // que já foi excluído RESSUSCITAR ao voltar — por isso ficam.
+      if (novoId) await definirEscopoApagados(novoId);
     } catch (e) {
       console.warn('[Isolamento] falha ao limpar bucket offline:', e);
     }
