@@ -1,5 +1,6 @@
-**Versão 1.4.13**
+**Versão 1.5.0**
 
-- Encontrada a causa-raiz: conta com Google Drive cheio fazia as notas caírem no modo offline
-- Modo offline agora é etiquetado por conta: nota de uma conta nunca é entregue a outra
-- Aviso claro quando o Drive está cheio — o app nunca mais finge que sincronizou
+- Contas perfeitamente isoladas no PC, igual no celular
+- Trocar de conta agora atualiza a lista de notas na hora — sem precisar trocar de aba
+- Sair da conta também limpa a tela imediatamente
+- Conta nova sem backup: a lista abre vazia na hora certa

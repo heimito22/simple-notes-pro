@@ -399,6 +399,10 @@ async function isolarContaSeTrocou(){
       try{ if(window.Tombstones) window.Tombstones.limpar(); }catch(e){}
       await S.storeSalvar(store);
       if(window.Merge) window.Merge.registrar(store);
+      // UI na hora: a lista antiga precisa sumir IMEDIATAMENTO — sem isto a
+      // tela continuava mostrando as notas da conta anterior até o usuário
+      // trocar de aba na mão.
+      renderNotas(); renderTarefas();
       toast(T('Conta trocada — os dados ficam na conta de cada um.'));
     } else if(store.conta!==email){
       store.conta=email;
@@ -419,6 +423,9 @@ async function doLoginToggle(){
     try{ if(window.Tombstones) window.Tombstones.limpar(); }catch(e){}
     await S.storeSalvar(store);
     if(window.Merge) window.Merge.registrar(store);
+    // UI na hora: sem isto a lista ficava com as notas da conta antiga
+    // até o usuário trocar de aba (o store já estava vazio, a tela não).
+    renderNotas(); renderTarefas();
     await refreshConta(); renderConfig(); toast(T('Desconectado')); return;
   }
   var st=$('#syncTxt'); if(st) st.textContent=T('Abrindo navegador…');
@@ -596,6 +603,10 @@ async function syncBaixar(mostrarToast, metaIsoConhecido){
         if(rec.localVenceu){ if(mostrarToast!==false) toast(T('Enviando suas alterações para o Drive…')); await syncEnviar(); }
         else if(mostrarToast!==false) toast(T('Sincronizado com o celular'));
       } else if(mostrarToast!==false){ toast(T('Nenhum backup no Drive — este PC vira a fonte')); await syncEnviar(); }
+      // Conta nova SEM backup (ou pós-isolamento): renderiza sempre —
+      // antes este ramo não pintava a tela e a lista mostrava a conta
+      // anterior até trocar de aba.
+      renderNotas(); renderTarefas();
     } else if(mostrarToast!==false){ toast((r&&r.erro)||T('Falha ao sincronizar')); }
   }catch(e){ if(mostrarToast!==false) toast(String(e.message||e).slice(0,120)); }
   if(mostrarToast!==false){ await refreshConta(); renderConfig(); }
