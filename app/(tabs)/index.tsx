@@ -438,7 +438,11 @@ export default function HomeScreen() {
       Alert.alert(t('Offline'), t('Você está offline. Conecte-se à internet para trocar de conta.'));
       return;
     }
-    const contaAnterior = user; // conta logada antes da troca (pode ser null)
+    // Conta anterior pelo SDK (NÃO pelo estado React): `user` começa null a
+    // cada boot — se o login foi dias atrás, o estado mente e o isolamento
+    // seria pulado, deixando os dados da conta antiga migrarem para a nova.
+    const contaAntes = GoogleSignin.getCurrentUser();
+    const idAnterior = contaAntes?.user?.id || null;
     try {
       setModalContaVisible(false);
       await GoogleSignin.signOut();
@@ -466,7 +470,6 @@ export default function HomeScreen() {
       }
       // ISOLAMENTO DE CONTAS: so quando TROCA de uma conta real para OUTRA.
       // Primeiro login (deslogado) preserva a migracao do que foi criado offline.
-      const idAnterior = contaAnterior?.id || null;
       if (idAnterior && idAnterior !== userInfo.data.user.id) {
         if (isolarDadosDeConta) await isolarDadosDeConta(userInfo.data.user.id);
       }

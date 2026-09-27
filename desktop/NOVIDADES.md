@@ -1,5 +1,5 @@
-**Versão 1.4.7**
+**Versão 1.4.8**
 
-- Exclusões voltaram a ser permanentes: push não é mais descartado durante o ciclo de sincronização
-- "Apagar tudo" agora registra a exclusão de notas, listas, pastas e tarefas — nada mais ressuscita
-- A memória das exclusões (tombstones) não é mais apagada ao sair ou trocar de conta
+- Trocar de conta nunca mais leva nada de uma conta para a outra (dupla proteção)
+- Conta anterior detectada direto do Google (não dependia mais do estado do app)
+- Estado de uma conta não pode mais ser gravado no armazenamento offline

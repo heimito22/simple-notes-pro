@@ -50,6 +50,15 @@ export function NotasProvider({ children }: any) {
   // Ref espelhado do estado (para agendar lembretes com o título atual em handlers)
   const notasRef = useRef<any[]>([]);
   /**
+   * ISOLAMENTO DE CONTAS (v2 — sem congelar nada): dono dos dados que estão
+   * EM MEMÓRIA. O efeito de save usa isto só pra decidir ONDE pode gravar:
+   * estado da conta A só entra na chave da conta A — nunca no bucket offline
+   * (que migra para a próxima conta) e nunca na chave de outra conta.
+   * Diferente do guard da v1.4.5: o espelho dadosRef e os carimbos correm
+   * SEMPRE (o sync nunca para); só a persistência é filtrada.
+   */
+  const contaEstadoRef = useRef<string | null>(null);
+  /**
    * Estado MAIS RECENTE de tudo que sobe para a nuvem. O push pode ser disparado
    * de dentro de uma closure antiga (tick do poll automático) — sem isto ele
    * enviava notas velhas por cima das novas no Drive, e a alteração "voltava".
@@ -146,6 +155,8 @@ export function NotasProvider({ children }: any) {
       const user = GoogleSignin.getCurrentUser();
       const userId = user ? user.user.id : 'local';
       if (userId !== currentUserId) setCurrentUserId(userId);
+      // Dono do estado que entra agora (chave da conta ou modo offline).
+      contaEstadoRef.current = userId;
 
       if (dados) {
         const parsed = JSON.parse(dados);
@@ -228,6 +239,16 @@ export function NotasProvider({ children }: any) {
     const salvarLocal = async () => {
       try {
         const key = await getStorageKey();
+        // GUARDA DE ISOLAMENTO: o dono da CHAVE tem que ser o dono do ESTADO.
+        // Sem isto, na janela deslogada da troca de conta (signOut → signIn)
+        // o estado inteiro da conta A era gravado no bucket offline
+        // `@minhas_notas_locais` — e migrava para a conta B no login dela.
+        // O espelho dadosRef e os carimbos NÃO são afetados: o sync segue.
+        const donoChave = key === '@minhas_notas_locais' ? 'local' : key.replace('@notas_user_', '');
+        if (contaEstadoRef.current !== null && donoChave !== contaEstadoRef.current) {
+          console.log('[Isolamento] save local bloqueado: estado da conta', contaEstadoRef.current, 'não entra em', donoChave);
+          return;
+        }
         const payload = JSON.stringify({ notas, listas, pastas });
         await AsyncStorage.setItem(key, payload);
       } catch (e) {
@@ -940,6 +961,8 @@ export function NotasProvider({ children }: any) {
     } catch (e) {
       console.warn('[Isolamento] falha ao limpar bucket offline:', e);
     }
+    // Dono do estado vazio agora é a conta que entra.
+    contaEstadoRef.current = novoId || null;
     // Solta na próxima volta do event loop — os efeitos já reagiram ao
     // estado limpo (sem isto, o push ficava travado se a conta nova não
     // tiver backup no Drive para aplicar e resetar a bandeira).
@@ -961,6 +984,7 @@ export function NotasProvider({ children }: any) {
     idsRef.current = '';
     haMudancasLocaisRef.current = false;
     setCurrentUserId('local');
+    contaEstadoRef.current = 'local';
     // Nada da conta pode ficar offline no aparelho (isolamento de contas):
     // o bucket offline sai. TOMBSTONES FICAM — sem eles, cada exclusão já
     // feita volta do Drive na próxima sincronização.
