@@ -71,6 +71,18 @@ async function releaseJaExiste() {
   return null;
 }
 
+async function atualizarNovidadesRelease(rel, nota) {
+  // PATCH: atualiza o corpo da release existente com as novidades
+  const r = await json({ hostname: 'api.github.com', path: `/repos/${repo}/releases/${rel.id}`, method: 'PATCH' }, {
+    body: nota
+  });
+  if (r.status === 200) {
+    console.log('[github] aba Novidades do site atualizada com o NOVIDADES.md desta versão.');
+  } else {
+    console.warn(`[github] aviso: não atualizou o body da release (${r.status}).`);
+  }
+}
+
 async function criarRelease(nota) {
   const r = await json({ hostname: 'api.github.com', path: `/repos/${repo}/releases`, method: 'POST' }, {
     tag_name: tag,
@@ -111,10 +123,20 @@ async function subirAsset(uploadUrlBase, arquivo) {
       }
     }
     let rel = await releaseJaExiste();
+    // Novidades da versão: lê desktop/NOVIDADES.md (se existir) — vira o body da release,
+    // que o site mostra na aba "Novidades" de downloads.html.
+    const caminhoNovidades = path.join(raiz, 'NOVIDADES.md');
+    let notaNovidades = null;
+    if (fs.existsSync(caminhoNovidades)) {
+      notaNovidades = fs.readFileSync(caminhoNovidades, 'utf8').trim() || null;
+      if (notaNovidades) console.log('[github] NOVIDADES.md encontrado — vira a aba Novidades do site.');
+    }
+    if (!notaNovidades) console.warn('[github] sem NOVIDADES.md — release fica sem novidades detalhadas (crie o arquivo na próxima).');
     if (rel) {
       console.log(`[github] release ${tag} já existe — reutilizando.`);
+      if (notaNovidades) await atualizarNovidadesRelease(rel, notaNovidades);
     } else {
-      rel = await criarRelease(`**Versão ${versao}**\n\n- Downloads para Windows (instalador e portátil)\n- Atualize baixando o novo instalador`);
+      rel = await criarRelease(notaNovidades || `**Versão ${versao}**\n\n- Downloads para Windows (instalador e portátil)\n- Atualize baixando o novo instalador`);
       console.log(`[github] release ${tag} criada.`);
     }
     for (const a of artefatos) {
