@@ -38,7 +38,10 @@ function iniciarAutoUpdate(){
 // IPC: renderer pede reinício para instalar a atualização
 ipcMain.handle('update:reiniciar', async()=>{
   try {
-    autoUpdater.quitAndInstall(true, true);
+    // setImmediate: deixa o IPC devolver a resposta ANTES de matar a janela —
+    // chamado no meio do handle, o quitAndInstall podia abortar antes de
+    // spawnar o instalador (o app fechava e nada instalava).
+    setImmediate(()=>{ try { autoUpdater.quitAndInstall(true, true); } catch(e){ app.quit(); } });
     return { ok: true };
   } catch(e) {
     app.quit();
