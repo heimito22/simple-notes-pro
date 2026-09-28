@@ -1,4 +1,5 @@
-**Versão 1.5.1**
+**Versão 1.5.2**
 
-- Botão "Reiniciar agora" do aviso de atualização responde em toda a área
-- A faixa de arrastar da janela estava engolindo os cliques da parte de cima do banner
+- Contagem das listas corrigida ("33 itens" para uma lista de 3 — dígito duplicado no card)
+- Lista nova começa vazia, sem o "Novo item" automático
+- Marcar item como feito agora grava de verdade no Drive — antes o clique era perdido quando o sync chegava com o editor aberto, e o item voltava desmarcado

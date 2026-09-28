@@ -175,7 +175,7 @@
       } else {
         var txt=(o.itens||[]).slice(0,3).map(function(it){return (it.concluido?'☑ ':'☐ ')+it.texto;}).join(' · ') || '—';
         var pend=(o.itens||[]).filter(function(it){return !it.concluido;}).length;
-        card.innerHTML='<span class=\"card-check\">'+(sel?'✓':'')+'</span><h3>'+esc(o.titulo||T('Lista'))+' '+badgePasta+'</h3><p>'+esc(txt)+'</p><div class=\"meta\"><span>'+(o.itens||[]).length+esc(Tf('{n} itens · {m} pendentes',{ n:(o.itens||[]).length, m:pend }))+'</span>'+(o.fixada?'<span class=\"badge\">Fixada</span>':'')+'<span style=\"margin-left:auto\" class=\"badge\">'+esc(T('Lista'))+'</span></div>';
+        card.innerHTML='<span class="card-check">'+(sel?'✓':'')+'</span><h3>'+esc(o.titulo||T('Lista'))+' '+badgePasta+'</h3><p>'+esc(txt)+'</p><div class="meta"><span>'+esc(Tf('{n} itens · {m} pendentes',{ n:(o.itens||[]).length, m:pend }))+'</span>'+(o.fixada?'<span class="badge">Fixada</span>':'')+'<span style="margin-left:auto" class="badge">'+esc(T('Lista'))+'</span></div>';
       }
       card.addEventListener('click', function(e){
         var isMulti = e.ctrlKey || e.metaKey || selecionados.size>0;
@@ -258,42 +258,63 @@
     ctx.toast(T('Salvo · sincronizando…'));
   }
   function nova(ctx){ var id=ctx.uid(); (ctx.store.notas||(ctx.store.notas=[])).unshift({ id:id, titulo:'', conteudo:'', data: ctx.hoje(), fixada:false, pastaId: ctx.pastaAtiva||undefined }); ctx.salvarLocal(); render(ctx); abrir(ctx,'nota',id); ctx.toast(T('Nota criada')); }
-  function novaLista(ctx){ var id=ctx.uid(); (ctx.store.listas||(ctx.store.listas=[])).unshift({ id:id, titulo:T('Nova lista'), itens:[{id:ctx.uid(), texto:T('Novo item'), concluido:false}], data: ctx.hoje(), fixada:false, pastaId: ctx.pastaAtiva||undefined }); ctx.salvarLocal(); render(ctx); abrir(ctx,'lista',id); }
+  function novaLista(ctx){ var id=ctx.uid(); (ctx.store.listas||(ctx.store.listas=[])).unshift({ id:id, titulo:T('Nova lista'), itens:[], data: ctx.hoje(), fixada:false, pastaId: ctx.pastaAtiva||undefined }); ctx.salvarLocal(); render(ctx); abrir(ctx,'lista',id); }
+
+  /** Lista VIVA no momento do clique: o pull troca os objetos do store e o
+   *  editor guarda referências antigas — escrever nelas gravava em fantasmas
+   *  fora do store: o carimbo não via mudança, o push subia estado velho e o
+   *  próximo pull DESMARCAVA o item ("logo depois volta a estar desmarcada").
+   */
+  function listaViva(ctx, id){
+    var t=ctx.store.listas||[];
+    for(var i=0;i<t.length;i++) if(t[i] && t[i].id===id) return t[i];
+    return null;
+  }
 
   function renderListaEditor(ctx, lista){
     var $=ctx.$, esc=ctx.esc;
     var wrap=$('#lpItens'), cont=$('#lpCont'), fill=$('#lpFill'); if(!wrap) return;
+    lista = listaViva(ctx, lista && lista.id) || lista; // sempre o objeto atual do store
     var itens=lista.itens||[]; var concl=itens.filter(function(it){return it.concluido;}).length, total=itens.length;
     if(cont) cont.textContent=concl+'/'+total; if(fill) fill.style.width= total? Math.max(4,(concl/total)*100)+'%' : '0%';
     wrap.innerHTML=''; if(!itens.length){ wrap.innerHTML='<small style=\"color:var(--tx2);padding:8px\">'+esc(T('Sua lista está vazia — adicione o primeiro item acima.'))+'</small>'; return; }
     itens.forEach(function(it, idx){
       var row=document.createElement('div'); row.className='lista-row'+(it.concluido?' feito':''); row.draggable=true; row.dataset.id=it.id;
       row.innerHTML='<span class=\"lista-handle\" title=\"'+esc(T('Arraste'))+'\">⋮⋮</span><div class=\"check '+(it.concluido?'on':'')+'\">'+(it.concluido?'✓':'')+'</div><span class=\"lista-txt\">'+ctx.esc(it.texto)+'</span><button class=\"lista-del\" title=\"'+esc(T('Remover'))+'\">✕</button>';
-      row.querySelector('.check').addEventListener('click', function(){ it.concluido=!it.concluido; ctx.salvarLocal(); renderListaEditor(ctx, lista); render(ctx); });
-      row.querySelector('.lista-del').addEventListener('click', function(){ lista.itens=lista.itens.filter(function(x){return x.id!==it.id;}); ctx.salvarLocal(); renderListaEditor(ctx, lista); render(ctx); });
+      row.querySelector('.check').addEventListener('click', function(){
+        var l=listaViva(ctx, lista.id); if(!l) return;
+        var alvo=(l.itens||[]).filter(function(x){return x.id===it.id;})[0]; if(!alvo) return;
+        alvo.concluido=!alvo.concluido; ctx.salvarLocal(); renderListaEditor(ctx, l); render(ctx);
+      });
+      row.querySelector('.lista-del').addEventListener('click', function(){
+        var l=listaViva(ctx, lista.id); if(!l) return;
+        l.itens=(l.itens||[]).filter(function(x){return x.id!==it.id;}); ctx.salvarLocal(); renderListaEditor(ctx, l); render(ctx);
+      });
       row.addEventListener('dragstart', function(e){ dragListaId=it.id; row.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; });
       row.addEventListener('dragend', function(){ dragListaId=null; row.classList.remove('dragging'); });
       row.addEventListener('dragover', function(e){ e.preventDefault(); });
       row.addEventListener('drop', function(e){
         e.preventDefault();
         if(!dragListaId || dragListaId===it.id) return;
-        var srcIdx=lista.itens.findIndex(function(x){return x.id===dragListaId;});
-        var dstIdx=lista.itens.findIndex(function(x){return x.id===it.id;});
+        var l=listaViva(ctx, lista.id); if(!l) return;
+        var srcIdx=l.itens.findIndex(function(x){return x.id===dragListaId;});
+        var dstIdx=l.itens.findIndex(function(x){return x.id===it.id;});
         if(srcIdx<0||dstIdx<0) return;
-        var moved=lista.itens.splice(srcIdx,1)[0];
+        var moved=l.itens.splice(srcIdx,1)[0];
         var insertAt=dstIdx;
-        lista.itens.splice(insertAt,0,moved);
-        ctx.salvarLocal(); renderListaEditor(ctx, lista); render(ctx);
+        l.itens.splice(insertAt,0,moved);
+        ctx.salvarLocal(); renderListaEditor(ctx, l); render(ctx);
       });
       wrap.appendChild(row);
     });
     wrap.ondragover=function(e){ e.preventDefault(); };
     wrap.ondrop=function(e){
       if(!dragListaId) return;
-      var srcIdx=lista.itens.findIndex(function(x){return x.id===dragListaId;});
+      var l=listaViva(ctx, lista.id); if(!l) return;
+      var srcIdx=l.itens.findIndex(function(x){return x.id===dragListaId;});
       if(srcIdx<0) return;
       var target=e.target.closest && e.target.closest('.lista-row');
-      if(!target){ var mv=lista.itens.splice(srcIdx,1)[0]; lista.itens.push(mv); ctx.salvarLocal(); renderListaEditor(ctx, lista); render(ctx); }
+      if(!target){ var mv=l.itens.splice(srcIdx,1)[0]; l.itens.push(mv); ctx.salvarLocal(); renderListaEditor(ctx, l); render(ctx); }
       dragListaId=null;
     };
   }
