@@ -1,5 +1,5 @@
-**Versão 1.5.7**
+**Versão 1.5.8**
 
-- O funil de filtro agora vive DENTRO da barra de busca — e o seletor de tags abre como popup flutuante, sem desalinhar nada
-- Clicar fora do popup fecha
-- As tags ganham cor também no resumo dos cards
+- O filtro de tags agora abre como popup centralizado, com fundo escurecido — igual ao celular
+- Barra de busca com o espaçamento corrigido
+- Diagnóstico interno aprimorado

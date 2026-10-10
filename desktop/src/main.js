@@ -414,6 +414,20 @@ function criarJanela(){
   nativeTheme.themeSource='dark';
   janela.webContents.setWindowOpenHandler(({url})=>{ if(url.startsWith('http')){shell.openExternal(url); return {action:'deny'};} return {action:'deny'}; });
   janela.loadFile(path.join(__dirname,'ui','index.html'));
+  // Log do renderer → ARQUIVO no userData: erros de runtime da UI aparecem aqui
+  // (o devtools é fechado em produção; sem isto, erro silencioso = tela vazia).
+  try{
+    const fsLog=require('fs');
+    const arqLog=path.join(app.getPath('userData'),'renderer.log');
+    fsLog.appendFileSync(arqLog, '=== SESSÃO '+new Date().toISOString()+' ===\n');
+    janela.webContents.on('console-message', (_ev, _level, message, line, sourceId) => {
+      try{
+        const msg=String(message||'');
+        if(msg.includes('Autofill')) return; // ruído do Chromium
+        fsLog.appendFileSync(arqLog, new Date().toISOString().slice(11,23)+' '+msg.slice(0,300)+' @ '+String(sourceId||'').split(/[\\/]/).pop()+':'+line+'\n');
+      }catch(e){}
+    });
+  }catch(e){}
   // Splash tipo Steam: fecha quando o app carrega (com folga para o primeiro render)
   janela.webContents.once('did-finish-load', ()=>{ setTimeout(fecharSplash, 500); });
   janela.on('close',(e)=>{

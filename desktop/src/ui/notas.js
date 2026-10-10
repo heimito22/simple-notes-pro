@@ -150,31 +150,38 @@
         btnFiltroTag.style.color=chipsTagsAberto?'var(--azul)':'var(--tx2)';
         render(ctx);
       });
-      // Clicar FORA do popup fecha (o funil e os chips não contam como fora).
+      // Clicar FORA do popup fecha — e clicar no FUNDO escurecido também.
       document.addEventListener('click', function(e){
         if(!chipsTagsAberto) return;
-        var alvo=e.target;
-        if(chipsTags && chipsTags.contains(alvo)) return;
-        if(btnFiltroTag && btnFiltroTag.contains(alvo)) return;
+        if(chipsTags && chipsTags.contains(e.target)){
+          if(e.target===chipsTags){ // fundo escurecido: fecha
+            chipsTagsAberto=false;
+            btnFiltroTag.style.color='var(--tx2)';
+            render(ctx);
+          }
+          return;
+        }
+        if(btnFiltroTag && btnFiltroTag.contains(e.target)) return;
         chipsTagsAberto=false;
         btnFiltroTag.style.color='var(--tx2)';
         render(ctx);
       });
     }
-    var chipsTags=$('#chipsTags');
-    if(chipsTags && Tags){
+    var chipsTags=$('#chipsTags');           // fundo do popup (overlay)
+    var chipsTagsPainel=$('#chipsTagsPainel'); // painel branco central
+    if(chipsTags && chipsTagsPainel && Tags){
       var catalogo=Tags.tagsDeItens(store.notas||[]);
       if(!catalogo.length || !chipsTagsAberto){ chipsTags.style.display='none'; }
       else {
         chipsTags.style.display='flex';
-        chipsTags.innerHTML='';
+        chipsTagsPainel.innerHTML='';
         if(tagsFiltro.length){
           var limpar=document.createElement('button');
           limpar.className='chip-tag';
           limpar.style.cssText='background:var(--sf2);color:var(--tx2);border-color:var(--bd)';
           limpar.innerHTML='✕ '+esc(T('Limpar'));
           limpar.onclick=function(){ tagsFiltro=[]; render(ctx); };
-          chipsTags.appendChild(limpar);
+          chipsTagsPainel.appendChild(limpar);
         }
         catalogo.forEach(function(ct){
           var ativo=tagsFiltro.indexOf(ct.nome)!==-1;
@@ -190,7 +197,7 @@
             if(i===-1) tagsFiltro.push(ct.nome); else tagsFiltro.splice(i,1);
             render(ctx);
           };
-          chipsTags.appendChild(chip);
+          chipsTagsPainel.appendChild(chip);
         });
       }
     }
@@ -256,6 +263,7 @@
       return String(b.o.data||'').localeCompare(String(a.o.data||''));
     });
     itens.forEach(function(entry, idx){
+      try{
       var k=entry.k, o=entry.o;
       var sel=selecionados.has(o.id);
       var card=document.createElement('div'); card.className='card'+(o.fixada?' fixada':'')+(sel?' selecionado':'');
@@ -308,6 +316,7 @@
         render(ctx);
       });
       g.appendChild(card);
+      }catch(errCard){ try{ console.error('CARD_ERRO item='+(entry.o&&entry.o.id)+': '+(errCard&&errCard.message)); }catch(e2){} }
     });
     // Stagger animations: GSAP (liso) ou fallback ao CSS
     if(window.Movimento) window.Movimento.grid('#grid');
