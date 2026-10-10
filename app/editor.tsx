@@ -9,7 +9,7 @@ import * as LocalAuthentication from 'expo-local-authentication';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import * as Notifications from 'expo-notifications';
 import { MotiView } from 'moti';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     ActivityIndicator, Alert,
     Animated,
@@ -27,6 +27,7 @@ import { idiomaAtual, tIdioma } from '../context/idiomas';
 import { useMonetizacao } from '../context/monetizacao';
 import { appColors } from '../constants/theme';
 import RichTextEditor, { FormatoAtivo, RichTextEditorHandle } from '../components/rich-text-editor';
+import { corDaTag, tagsDeItens } from '../context/tags';
 import { excluirArquivoAudio, extrairAudios, removerAudioDoHtml, type AudioAttachment } from '../components/audio-chip';
 import * as Haptics from 'expo-haptics';
 
@@ -140,6 +141,18 @@ export default function EditorScreen() {
     const router = useRouter();
     const params = useLocalSearchParams();
     const { notas, salvarNota, salvarLembreteNota } = useNotas();
+    // ── TAGS (#palavra no texto) ──
+    // Catálogo global de tags (todas as notas) + prefixo digitado antes do
+    // cursor (o WebView manda via __tag__). null = sem sugestões abertas.
+    const [tagPrefixo, setTagPrefixo] = useState<string | null>(null);
+    const catalogoTags = useMemo(() => tagsDeItens(notas), [notas]);
+    const sugestoesTag = useMemo(() => {
+        if (tagPrefixo === null) return [];
+        const pfx = tagPrefixo.toLowerCase();
+        return catalogoTags
+            .filter(({ nome }) => pfx.length === 0 ? true : nome.startsWith(pfx) && nome !== pfx)
+            .slice(0, 8);
+    }, [tagPrefixo, catalogoTags]);
     const { tarefas } = useTarefas();
     const { isDark, config, t } = useTheme();
     const insets = useSafeAreaInsets();
@@ -1160,6 +1173,7 @@ export default function EditorScreen() {
                     initialValue={notaExistente?.conteudo || ''}
                     onChange={handleConteudoChange}
                     onFormatoChange={handleFormatoChange}
+                    onTagPrefixo={setTagPrefixo}
                     editavel={editando}
                     placeholder={editando ? t('Comece a escrever...') : ""}
                     textColor={tema.texto}
@@ -1180,6 +1194,32 @@ export default function EditorScreen() {
                     KeyboardAvoidingView cuida. Sem animação manual. */}
                 {editando && (
                     <View style={{ zIndex: 9999 }}>
+                        {/* Sugestões de TAG: aparecem ao digitar `#` (o WebView manda
+                            o prefixo antes do cursor). Tocar insere a tag completa no
+                            cursor, substituindo o parcial. Cores por hash — a mesma
+                            tag é sempre da mesma cor. */}
+                        {tagPrefixo !== null && sugestoesTag.length > 0 && (
+                            <View style={[styles.sugestoesTag, { backgroundColor: tema.toolbar, borderColor: tema.sheetBorda }]}>
+                                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 10, gap: 8, alignItems: 'center' }}>
+                                    <Ionicons name="pricetag" size={15} color={tema.accent} />
+                                    {sugestoesTag.map(({ nome, count }) => (
+                                        <TouchableOpacity
+                                            key={nome}
+                                            onPress={() => {
+                                                editorRef.current?.inserirTagNoCursor(nome);
+                                                setTagPrefixo(null);
+                                            }}
+                                            activeOpacity={0.7}
+                                            style={[styles.chipTag, { backgroundColor: corDaTag(nome) + '26', borderColor: corDaTag(nome) }]}
+                                        >
+                                            <View style={[styles.bolinhaTag, { backgroundColor: corDaTag(nome) }]} />
+                                            <Text style={[styles.chipTagTexto, { color: corDaTag(nome) }]}>#{nome}</Text>
+                                            <Text style={[styles.chipTagContagem, { color: tema.texto, opacity: 0.6 }]}>{count}</Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </ScrollView>
+                            </View>
+                        )}
                         {renderToolbar()}
                     </View>
                 )}
@@ -1641,6 +1681,25 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.25,
         shadowRadius: 5
     },
+    sugestoesTag: {
+        marginHorizontal: 16,
+        marginBottom: 8,
+        borderRadius: 18,
+        borderWidth: 1,
+        paddingVertical: 8,
+    },
+    chipTag: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        borderRadius: 16,
+        borderWidth: 1.5,
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+    },
+    bolinhaTag: { width: 9, height: 9, borderRadius: 5 },
+    chipTagTexto: { fontSize: 13.5, fontWeight: '800' },
+    chipTagContagem: { fontSize: 11.5, fontWeight: '700', opacity: 0.65 },
     toolbarScroll: { alignItems: 'center', paddingHorizontal: 10, gap: 5 },
     btnToolbarExtra: { width: 42, height: 42, borderRadius: 13, borderWidth: 1, borderColor: 'transparent', justifyContent: 'center', alignItems: 'center' },
     divisorToolbar: { width: 1, height: 26, backgroundColor: 'rgba(128,128,128,0.4)', marginHorizontal: 6 },

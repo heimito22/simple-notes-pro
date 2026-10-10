@@ -35,6 +35,8 @@ export interface RichTextEditorHandle {
   prepararEscrita: () => void;
   /** Re-lê e envia o estado de formatação ativo (usado ao entrar em edição). */
   atualizarFormato: () => void;
+  /** Insere `#tag ` no cursor, substituindo o `#parcial` já digitado (sugestões). */
+  inserirTagNoCursor: (nome: string) => void;
 }
 
 interface Props {
@@ -42,6 +44,8 @@ interface Props {
   initialValue?: string;
   onChange?: (html: string) => void;
   onFormatoChange?: (fmt: FormatoAtivo) => void;
+  /** `#prefixo` digitado imediatamente antes do cursor (sugestões de tags). */
+  onTagPrefixo?: (prefixo: string) => void;
   /** Modo leitura inicial. Mudanças usam setEditable() (sem recarregar o WebView). */
   editavel?: boolean;
   placeholder?: string;
@@ -304,6 +308,54 @@ const buildDoc = (
     }
     scheduleFormats();
   });
+
+  // TAGS: detecta o prefixo '#...' imediatamente antes do cursor e avisa o host
+  // (barra de sugestões). Sem prefixo, avisa vazio — o host fecha as sugestões.
+  function notificarTagPrefixo() {
+    var pfx = '';
+    try {
+      var sel = window.getSelection();
+      if (sel && sel.rangeCount > 0) {
+        var r = sel.getRangeAt(0);
+        var node = r.startContainer;
+        if (node.nodeType === 3) {
+          var m = node.textContent.slice(0, r.startOffset).match(/#[^\s#]{0,40}$/);
+          if (m) pfx = m[0].slice(1);
+        }
+      }
+    } catch (e) {}
+    ponte('__tag__' + pfx);
+  }
+  var tagTimer = null;
+  function scheduleTagPrefixo() {
+    if (tagTimer) return;
+    tagTimer = setTimeout(function() { tagTimer = null; notificarTagPrefixo(); }, 160);
+  }
+  el.addEventListener('input', scheduleTagPrefixo);
+  document.addEventListener('selectionchange', scheduleTagPrefixo);
+
+  // Insere a TAG completa no cursor, substituindo o parcial '#...' já digitado
+  // (procura o '#' imediatamente antes do cursor e o troca por '#tag ').
+  window.editorInserirTag = function(nome) {
+    try {
+      var sel = window.getSelection();
+      if (sel && sel.rangeCount > 0) {
+        var r = sel.getRangeAt(0);
+        var node = r.startContainer;
+        if (node.nodeType === 3) {
+          var txt = node.textContent.slice(0, r.startOffset);
+          var m = txt.match(/#[^\s#]*$/);
+          if (m) {
+            r.setStart(node, r.startOffset - m[0].length);
+            r.deleteContents();
+          }
+        }
+      }
+      document.execCommand('insertHTML', false, '#' + nome + '&nbsp;');
+    } catch (e) {}
+    notify();
+    return true;
+  };
 
   window.editorSetContent = function(html) {
     el.innerHTML = html;
@@ -866,6 +918,7 @@ const RichTextEditor = memo(
       initialValue = '',
       onChange,
       onFormatoChange,
+      onTagPrefixo,
       placeholder = '',
       textColor,
       placeholderColor,
@@ -946,6 +999,9 @@ const RichTextEditor = memo(
       atualizarFormato: () => {
         injetar('window.editorNotificarFormatos(); true;');
       },
+      inserirTagNoCursor: (nome: string) => {
+        injetar(`window.editorInserirTag(${toJSString(nome)}); true;`);
+      },
     }));
 
     const handleMessage = (event: any) => {
@@ -953,6 +1009,10 @@ const RichTextEditor = memo(
       if (typeof data === 'string' && data.startsWith('__scroll__')) {
         const partes = data.slice(9).split('|');
         onScrollPos?.(Number(partes[0]) || 0, Number(partes[1]) || 0);
+        return;
+      }
+      if (typeof data === 'string' && data.startsWith('__tag__')) {
+        onTagPrefixo?.(data.slice(7));
         return;
       }
       if (typeof data === 'string' && data.startsWith('__fmt__')) {

@@ -35,6 +35,7 @@ import { useNotas } from '../../context/NotasContext';
 import { useTarefas } from '../../context/TarefasContext';
 import { useTheme } from '../../context/ThemeContext';
 import { idiomaAtual } from '../../context/idiomas';
+import { corDaTag, tagsDeItens, temTodasAsTags, extrairTags } from '../../context/tags';
 import RichText from '../../components/rich-text';
 import AudioPlayer, { extrairAudios } from '../../components/audio-chip';
 import { appColors } from '../../constants/theme';
@@ -119,6 +120,11 @@ export default function HomeScreen() {
   
   const [busca, setBusca] = useState('');
   const [buscaAtiva, setBuscaAtiva] = useState(false);
+  // TAGS: filtro por múltiplas tags (E — o item tem #a E #b) + catálogo global
+  const [tagsFiltro, setTagsFiltro] = useState<string[]>([]);
+  const catalogoTags = useMemo(() => tagsDeItens(notas), [notas]);
+  // PASTAS: busca de pasta pelo nome (a row de chips ganha campo quando há muitas)
+  const [buscaPasta, setBuscaPasta] = useState('');
   const [user, setUser] = useState<any>(null);
   const [modalContaVisible, setModalContaVisible] = useState(false);
   // Anel de sync na BOLINHA do perfil (header): cometa azul girando enquanto
@@ -290,25 +296,45 @@ export default function HomeScreen() {
     perigo: paleta.danger,
   };
 
-  // Lista principal: notas SEM pasta (as pastas guardam as suas) + listas
+  // Lista principal: notas SEM pasta (as pastas guardam as suas) + listas.
+  // COM BUSCA/FILTRO DE TAGS ATIVO: a pesquisa vira GLOBAL — varre as pastas
+  // também (os resultados ganham badge 📁 com o nome da pasta de origem) e o
+  // filtro de tags aplica E (o item tem #teste1 E #teste2).
+  const tagsFiltroSelecionadas = tagsFiltro;
+  const temBuscaGlobal = busca.trim().length > 0 || tagsFiltro.length > 0;
+  const nomeDaPasta = useMemo(() => {
+    const m = new Map<string, string>();
+    (pastas || []).forEach((p: any) => m.set(p.id, p.nome || ''));
+    return m;
+  }, [pastas]);
+
   const notasFiltradas = useMemo(() => {
-    const termoBusca = busca.toLowerCase();
+    const termoBusca = busca.trim().toLowerCase();
     const nF = notas.filter((n: any) => {
-      if (n.pastaId) return false;
+      if (!temBuscaGlobal && n.pastaId) return false;
       const titulo = (n.titulo || "").toLowerCase();
       const conteudoLimpo = limparHTML(n.conteudo).toLowerCase();
-      return titulo.includes(termoBusca) || conteudoLimpo.includes(termoBusca);
+      const casaTexto = !termoBusca || titulo.includes(termoBusca) || conteudoLimpo.includes(termoBusca);
+      if (!casaTexto) return false;
+      if (!temTodasAsTags(n.conteudo, tagsFiltroSelecionadas)) return false;
+      return true;
     }).map((n: any) => ({ ...n, tipoItem: 'nota' }));
 
-    const lF = listas.filter((l: any) => !l.pastaId && (l.titulo || "").toLowerCase().includes(termoBusca))
-    .map((l: any) => ({ ...l, tipoItem: 'lista' }));
+    const lF = listas.filter((l: any) => {
+      if (!temBuscaGlobal && l.pastaId) return false;
+      const casaTitulo = !termoBusca || (l.titulo || "").toLowerCase().includes(termoBusca);
+      if (!casaTitulo) return false;
+      // Listas não têm conteúdo rico: tag no TÍTULO (`#compras` no nome) vale
+      if (!temTodasAsTags(l.titulo || '', tagsFiltroSelecionadas)) return false;
+      return true;
+    }).map((l: any) => ({ ...l, tipoItem: 'lista' }));
 
     return [...nF, ...lF].sort((a, b) => {
       if (a.fixada && !b.fixada) return -1;
       if (!a.fixada && b.fixada) return 1;
       return b.id.localeCompare(a.id);
     });
-  }, [notas, listas, busca]);
+  }, [notas, listas, busca, tagsFiltroSelecionadas, temBuscaGlobal]);
 
   // Pastas com a contagem de itens (notas + listas) de cada uma
   const pastasComContagem = useMemo(() =>
@@ -756,7 +782,67 @@ export default function HomeScreen() {
             )}
           </Animated.View>
 
+          {/* FILTRO POR TAGS: chips de todas as tags já criadas (ordenadas por uso).
+              Toque alterna — selecionar #a e #b mostra só itens com AMBAS (E). */}
+          {(buscaAtiva || tagsFiltro.length > 0) && catalogoTags.length > 0 && (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tagsFiltroRow} contentContainerStyle={{ paddingHorizontal: 20, gap: 8, alignItems: 'center' }}>
+              {tagsFiltro.length > 0 && (
+                <TouchableOpacity
+                  style={[styles.chipTagFiltro, { backgroundColor: cores.card, borderColor: cores.borda }]}
+                  onPress={() => setTagsFiltro([])}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="close" size={13} color={cores.textoSecundario} />
+                  <Text style={[styles.chipTagFiltroTexto, { color: cores.textoSecundario }]}>{t('Limpar')}</Text>
+                </TouchableOpacity>
+              )}
+              {catalogoTags.map(({ nome, count }) => {
+                const ativo = tagsFiltro.includes(nome);
+                return (
+                  <TouchableOpacity
+                    key={nome}
+                    style={[
+                      styles.chipTagFiltro,
+                      ativo
+                        ? { backgroundColor: corDaTag(nome), borderColor: corDaTag(nome) }
+                        : { backgroundColor: corDaTag(nome) + '22', borderColor: corDaTag(nome) },
+                    ]}
+                    onPress={() => {
+                      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                      setTagsFiltro(prev => prev.includes(nome) ? prev.filter(x => x !== nome) : [...prev, nome]);
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    {ativo && <Ionicons name="checkmark" size={13} color="#0D0A08" />}
+                    <Text style={[styles.chipTagFiltroTexto, { color: ativo ? '#0D0A08' : corDaTag(nome), fontWeight: ativo ? '900' : '700' }]}>#{nome}</Text>
+                    <Text style={[styles.chipTagFiltroTexto, { color: ativo ? '#0D0A08' : cores.textoSecundario, opacity: 0.7, fontSize: 11 }]}>{count}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          )}
+
         </View>
+
+        {/* Buscar PASTA pelo nome (chips filtram em tempo real) — aparece com 4+ pastas */}
+        {pastas.length > 3 && (
+          <View style={[styles.buscaPastaBox, { backgroundColor: cores.card, borderColor: cores.borda }]}>
+            <Ionicons name="folder-open" size={16} color={cores.placeholder} style={{ marginLeft: 12 }} />
+            <TextInput
+              style={[styles.buscaPastaInput, { color: cores.textoPrincipal }]}
+              placeholder={t('Buscar pasta...')}
+              placeholderTextColor={cores.placeholder}
+              value={buscaPasta}
+              onChangeText={setBuscaPasta}
+              returnKeyType="done"
+            />
+            {buscaPasta.length > 0 && (
+              <TouchableOpacity onPress={() => setBuscaPasta('')} hitSlop={8} style={{ marginRight: 10 }}>
+                <Ionicons name="close-circle" size={18} color={cores.placeholder} />
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
 
         {/* Pastas: chips horizontais — toque abre a pasta; "+" Nova pasta sempre
         visível no início da linha (não precisa rolar para criar) */}
@@ -783,7 +869,9 @@ export default function HomeScreen() {
             <Ionicons name="add" size={17} color={cores.botaoAdd} />
             <Text style={[styles.chipPastaNome, { color: cores.botaoAdd }]}>{t('Nova pasta')}</Text>
           </TouchableOpacity>
-          {pastasComContagem.map((p: any, i: number) => (
+          {pastasComContagem
+            .filter((p: any) => !buscaPasta.trim() || (p.nome || '').toLowerCase().includes(buscaPasta.trim().toLowerCase()))
+            .map((p: any, i: number) => (
             <MotiView
               key={p.id}
               from={{ opacity: 0, scale: 0.8, translateX: -8 }}
@@ -820,7 +908,7 @@ export default function HomeScreen() {
                 </View>
               </TouchableOpacity>
             </MotiView>
-          ))}
+            ))}
         </ScrollView>
 
         <ScrollView
@@ -936,6 +1024,30 @@ export default function HomeScreen() {
                           {item.titulo || (item.tipoItem === 'lista' ? t('Lista sem título') : t('Nota sem título'))}
                         </Text>
                       </View>
+                      {/* BUSCA GLOBAL: de onde veio o item (pasta de origem) */}
+                      {temBuscaGlobal && !!item.pastaId && nomeDaPasta.get(item.pastaId) && (
+                        <View style={[styles.badgePasta, { backgroundColor: paleta.primarySoft }]}>
+                          <Ionicons name="folder" size={11} color={cores.botaoAdd} />
+                          <Text style={[styles.badgePastaTexto, { color: cores.botaoAdd }]} numberOfLines={1}>
+                            {nomeDaPasta.get(item.pastaId)}
+                          </Text>
+                        </View>
+                      )}
+                      {/* TAGS do item — mini-chips com a cor estável da tag */}
+                      {(() => {
+                        const tagsItem = extrairTags(item.tipoItem === 'lista' ? (item.titulo || '') : (item.conteudo || '')).slice(0, 4);
+                        if (tagsItem.length === 0) return null;
+                        return (
+                          <View style={styles.linhaTagsCard}>
+                            {tagsItem.map(tg => (
+                              <View key={tg} style={[styles.chipTagMini, { backgroundColor: corDaTag(tg) + '22', borderColor: corDaTag(tg) }]}>
+                                <View style={[styles.bolinhaTagMini, { backgroundColor: corDaTag(tg) }]} />
+                                <Text style={[styles.chipTagMiniTexto, { color: corDaTag(tg) }]}>#{tg}</Text>
+                              </View>
+                            ))}
+                          </View>
+                        );
+                      })()}
                       {item.tipoItem === 'lista' ? (
                         <Text style={[styles.cardConteudo, { color: cores.textoSecundario }]} numberOfLines={2}>
                           {t('{n} itens na lista', { n: item.itens ? item.itens.length : 0 })}
@@ -1817,4 +1929,49 @@ const styles = StyleSheet.create({
   },
   pastaRowIcone: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   pastaRowNome: { fontSize: 16, fontWeight: '700', marginLeft: 12 },
+  // ── TAGS: filtro da busca + chips nos cards ──
+  tagsFiltroRow: { maxHeight: 44, marginBottom: 6 },
+  chipTagFiltro: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    paddingHorizontal: 11,
+    paddingVertical: 6,
+  },
+  chipTagFiltroTexto: { fontSize: 13, fontWeight: '700' },
+  buscaPastaBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 20,
+    marginBottom: 8,
+    borderRadius: 16,
+    borderWidth: 1,
+    height: 42,
+  },
+  buscaPastaInput: { flex: 1, fontSize: 14.5, fontWeight: '600', paddingVertical: 0 },
+  badgePasta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    alignSelf: 'flex-start',
+    borderRadius: 10,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    marginTop: 5,
+  },
+  badgePastaTexto: { fontSize: 11.5, fontWeight: '800', maxWidth: 160 },
+  linhaTagsCard: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 7 },
+  chipTagMini: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+  },
+  bolinhaTagMini: { width: 7, height: 7, borderRadius: 4 },
+  chipTagMiniTexto: { fontSize: 11.5, fontWeight: '800' },
 });
