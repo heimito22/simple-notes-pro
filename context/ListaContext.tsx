@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
-import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { registrarApagado } from './tombstones';
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { registrarApagado, tsDoItemExportado } from './tombstones';
 
 export interface ItemLista {
   id: string;
@@ -33,6 +33,9 @@ const ListaContext = createContext<ListaContextData>({} as ListaContextData);
 
 export const ListaProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [listas, setListas] = useState<ListaCompras[]>([]);
+  // Só persiste depois do carregamento inicial: sem isto o efeito de montagem
+  // gravava [] por cima do storage ANTES do carregarListas resolver (async).
+  const [carregado, setCarregado] = useState(false);
 
   const getStorageKey = async () => {
     const user = await GoogleSignin.getCurrentUser();
@@ -64,6 +67,8 @@ export const ListaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
     } catch (e) {
       console.error("[Listas] Erro ao carregar:", e);
+    } finally {
+      setCarregado(true);
     }
   }, []);
 
@@ -71,12 +76,15 @@ export const ListaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     carregarListas();
   }, [carregarListas]);
 
-  // Persiste automaticamente quando as listas mudam
+  // Persiste automaticamente quando as listas mudam — SEMPRE, inclusive o
+  // estado VAZIO. O gate antigo (`listas.length > 0`) fazia apagar a ÚLTIMA
+  // lista (ou todas) nunca gravar no storage: ao reabrir o app as listas
+  // ressuscitavam do disco.
   useEffect(() => {
-    if (listas.length > 0) {
+    if (carregado) {
       persistirDados(listas);
     }
-  }, [listas, persistirDados]);
+  }, [listas, carregado, persistirDados]);
 
   const salvarLista = (listaEditada: ListaCompras) => {
   setListas(prev => {
@@ -88,14 +96,18 @@ export const ListaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       // e sobrescrevemos com o que veio do editor (...listaEditada)
       const novas = prev.map(l => 
         l.id === listaEditada.id 
-          ? { ...l, ...listaEditada } 
+          ? { ...l, ...listaEditada, dataModificacao: Date.now() } 
           : l
       );
       persistirDados(novas);
       return novas;
     } else {
       // Se for nova, apenas adicionamos ao início
-      const novas = [listaEditada, ...prev];
+      // Carimbo numérico: sem `dataModificacao` o merge por item era cego
+      // (tsDoItem caía em 0 — disputas de versão entre aparelhos eram
+      // resolvidas por sorte) e o tombstone da exclusão não tinha contra o
+      // que disputar ("editado depois da exclusão" nunca se decidia).
+      const novas = [{ ...listaEditada, dataModificacao: Date.now() }, ...prev];
       persistirDados(novas);
       return novas;
     }
@@ -103,7 +115,13 @@ export const ListaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 };
 
   const excluirLista = (id: string) => {
-    registrarApagado(id); // tombstone: exclusão sincroniza com o PC
+    // Tombstone À PROVA DE RELÓGIO: ts = max(agora, dataModificacao da lista + 1).
+    // A lista pode ter sido criada/editada no PC (relógio adiantado): um
+    // tombstone com o relógio do celular perdia a disputa e o item
+    // ressuscitava no celular depois de um tempo. O carimbo pelo próprio item
+    // garante que a versão que este aparelho via morre de verdade.
+    const alvo = listas.find(l => l.id === id);
+    registrarApagado(id, tsDoItemExportado(alvo) + 1);
     setListas(prev => {
       const novas = prev.filter(l => l.id !== id);
       persistirDados(novas);
@@ -114,7 +132,7 @@ export const ListaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const alternarFixarLista = (id: string) => {
     setListas(prev => {
       const novas = prev.map(l => 
-        l.id === id ? { ...l, fixada: !l.fixada } : l
+        l.id === id ? { ...l, fixada: !l.fixada, dataModificacao: Date.now() } : l
       );
       persistirDados(novas);
       return novas;
@@ -125,7 +143,7 @@ export const ListaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const moverListasParaPasta = (ids: string[], pastaId: string | null) => {
     const alvo = new Set(ids);
     setListas(prev => {
-      const novas = prev.map(l => (alvo.has(l.id) ? { ...l, pastaId: pastaId || undefined } : l));
+      const novas = prev.map(l => (alvo.has(l.id) ? { ...l, pastaId: pastaId || undefined, dataModificacao: Date.now() } : l));
       persistirDados(novas);
       return novas;
     });

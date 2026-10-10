@@ -8,7 +8,7 @@ import { useTarefas } from './TarefasContext';
 import { agendarLembretes, cancelarLembretes, type LembreteNota } from './lembrete-notas';
 import { verificarTelaCheia } from './permissao-alarme';
 import { sincronizarAnexosUpload, restaurarAnexosDownload } from './anexos-cloud';
-import { hidratarApagados, definirEscopoApagados, registrarApagado, registrarApagados, serializarApagados, carregarApagados, mesclarPorItem, assinaturaItem } from './tombstones';
+import { hidratarApagados, definirEscopoApagados, registrarApagado, registrarApagados, serializarApagados, carregarApagados, mesclarPorItem, assinaturaItem, tsDoItemExportado } from './tombstones';
 import { acharBackupCanonico } from './backup-drive';
 import { useTheme } from './ThemeContext';
 import { idiomaAtual, tIdioma } from './idiomas';
@@ -28,6 +28,8 @@ export interface Pasta {
   id: string;
   nome: string;
   data?: string;
+  /** Carimbo numérico do merge por item (o mais novo vence; tombstone disputa com ele). */
+  dataModificacao?: number;
 }
 
 /** Mesmo conteúdo (por id + assinatura)? Evita setNotas com array "novo" igual. */
@@ -597,8 +599,11 @@ export function NotasProvider({ children }: any) {
           if (!it || it.id == null) return true;
           const tsAp = mapaApagados[String(it.id)] || 0;
           if (!tsAp) return true;
-          const tsItem = Number(it.dataModificacao) || 0;
-          return tsItem > tsAp; // editado DEPOIS da exclusão: sobrevive
+          // Mesma política do PC (tsDoItem): dataModificacao numérica OU a
+          // data legada. `Number(it.dataModificacao) || 0` via item SEM carimbo
+          // novo (ts 0) era morto SEMPRE — editado depois da exclusão nunca
+          // sobrevivia, e disputas de versão ficavam sem árbitro.
+          return tsDoItemExportado(it) > tsAp; // editado DEPOIS da exclusão: sobrevive
         });
       }
     });
@@ -663,11 +668,12 @@ export function NotasProvider({ children }: any) {
       await (atualizarConfigTema as any)('chaveIA', backupData.chaveIA).catch(() => {});
     }
     if (backupData.preferencias) {
-      const localIso = await obterUltimaSyncLocal();
-      if (isRemotoMaisNovo(backupData.ultimaSincronizacao, localIso)) {
-        try { await aplicarPreferenciasRemotas(backupData.preferencias as any); } catch {}
-        if (typeof backupData.ultimaSincronizacao === 'string') await salvarUltimaSyncLocal(backupData.ultimaSincronizacao);
-      }
+      // Gate antigo REMOVIDO: isRemotoMaisNovo comparava o relógio de quem
+      // subiu com o relógio deste aparelho — preferências do PC (relógio
+      // atrasado) nunca desciam. O backup que chegou É o estado da conta
+      // (o tick só puxa quando a nuvem mudou e não foi este aparelho).
+      try { await aplicarPreferenciasRemotas(backupData.preferencias as any); } catch {}
+      if (typeof backupData.ultimaSincronizacao === 'string') await salvarUltimaSyncLocal(backupData.ultimaSincronizacao);
     } else if (typeof backupData.ultimaSincronizacao === 'string') {
       await salvarUltimaSyncLocal(backupData.ultimaSincronizacao);
     }
@@ -696,38 +702,57 @@ export function NotasProvider({ children }: any) {
         const subiram = await sincronizarAnexosUpload(notasRef.current.map((n: any) => n?.conteudo || ''));
         if (subiram > 0) console.log(`[Cloud] retry: ${subiram} anexo(s) subido(s)`);
       } catch {}
-      // DIRTY-FIRST: mudança local ainda não confirmada no Drive? sobe primeiro
-      // e pula o pull — aplicar o backup antigo agora APAGARIA a criação local.
-      if (haMudancasLocaisRef.current) {
-        haMudancasLocaisRef.current = false;
-        ultimoPushTsRef.current = Date.now();
-        try { await fazerBackupCloud(); } catch {}
-        return;
-      }
+      // PULL-FIRST (mesma política do PC): a mudança local sobe DEPOIS do
+      // pull — nunca antes. O dirty-first antigo subia SEM ver as exclusões
+      // da nuvem: o campo `apagados` do backup era sobrescrito pelo registro
+      // local e a exclusão do outro aparelho se perdia no ar. O merge protege
+      // o que é local (mais novo vence) e o localVenceu do resultado re-arma
+      // a pendência — o mesmo tick sobe logo abaixo.
       try {
         const meta = await buscarMetadadosDrive().catch(() => null);
-        if (!meta?.modifiedTime) return;
+        if (!meta?.modifiedTime) {
+          // Offline vazio ou Drive sem meta: ainda sobe a pendência local.
+          if (haMudancasLocaisRef.current) {
+            haMudancasLocaisRef.current = false;
+            ultimoPushTsRef.current = Date.now();
+            try { await fazerBackupCloud(); } catch {}
+          }
+          return;
+        }
         // Marcador = modifiedTime do SERVIDOR (mesmo critério do PC): se a
         // nuvem não mudou desde a última vez que vimos, não há o que puxar.
         // Sem depender do relógio local nem da tolerância de 2s (que causava
         // re-pull/re-push quando os relógios divergiam).
         const marcadorLocal = await obterMetaLocal();
-        if (marcadorLocal && meta.modifiedTime === marcadorLocal) return;
-        syncEmAndamentoRef.current = true;
-        const backup: any = await (buscarBackupDrive() as Promise<any>).catch(() => null);
-        if (backup && isRemotoMaisNovo(backup.ultimaSincronizacao || meta.modifiedTime, await obterUltimaSyncLocal())) {
-          await aplicarBackupSilencioso(backup);
-        } else if (backup && !(await obterUltimaSyncLocal())) {
-          await aplicarBackupSilencioso(backup);
+        if (!(marcadorLocal && meta.modifiedTime === marcadorLocal)) {
+          syncEmAndamentoRef.current = true;
+          const backup: any = await (buscarBackupDrive() as Promise<any>).catch(() => null);
+          if (backup) {
+            // Gate antigo REMOVIDO: isRemotoMaisNovo comparava ultimaSincronizacao
+            // (relógio de quem subiu) contra o relógio deste aparelho — backup do
+            // PC com relógio atrasado NUNCA descia ("criação no PC não chega no
+            // celular"). O guard acima (modifiedTime do servidor) já garante que
+            // a nuvem mudou; o merge protege o que é mais novo aqui e o
+            // localVenceu re-arma a pendência para o push na sequência.
+            await aplicarBackupSilencioso(backup);
+          }
+          // Depois do pull (ou se nada veio), marca com o modifiedTime ATUAL do
+          // servidor — a nuvem pode ter mudado entre a leitura da meta e o
+          // download; marcar o valor velho faria re-puxar o backup inteiro.
+          try {
+            const meta2 = await buscarMetadadosDrive().catch(() => null);
+            if (meta2?.modifiedTime) await salvarMetaLocal(meta2.modifiedTime);
+          } catch {}
+          syncEmAndamentoRef.current = false;
         }
-        // Depois do pull (ou se nada veio), marca com o modifiedTime ATUAL do
-        // servidor — a nuvem pode ter mudado entre a leitura da meta e o
-        // download; marcar o valor velho faria re-puxar o backup inteiro.
-        try {
-          const meta2 = await buscarMetadadosDrive().catch(() => null);
-          if (meta2?.modifiedTime) await salvarMetaLocal(meta2.modifiedTime);
-        } catch {}
       } catch {} finally { syncEmAndamentoRef.current = false; }
+      // Mudança local pendente (edição própria ou localVenceu do merge)?
+      // Sobe AGORA — DEPOIS do pull, com os tombstones da nuvem já absorvidos.
+      if (haMudancasLocaisRef.current) {
+        haMudancasLocaisRef.current = false;
+        ultimoPushTsRef.current = Date.now();
+        try { await fazerBackupCloud(); } catch {}
+      }
     };
     intervalo = setInterval(tick, 5000);
     const t0 = setTimeout(tick, 2500);
@@ -908,13 +933,37 @@ export function NotasProvider({ children }: any) {
       // (PC/celular) puxa, vê os tombstones e apaga o conteúdo local dele.
       // Sem isto o PC via "Drive vazio", o merge mantinha tudo local e
       // RE-SUBIA todas as notas apagadas.
+      //
+      // WIPEALLAT À PROVA DE RELÓGIO: `Date.now()` do celular deixava sobreviver
+      // itens do PC cujo relógio está adiantado (ts > wipeAllAt = "criado depois
+      // do wipe"). O carimbo cobre tudo que este aparelho CONHECE: o máximo de
+      // dataModificacao entre os itens locais E os itens do backup atual na
+      // nuvem — nada anterior a ele sobrevive, de qualquer relógio.
+      let maiorTsConhecido = 0;
+      const varrerTs = (arr?: any[]) => (arr || []).forEach((it: any) => {
+        const t = tsDoItemExportado(it);
+        if (t > maiorTsConhecido) maiorTsConhecido = t;
+      });
+      varrerTs(dadosRef.current?.notas);
+      varrerTs(dadosRef.current?.listas);
+      varrerTs(dadosRef.current?.pastas);
+      varrerTs(dadosRef.current?.tarefas);
+      try {
+        const atual = await (buscarBackupDrive() as Promise<any>).catch(() => null);
+        if (atual) {
+          varrerTs(atual.notas);
+          varrerTs(atual.listas);
+          varrerTs(atual.pastas);
+          varrerTs(atual.tarefas);
+        }
+      } catch {}
       const backupVazio = JSON.stringify({
         notas: [],
         listas: [],
         pastas: [],
         tarefas: [],
         apagados: serializarApagados(),
-        wipeAllAt: Date.now(), // mata TUDO que for mais antigo que este instante
+        wipeAllAt: Math.max(Date.now(), maiorTsConhecido) + 1, // mata TUDO anterior a este instante, de qualquer relógio
       });
 
       const search = await fetch('https://www.googleapis.com/drive/v3/files?q=name="backup_notas.json"&spaces=appDataFolder', {
@@ -1235,16 +1284,20 @@ export function NotasProvider({ children }: any) {
       // exclusão intencional e RE-SOBE tudo para o Drive. Antes só as
       // NOTAS eram registradas: pastas e listas ressuscitavam (o eco
       // que perseguia entre contas e aparelhos).
+      // À PROVA DE RELÓGIO: cada tombstone é posterior ao próprio item —
+      // itens do PC (relógio adiantado) não sobrevivem ao apagamento local.
       const d = dadosRef.current || { notas: [], listas: [], pastas: [], tarefas: [] };
-      const ids = [
+      const idsComTs = [
         ...((d.notas || []) as any[]),
         ...((d.listas || []) as any[]),
         ...((d.pastas || []) as any[]),
         ...((d.tarefas || []) as any[]),
-      ].map(x => x?.id).filter(Boolean) as string[];
-      if (ids.length > 0) {
-        registrarApagados(ids);
-        console.log('[Apagar tudo] Tombstones registrados:', ids.length);
+      ]
+        .filter(x => x?.id)
+        .map(x => ({ id: x.id as string, ts: tsDoItemExportado(x) + 1 }));
+      if (idsComTs.length > 0) {
+        registrarApagados(idsComTs);
+        console.log('[Apagar tudo] Tombstones registrados:', idsComTs.length);
       }
       const itens = notasRef.current || [];
 
@@ -1267,12 +1320,19 @@ export function NotasProvider({ children }: any) {
       setNotas([]);
       if (typeof setListas === 'function') setListas([]);
       setPastas([]);
+      // TAREFAS também morrem aqui: sem isto o estado delas sobrevivia e o
+      // próximo backup re-subia as tarefas apagadas (com o próprio tombstone
+      // delas no payload — conflito que o merge não resolve).
+      try {
+        const apagarTarefas = (tarefasContext as any)?.apagarTodasTarefas;
+        if (typeof apagarTarefas === 'function') await apagarTarefas.call(tarefasContext);
+      } catch {}
       return true;
     } catch (e) {
       console.error('[Apagar tudo] Falha ao apagar conteúdo local:', e);
       return false;
     }
-  }, [setListas]);
+  }, [setListas, tarefasContext]);
 
   const salvarNota = (titulo: string, conteudo: string, id?: string, protegida: boolean = false, pastaId?: string | null) => {
   // Nota NOVA = sem id (o contexto gera o id). O anúncio por alteração é
@@ -1287,7 +1347,7 @@ export function NotasProvider({ children }: any) {
       // e atualizamos apenas o que veio do editor
       return prev.map(n => 
         n.id === id 
-          ? { ...n, titulo, conteudo, protegida } // O '...n' garante que 'fixada' continue true se já era true
+          ? { ...n, titulo, conteudo, protegida, dataModificacao: Date.now() } // O '...n' garante que 'fixada' continue true se já era true
           : n
       );
     } else {
@@ -1299,6 +1359,11 @@ export function NotasProvider({ children }: any) {
         data: new Date().toLocaleDateString('pt-BR'),
         fixada: false, // Começa sempre false
         protegida: protegida,
+        // Carimbo à prova de relógio: sem `dataModificacao` numérico o merge
+        // por item caía no fallback `data` (string pt-BR parseada com
+        // mês/dia invertidos quando o dia <= 12) — disputas de versão eram
+        // um caos silencioso entre aparelhos.
+        dataModificacao: Date.now(),
         // Nota criada dentro de uma pasta (ou movida) carrega o id da pasta
         pastaId: pastaId || undefined
       };
@@ -1328,11 +1393,11 @@ export function NotasProvider({ children }: any) {
     if (!nota) return;
     if (!lembrete) {
       await cancelarLembretes(id, nota.lembreteExpoIds ?? []);
-      setNotas(prev => prev.map(n => n.id === id ? { ...n, lembrete: undefined, lembreteExpoIds: [] } : n));
+      setNotas(prev => prev.map(n => n.id === id ? { ...n, lembrete: undefined, lembreteExpoIds: [], dataModificacao: Date.now() } : n));
       return;
     }
     const expoIds = await agendarLembretes(id, nota.titulo || 'Nota', lembrete, nota.lembreteExpoIds ?? []);
-    setNotas(prev => prev.map(n => n.id === id ? { ...n, lembrete, lembreteExpoIds: expoIds } : n));
+    setNotas(prev => prev.map(n => n.id === id ? { ...n, lembrete, lembreteExpoIds: expoIds, dataModificacao: Date.now() } : n));
     // Abre a guia de permissões do alarme na 1ª vez (mesma regra das tarefas)
     verificarTelaCheia().catch(() => {});
   };
@@ -1340,13 +1405,18 @@ export function NotasProvider({ children }: any) {
   const excluirNota = (id: string) => {
     const nota = notasRef.current.find(n => n.id === id);
     cancelarLembretes(id, nota?.lembreteExpoIds ?? []).catch(() => {});
-    registrarApagado(id); // tombstone: a exclusão viaja no backup e o outro aparelho obedece
+    // Tombstone À PROVA DE RELÓGIO: ts = max(agora, dataModificacao do item + 1).
+    // O PC pode ter o relógio adiantado — um tombstone com o relógio do celular
+    // perdia a disputa para o dataModificacao do PC e o item ressuscitava
+    // ("apaguei no celular e voltou"). Edições genuinamente posteriores à
+    // exclusão continuam vencendo (a política compartilhada decide).
+    registrarApagado(id, tsDoItemExportado(nota) + 1);
     setNotas(prev => prev.filter(n => n.id !== id));
   };
 
   // NOVA FUNÇÃO PARA FIXAR NOTAS
   const alternarFixarNota = (id: string) => {
-    setNotas(prev => prev.map(n => n.id === id ? { ...n, fixada: !n.fixada } : n));
+    setNotas(prev => prev.map(n => n.id === id ? { ...n, fixada: !n.fixada, dataModificacao: Date.now() } : n));
   };
 
   const toggleBloqueioApp = async (val: boolean) => {
@@ -1361,20 +1431,23 @@ export function NotasProvider({ children }: any) {
       id,
       nome: nome.trim() || tIdioma(idiomaAtual, 'Nova pasta'),
       data: new Date().toLocaleDateString('pt-BR'),
+      dataModificacao: Date.now(), // merge por item: pastas também disputam versão
     };
     setPastas(prev => [pasta, ...prev]);
     return id;
   }, []);
 
   const renomearPasta = useCallback((id: string, nome: string) => {
-    setPastas(prev => prev.map(p => (p.id === id ? { ...p, nome: nome.trim() || p.nome } : p)));
+    setPastas(prev => prev.map(p => (p.id === id ? { ...p, nome: nome.trim() || p.nome, dataModificacao: Date.now() } : p)));
   }, []);
 
   /** Remove a pasta e devolve as notas dela para a lista principal. */
   const excluirPasta = useCallback((id: string) => {
     // Tombstone da PASTA: sem isso o merge do outro aparelho vê a pasta como
     // "só-local" e a recria a cada pull (bug: pasta que nunca morre).
-    registrarApagado(id);
+    // À prova de relógio: sempre posterior à versão da pasta que este aparelho via.
+    const pasta = pastas.find(p => p.id === id);
+    registrarApagado(id, tsDoItemExportado(pasta) + 1);
     setPastas(prev => prev.filter(p => p.id !== id));
     // Notas/listas voltam para a lista principal — o detach sincroniza porque
     // a versão remota (sem pastaId) vence no merge por id.
@@ -1388,7 +1461,7 @@ export function NotasProvider({ children }: any) {
   const moverNotasParaPasta = useCallback((ids: string[], pastaId: string | null) => {
     const alvo = new Set(ids);
     setNotas(prev =>
-      prev.map(n => (alvo.has(n.id) ? { ...n, pastaId: pastaId || undefined } : n))
+      prev.map(n => (alvo.has(n.id) ? { ...n, pastaId: pastaId || undefined, dataModificacao: Date.now() } : n))
     );
   }, []);
 

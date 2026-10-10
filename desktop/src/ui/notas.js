@@ -433,7 +433,14 @@
         return;
       }
       if(!confirm(T('Excluir?'))) return;
-      if(window.Tombstones) window.Tombstones.registrar(edit.id); // exclusão sincroniza
+      // À prova de relógio: tombstone posterior à versão que este PC viu —
+      // se a nota/lista nasceu no PC com o relógio adiantado, um tombstone
+      // com Date.now() ainda é posterior; mas se ela veio do celular, o
+      // carimbo pelo próprio item garante a vitória da exclusão.
+      var alvoItem=edit.kind==='nota'
+        ? (ctx.store.notas||[]).find(function(n){return String(n.id)===String(edit.id);})
+        : (ctx.store.listas||[]).find(function(l){return String(l.id)===String(edit.id);});
+      if(window.Tombstones) window.Tombstones.tombarItem(edit.id, alvoItem); // exclusão sincroniza
       if(edit.kind==='nota') ctx.store.notas=(ctx.store.notas||[]).filter(function(n){return n.id!==edit.id;});
       else ctx.store.listas=(ctx.store.listas||[]).filter(function(l){return l.id!==edit.id;});
       ctx.salvarLocal(); fechar(ctx); ctx.toast(T('Excluído'));

@@ -80,13 +80,24 @@
       });
     }
 
-    function registrar(id) {
+    function registrar(id, tsMinimo) {
       if (!id) return;
-      mapa.set(String(id), agora());
+      // À PROVA DE RELÓGIO: o tombstone tem que ser posterior ao item que apaga.
+      // O relógio de quem apaga e o relógio de quem criou/editou o item são
+      // APARELHOS DIFERENTES — nunca batem. Item criado no PC (relógio adiantado)
+      // apagado no celular: um tombstone com o relógio do celular perde a disputa
+      // (dataModificacao do PC é "mais novo") e o item ressuscita. Com o mínimo
+      // baseado no PRÓPRIO item, o tombstone sempre vence a versão que o
+      // aparelho via; edições GENUINAMENTE posteriores continuam vencendo.
+      var base = Number(tsMinimo) || 0;
+      mapa.set(String(id), Math.max(agora(), base));
       persistir();
     }
     function registrarVarios(ids) {
-      (ids || []).forEach(function (x) { registrar(typeof x === 'object' ? x.id : x); });
+      (ids || []).forEach(function (x) {
+        if (x && typeof x === 'object') registrar(x.id, x.ts);
+        else registrar(x);
+      });
     }
     function foiApagado(id) { return mapa.has(String(id)); }
     function ts(id) { return mapa.get(String(id)) || 0; }
@@ -170,6 +181,21 @@
   }
 
   /**
+   * Maior `dataModificacao` conhecida entre itens — carimbo para o wipeAllAt:
+   * "apagar tudo" com `Date.now()` local deixava sobreviver itens do OUTRO
+   * aparelho cujo relógio está adiantado (ts > wipeAllAt). O carimbo cobre
+   * tudo que o aparelho conhece (locais + backup atual): nada anterior sobrevive.
+   */
+  function maiorTsDe(itens) {
+    var maior = 0;
+    (itens || []).forEach(function (it) {
+      var t = tsDoItem(it);
+      if (t > maior) maior = t;
+    });
+    return maior;
+  }
+
+  /**
    * WIPE MARKER: processa um "apagar tudo" vindo do outro aparelho.
    *
    * O tombstone por item não cobre nota que só existe no PC (o celular
@@ -215,6 +241,7 @@
     JANELA_MS: JANELA_MS, LIMITE: LIMITE,
     tsDoItem: tsDoItem, criarRegistroApagados: criarRegistroApagados,
     mesclarPorItem: mesclarPorItem, aplicarWipe: aplicarWipe,
+    maiorTsDe: maiorTsDe,
     ordenarBackups: ordenarBackups, escolherCanonico: escolherCanonico,
   };
 });

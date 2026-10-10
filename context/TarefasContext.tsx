@@ -4,7 +4,7 @@ import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { Alert, AppState, Platform } from 'react-native';
 import { useTheme } from './ThemeContext';
-import { registrarApagado } from './tombstones';
+import { registrarApagado, tsDoItemExportado } from './tombstones';
 import {
   agendarAlarmeAndroid,
   alarmeNativoDisponivel,
@@ -34,6 +34,8 @@ export interface Tarefa {
   concluida: boolean;
   notificacaoId?: string;
   dataUltimaConclusao?: string;
+  /** Carimbo numérico do merge por item (o mais novo vence; tombstone disputa com ele). */
+  dataModificacao?: number;
 }
 
 // Categoria de notificação com os botões de ação do "alarme" do app
@@ -351,6 +353,7 @@ export default function TarefasProvider({ children }: any) {
       horario,
       concluida: false,
       notificacaoId,
+      dataModificacao: Date.now(), // merge por item: tarefas também disputam versão
     };
     setTarefas(prev => [nova, ...prev]);
   }, [agendarNotificacaoExpo]);
@@ -376,7 +379,10 @@ export default function TarefasProvider({ children }: any) {
 
   const excluirTarefa = useCallback(async (id: string) => {
     await cancelarNotificacoesTarefa(id);
-    registrarApagado(id); // tombstone: exclusão sincroniza com o PC
+    // Tombstone À PROVA DE RELÓGIO: sempre posterior à versão da tarefa que
+    // este aparelho via (a tarefa pode ter nascido no PC, relógio adiantado).
+    const alvo = tarefasRef.current.find(t => t.id === id);
+    registrarApagado(id, tsDoItemExportado(alvo) + 1);
     setTarefas(prev => prev.filter(t => t.id !== id));
   }, [cancelarNotificacoesTarefa]);
 
@@ -439,6 +445,7 @@ export default function TarefasProvider({ children }: any) {
           concluida: novoStatus,
           // Se marcar como concluída, salva a data/hora de agora. Se desmarcar, remove.
           dataUltimaConclusao: novoStatus ? new Date().toISOString() : undefined,
+          dataModificacao: Date.now(), // toggle é uma edição: disputa de versão no merge
         };
       }
       return t;

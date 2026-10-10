@@ -152,6 +152,13 @@ ipcMain.handle('store:apagarTudo',async()=>{
   // 3. Apaga o local
   // Sem isto: o celular via "Drive vazio", o merge mantinha tudo local
   // dele e RE-SUBIA as notas apagadas.
+  //
+  // À PROVA DE RELÓGIO: o tombstone de cada item é pelo PRÓPRIO item
+  // (max(agora, dataModificacao + 1)) e o wipeAllAt cobre o maior
+  // dataModificacao de TUDO que este PC conhece — estado local + backup
+  // atual da nuvem (itens só do celular, com relógio adiantado, sobreviviam
+  // ao wipe com Date.now() e ressuscitavam depois).
+  const P=require('./lib/politica-sync');
   try{
     const store = deps().store;
     const {tokenDeAcesso}=deps().googleAuth;
@@ -159,22 +166,48 @@ ipcMain.handle('store:apagarTudo',async()=>{
 
     // Lê as notas atuais antes de apagar (pra criar os tombstones)
     const dados = store.lerLocal();
-    const todosIds = [];
+    const tombstones = [];
+    let maiorTs = 0;
+    const varrer = (it) => { const t = P.tsDoItem(it); if (t > maiorTs) maiorTs = t; };
     for (const campo of ['notas','listas','pastas','tarefas']) {
-      (dados?.[campo]||[]).forEach(it => { if (it?.id != null) todosIds.push(String(it.id)); });
+      (dados?.[campo]||[]).forEach(it => {
+        if (it?.id == null) return;
+        tombstones.push({ id: String(it.id), ts: Math.max(Date.now(), P.tsDoItem(it)+1) });
+        varrer(it);
+      });
     }
 
     // Se logado, sobe backup VAZIO com os tombstones e o WIPE MARKER
     try{
       const t=await tokenDeAcesso();
       if(t){
-        const agora = Date.now();
+        // Itens que só existem na nuvem (outro aparelho, relógio adiantado)
+        // também contam para o carimbo do wipe
+        try{
+          const atual = await store.buscarBackupDrive(t);
+          let conteudo = atual;
+          if (conteudo && Cripto.estaEncriptado(conteudo)) {
+            const chave = chaveDriveAtual();
+            if (chave) conteudo = Cripto.descriptografarJSON(conteudo, chave);
+          }
+          if (conteudo) for (const campo of ['notas','listas','pastas','tarefas']) {
+            (conteudo?.[campo]||[]).forEach(varrer);
+          }
+        }catch(e){}
+        const agora = Math.max(Date.now(), maiorTs) + 1;
         const backupVazio = {
           notas: [], listas: [], pastas: [], tarefas: [],
-          apagados: (todosIds.length > 0) ? todosIds.map(id => ({ id, ts: agora })) : [],
-          wipeAllAt: agora // <-- mata TUDO que for mais antigo que este instante
+          apagados: tombstones,
+          wipeAllAt: agora // mata TUDO anterior a este instante, de qualquer relógio
         };
-        const r = await store.enviarBackupDrive(t, backupVazio);
+        // Encripta igual ao sync:enviar — o celular descriptografa ao puxar
+        let corpo = backupVazio;
+        const chave=chaveDriveAtual();
+        if(chave){
+          const enc=Cripto.encriptarJSON(backupVazio, chave);
+          if(enc) corpo=enc;
+        }
+        const r = await store.enviarBackupDrive(t, corpo);
         nuvemOk = r?.ok ?? false;
       }
     }catch(e){ nuvemOk=false; }

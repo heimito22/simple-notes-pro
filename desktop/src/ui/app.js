@@ -89,7 +89,9 @@ function excluirPastaEmGestao(){
   if(!ok) return;
   // Tombstone da PASTA: sem isso o celular recria a pasta a cada pull (o merge
   // a vê como "só-local"). Também tomba o detach — remoto sem pastaId vence.
-  if(window.Tombstones) window.Tombstones.registrar(id);
+  // À prova de relógio: sempre posterior à versão da pasta que este PC viu.
+  var pastaViva=(store.pastas||[]).find(function(x){return String(x.id)===String(id);});
+  if(window.Tombstones) window.Tombstones.tombarItem(id, pastaViva);
   store.pastas=store.pastas.filter(function(x){return x.id!==id;});
   (store.notas||[]).forEach(function(n){ if(n.pastaId===id) delete n.pastaId; });
   (store.listas||[]).forEach(function(l){ if(l.pastaId===id) delete l.pastaId; });
@@ -132,8 +134,12 @@ function confirmarModalApagarSimples(){
   fecharModalApagarSimples();
   if(!pend) return;
   var ids=new Set(pend);
-  // tombstones: a exclusão viaja no backup e o celular obedece (não ressuscita)
-  if(window.Tombstones){ pend.forEach(function(id){ window.Tombstones.registrar(id); }); }
+  // tombstones: a exclusão viaja no backup e o celular obedece (não ressuscita).
+  // À prova de relógio: o tombstone é posterior à versão do item que o PC viu.
+  if(window.Tombstones){ pend.forEach(function(id){
+    var it=(store.notas||[]).find(function(n){return String(n.id)===id;})||(store.listas||[]).find(function(l){return String(l.id)===id;});
+    window.Tombstones.tombarItem(id, it);
+  }); }
   store.notas=(store.notas||[]).filter(function(n){return !ids.has(n.id);});
   store.listas=(store.listas||[]).filter(function(l){return !ids.has(l.id);});
   idsApagarPendentes=null; cbApagarPos=null;
@@ -173,8 +179,12 @@ function confirmarModalApagar(){
   fecharModalApagar();
   if(pend){
     var ids=new Set(pend);
-    // tombstones: exclusão viaja no backup (caminho "APAGAR" digitado)
-    if(window.Tombstones){ pend.forEach(function(id){ window.Tombstones.registrar(id); }); }
+    // tombstones: exclusão viaja no backup (caminho "APAGAR" digitado).
+    // À prova de relógio: sempre posterior à versão do item que o PC viu.
+    if(window.Tombstones){ pend.forEach(function(id){
+      var it=(store.notas||[]).find(function(n){return String(n.id)===id;})||(store.listas||[]).find(function(l){return String(l.id)===id;});
+      window.Tombstones.tombarItem(id, it);
+    }); }
     store.notas=(store.notas||[]).filter(function(n){return !ids.has(n.id);});
     store.listas=(store.listas||[]).filter(function(l){return !ids.has(l.id);});
     idsApagarPendentes=null; cbApagarPos=null;

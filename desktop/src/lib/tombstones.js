@@ -26,4 +26,14 @@
   } catch (e) {}
 
   root.Tombstones = registro;
+  // Tombstone À PROVA DE RELÓGIO: sempre POSTERIOR à versão do item que este
+  // PC viu. O relógio de quem criou/editou o item (celular) e o relógio do PC
+  // são aparelhos diferentes — nunca batem; um tombstone com Date.now() local
+  // perdia a disputa para um item carimbado com relógio adiantado e o item
+  // ressuscitava. Edições GENUINAMENTE posteriores continuam vencendo.
+  root.Tombstones.tombarItem = function (id, item) {
+    var base = 0;
+    try { base = (root.PoliticaSync && item) ? (root.PoliticaSync.tsDoItem(item) + 1) : 0; } catch (e) {}
+    registro.registrar(id, base);
+  };
 })(window);

@@ -17,8 +17,9 @@ export declare function tsDoItem(item: any): number;
 export type RegistroApagados = {
   /** Carrega do disco/backup; nunca regride um ts. `janelaMs` descarta os vencidos. */
   hidratar(obj: Record<string, number> | null | undefined, opcoes?: { janelaMs?: number }): void;
-  registrar(id: string): void;
-  registrarVarios(ids: (string | { id: string })[]): void;
+  /** `tsMinimo` torna o tombstone À PROVA DE RELÓGIO: sempre posterior ao item apagado. */
+  registrar(id: string, tsMinimo?: number): void;
+  registrarVarios(ids: (string | { id: string; ts?: number })[]): void;
   foiApagado(id: string): boolean;
   ts(id: string): number;
   esquecer(id: string): void;
@@ -34,6 +35,9 @@ export declare function criarRegistroApagados(opcoes?: {
   gravar?: (apagados: Record<string, number>) => void;
   agora?: () => number;
 }): RegistroApagados;
+
+/** Maior dataModificacao conhecida — carimbo do wipeAllAt (à prova de relógio). */
+export declare function maiorTsDe(itens: any[] | null | undefined): number;
 
 export declare function mesclarPorItem(
   remotos: any[],

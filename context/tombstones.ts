@@ -88,9 +88,9 @@ export const hidratarApagados = async () => {
   } catch {}
 };
 
-export const registrarApagado = (id: string) => registro.registrar(id);
+export const registrarApagado = (id: string, tsMinimo?: number) => registro.registrar(id, tsMinimo);
 
-export const registrarApagados = (ids: (string | { id: string })[]) => registro.registrarVarios(ids);
+export const registrarApagados = (ids: (string | { id: string; ts?: number })[]) => registro.registrarVarios(ids);
 
 export const foiApagado = (id: string) => registro.foiApagado(id);
 

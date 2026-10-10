@@ -43,8 +43,10 @@
         if(!confirm(Tf('Excluir tarefa "{nome}"?', { nome: t.titulo }))) return;
         ctx.S.alarme.cancelar(t.id).catch(function(){});
         ctx.store.tarefas = (ctx.store.tarefas||[]).filter(function(x){ return x.id!==t.id; });
-        // tombstone: sem isto o celular "ressuscita" a tarefa no próximo pull
-        if(window.Tombstones) window.Tombstones.registrar(t.id);
+        // tombstone: sem isto o celular "ressuscita" a tarefa no próximo pull.
+        // À prova de relógio: posterior à versão da tarefa que este PC viu.
+        var tarefaViva=(ctx.store.tarefas||[]).find(function(x){return String(x.id)===String(t.id);});
+        if(window.Tombstones) window.Tombstones.tombarItem(t.id, tarefaViva);
         ctx.salvarLocal(); render(ctx); toast(T('Tarefa excluída'));
       });
       listaEl.appendChild(row);
