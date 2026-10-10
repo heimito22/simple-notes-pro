@@ -39,6 +39,20 @@ export declare function criarRegistroApagados(opcoes?: {
 /** Maior dataModificacao conhecida — carimbo do wipeAllAt (à prova de relógio). */
 export declare function maiorTsDe(itens: any[] | null | undefined): number;
 
+export type RelogioSync = {
+  /** Carimbo da próxima mutação: nunca abaixo do maior carimbo já visto. */
+  agora(): number;
+  /** Incorpora um carimbo visto (pull/backup); nunca regride. */
+  avancarCom(ts: number): number;
+  visto(): number;
+};
+
+export declare function criarRelogio(opcoes?: {
+  ler?: () => number;
+  gravar?: (ts: number) => void;
+  agora?: () => number;
+}): RelogioSync;
+
 export declare function mesclarPorItem(
   remotos: any[],
   locais: any[],

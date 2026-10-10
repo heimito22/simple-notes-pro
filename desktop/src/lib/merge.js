@@ -30,9 +30,13 @@
   }
   function reset() { snapshot = {}; }
 
-  /** Carimba com `agora` os itens cujo conteúdo mudou desde o último snapshot. */
+  /** Carimba com o relógio híbrido os itens cujo conteúdo mudou desde o último snapshot. */
   function carimbarAlterados(store) {
-    var agora = Date.now(), alterados = 0;
+    // Relógio híbrido: nunca carimba abaixo do maior dataModificacao já visto
+    // em dados sincronizados — uma edição feita AGORA vence o que já existia,
+    // mesmo com o relógio deste aparelho atrasado em relação ao outro.
+    var agora = (root.RelogioSync && root.RelogioSync.agora) ? root.RelogioSync.agora() : Date.now();
+    var alterados = 0;
     CAMPOS.forEach(function (k) {
       (store && store[k] || []).forEach(function (it) {
         if (!it || it.id == null) return;

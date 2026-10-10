@@ -8,7 +8,7 @@ import { useTarefas } from './TarefasContext';
 import { agendarLembretes, cancelarLembretes, type LembreteNota } from './lembrete-notas';
 import { verificarTelaCheia } from './permissao-alarme';
 import { sincronizarAnexosUpload, restaurarAnexosDownload } from './anexos-cloud';
-import { hidratarApagados, definirEscopoApagados, registrarApagado, registrarApagados, serializarApagados, carregarApagados, mesclarPorItem, assinaturaItem, tsDoItemExportado } from './tombstones';
+import { hidratarApagados, definirEscopoApagados, registrarApagado, registrarApagados, serializarApagados, carregarApagados, mesclarPorItem, assinaturaItem, tsDoItemExportado, hidratarRelogio, relogioAgora, avancarRelogioComItens } from './tombstones';
 import { acharBackupCanonico } from './backup-drive';
 import { useTheme } from './ThemeContext';
 import { idiomaAtual, tIdioma } from './idiomas';
@@ -179,6 +179,9 @@ export function NotasProvider({ children }: any) {
       // Tombstones desta conta (escopo por conta: exclusoes da conta B
       // nunca tocam a conta A - antes eram globais e 'vinculavam' as contas).
       await definirEscopoApagados(userId);
+      // Relógio híbrido: o "visto" persistido entra na memória (as próximas
+      // mutações carimbam acima de tudo que este aparelho já viu).
+      await hidratarRelogio();
 
       console.log('[SYNC-DBG] LOAD chave=' + key + ' tem_dados=' + (!!dados));
       if (dados) {
@@ -338,6 +341,7 @@ export function NotasProvider({ children }: any) {
     // apagaria na nuvem o registro das exclusões feitas no PC/celular e o
     // aparelho reenviaria o que já tinha sido apagado.
     await hidratarApagados();
+    await hidratarRelogio();
     // Rede de segurança: rajada de pedidos (ex.: vários efeitos disparando
     // juntos) não vira uma fila de backups — marca pendência e o ciclo
     // automático sobe uma vez.
@@ -582,6 +586,17 @@ export function NotasProvider({ children }: any) {
     await hidratarApagados();
     // tombstones remotos chegam antes do merge — defines o que ficou apagado
     if (Array.isArray(backupData.apagados)) carregarApagados(backupData.apagados);
+    // RELÓGIO HÍBRIDO: incorpora os carimbos do backup — as próximas mutações
+    // locais carimbam acima de tudo que existe na nuvem (edição feita agora
+    // nunca "perde" para um carimbo antigo de aparelho com relógio adiantado).
+    try {
+      avancarRelogioComItens(
+        (backupData as any).notas,
+        (backupData as any).listas,
+        (backupData as any).pastas,
+        (backupData as any).tarefas
+      );
+    } catch {}
 
     // ── FILTRO DIRETO POR TOMBSTONE (mesma rede de segurança do PC) ──
     // O mesclarPorItem já processa tombstones, mas condições sutis (formato
@@ -1347,7 +1362,7 @@ export function NotasProvider({ children }: any) {
       // e atualizamos apenas o que veio do editor
       return prev.map(n => 
         n.id === id 
-          ? { ...n, titulo, conteudo, protegida, dataModificacao: Date.now() } // O '...n' garante que 'fixada' continue true se já era true
+          ? { ...n, titulo, conteudo, protegida, dataModificacao: relogioAgora() } // O '...n' garante que 'fixada' continue true se já era true
           : n
       );
     } else {
@@ -1363,7 +1378,7 @@ export function NotasProvider({ children }: any) {
         // por item caía no fallback `data` (string pt-BR parseada com
         // mês/dia invertidos quando o dia <= 12) — disputas de versão eram
         // um caos silencioso entre aparelhos.
-        dataModificacao: Date.now(),
+        dataModificacao: relogioAgora(),
         // Nota criada dentro de uma pasta (ou movida) carrega o id da pasta
         pastaId: pastaId || undefined
       };
@@ -1393,11 +1408,11 @@ export function NotasProvider({ children }: any) {
     if (!nota) return;
     if (!lembrete) {
       await cancelarLembretes(id, nota.lembreteExpoIds ?? []);
-      setNotas(prev => prev.map(n => n.id === id ? { ...n, lembrete: undefined, lembreteExpoIds: [], dataModificacao: Date.now() } : n));
+      setNotas(prev => prev.map(n => n.id === id ? { ...n, lembrete: undefined, lembreteExpoIds: [], dataModificacao: relogioAgora() } : n));
       return;
     }
     const expoIds = await agendarLembretes(id, nota.titulo || 'Nota', lembrete, nota.lembreteExpoIds ?? []);
-    setNotas(prev => prev.map(n => n.id === id ? { ...n, lembrete, lembreteExpoIds: expoIds, dataModificacao: Date.now() } : n));
+    setNotas(prev => prev.map(n => n.id === id ? { ...n, lembrete, lembreteExpoIds: expoIds, dataModificacao: relogioAgora() } : n));
     // Abre a guia de permissões do alarme na 1ª vez (mesma regra das tarefas)
     verificarTelaCheia().catch(() => {});
   };
@@ -1416,7 +1431,7 @@ export function NotasProvider({ children }: any) {
 
   // NOVA FUNÇÃO PARA FIXAR NOTAS
   const alternarFixarNota = (id: string) => {
-    setNotas(prev => prev.map(n => n.id === id ? { ...n, fixada: !n.fixada, dataModificacao: Date.now() } : n));
+    setNotas(prev => prev.map(n => n.id === id ? { ...n, fixada: !n.fixada, dataModificacao: relogioAgora() } : n));
   };
 
   const toggleBloqueioApp = async (val: boolean) => {
@@ -1431,14 +1446,14 @@ export function NotasProvider({ children }: any) {
       id,
       nome: nome.trim() || tIdioma(idiomaAtual, 'Nova pasta'),
       data: new Date().toLocaleDateString('pt-BR'),
-      dataModificacao: Date.now(), // merge por item: pastas também disputam versão
+      dataModificacao: relogioAgora(), // merge por item: pastas também disputam versão
     };
     setPastas(prev => [pasta, ...prev]);
     return id;
   }, []);
 
   const renomearPasta = useCallback((id: string, nome: string) => {
-    setPastas(prev => prev.map(p => (p.id === id ? { ...p, nome: nome.trim() || p.nome, dataModificacao: Date.now() } : p)));
+    setPastas(prev => prev.map(p => (p.id === id ? { ...p, nome: nome.trim() || p.nome, dataModificacao: relogioAgora() } : p)));
   }, []);
 
   /** Remove a pasta e devolve as notas dela para a lista principal. */
@@ -1461,7 +1476,7 @@ export function NotasProvider({ children }: any) {
   const moverNotasParaPasta = useCallback((ids: string[], pastaId: string | null) => {
     const alvo = new Set(ids);
     setNotas(prev =>
-      prev.map(n => (alvo.has(n.id) ? { ...n, pastaId: pastaId || undefined, dataModificacao: Date.now() } : n))
+      prev.map(n => (alvo.has(n.id) ? { ...n, pastaId: pastaId || undefined, dataModificacao: relogioAgora() } : n))
     );
   }, []);
 

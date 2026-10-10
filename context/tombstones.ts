@@ -12,6 +12,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   criarRegistroApagados,
+  criarRelogio,
+  maiorTsDe,
   mesclarPorItem as mesclarPolitica,
   tsDoItem,
   JANELA_MS,
@@ -105,6 +107,43 @@ export const esquecerApagado = (id: string) => registro.esquecer(id);
 export const limparApagados = () => { hidratado = true; registro.limpar(); };
 
 export const quantidadeApagados = () => registro.quantidade();
+
+/*
+ * RELÓGIO HÍBRIDO (política compartilhada) — a próxima mutação local carimba
+ * com `relogioAgora()`: nunca abaixo do MAIOR dataModificacao já visto em
+ * dados sincronizados. Sem isto, item criado no PC (relógio adiantado) editado
+ * no celular (relógio atrasado) gerava carimbo "mais velho" e o PC descartava
+ * a edição ("o PC não puxa a alteração"). O visto sobrevive a reinícios
+ * (AsyncStorage) e avança a cada pull com os carimbos do backup.
+ */
+const CHAVE_RELOGIO = '@sn_relogio_sync';
+let relogioVistoCache = 0;
+const relogio = criarRelogio({
+  ler: () => relogioVistoCache,
+  gravar: (ts) => { AsyncStorage.setItem(CHAVE_RELOGIO, String(ts)).catch(() => {}); },
+});
+
+/** Carrega o "visto" persistido (no boot do provider). */
+export const hidratarRelogio = async () => {
+  try {
+    const bruto = await AsyncStorage.getItem(CHAVE_RELOGIO);
+    const ts = Number(bruto) || 0;
+    if (ts > relogioVistoCache) relogioVistoCache = ts;
+  } catch {}
+};
+
+/** Carimbo da próxima mutação local. */
+export const relogioAgora = () => relogio.agora();
+
+/** Avança o relógio com o maior carimbo entre conjuntos de itens (pós-pull). */
+export const avancarRelogioComItens = (...listas: any[][]) => {
+  let maior = 0;
+  for (const lista of listas) {
+    const t = maiorTsDe(lista);
+    if (t > maior) maior = t;
+  }
+  if (maior > 0) relogio.avancarCom(maior);
+};
 
 /**
  * Merge POR ITEM (política compartilhada) usando os tombstones deste aparelho.

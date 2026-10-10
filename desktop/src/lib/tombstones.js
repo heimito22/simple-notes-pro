@@ -36,4 +36,13 @@
     try { base = (root.PoliticaSync && item) ? (root.PoliticaSync.tsDoItem(item) + 1) : 0; } catch (e) {}
     registro.registrar(id, base);
   };
+  // RELÓGIO HÍBRIDO (política compartilhada): o "visto" vive no localStorage —
+  // sobrevive a reinícios. O merge.js carimba mutações locais com ele, e o
+  // app.js avança o visto com os carimbos de cada backup puxado.
+  try {
+    root.RelogioSync = P.criarRelogio({
+      ler: function () { return Number(root.localStorage.getItem('sn_relogio_sync')) || 0; },
+      gravar: function (ts) { try { root.localStorage.setItem('sn_relogio_sync', String(ts)); } catch (e) {} },
+    });
+  } catch (e) {}
 })(window);

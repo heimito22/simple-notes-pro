@@ -4,7 +4,7 @@ import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { Alert, AppState, Platform } from 'react-native';
 import { useTheme } from './ThemeContext';
-import { registrarApagado, tsDoItemExportado } from './tombstones';
+import { registrarApagado, tsDoItemExportado, relogioAgora } from './tombstones';
 import {
   agendarAlarmeAndroid,
   alarmeNativoDisponivel,
@@ -353,7 +353,7 @@ export default function TarefasProvider({ children }: any) {
       horario,
       concluida: false,
       notificacaoId,
-      dataModificacao: Date.now(), // merge por item: tarefas também disputam versão
+      dataModificacao: relogioAgora(), // merge por item: tarefas também disputam versão
     };
     setTarefas(prev => [nova, ...prev]);
   }, [agendarNotificacaoExpo]);
@@ -445,7 +445,7 @@ export default function TarefasProvider({ children }: any) {
           concluida: novoStatus,
           // Se marcar como concluída, salva a data/hora de agora. Se desmarcar, remove.
           dataUltimaConclusao: novoStatus ? new Date().toISOString() : undefined,
-          dataModificacao: Date.now(), // toggle é uma edição: disputa de versão no merge
+          dataModificacao: relogioAgora(), // toggle é uma edição: disputa de versão no merge
         };
       }
       return t;

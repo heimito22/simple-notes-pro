@@ -573,6 +573,20 @@ async function reconciliarComNuvem(dados, metaIso){
     if(window.Merge) return window.Merge.mesclar(remotos, locais);
     return { itens: remotos||[], localVenceu:false };
   };
+  // RELÓGIO HÍBRIDO: incorpora os carimbos vistos no backup — a próxima
+  // edição local carimba acima de tudo que existe na nuvem (a edição feita
+  // AGORA nunca "perde" para um carimbo antigo de aparelho com relógio
+  // adiantado; era o "o PC não puxa a alteração da nota").
+  try{
+    if(window.RelogioSync && window.PoliticaSync){
+      var maiorVisto=0;
+      ['notas','listas','pastas','tarefas'].forEach(function(k){
+        var t=window.PoliticaSync.maiorTsDe(dados[k]);
+        if(t>maiorVisto) maiorVisto=t;
+      });
+      window.RelogioSync.avancarCom(maiorVisto);
+    }
+  }catch(e){}
   var rn=mesclar(dados.notas, store.notas), rl=mesclar(dados.listas, store.listas),
       rp=mesclar(dados.pastas, store.pastas), rt=mesclar(dados.tarefas, store.tarefas);
   var localVenceu = rn.localVenceu||rl.localVenceu||rp.localVenceu||rt.localVenceu;

@@ -219,6 +219,50 @@
   }
 
   /**
+   * RELÓGIO HÍBRIDO (físico + lógico, estilo Lamport) — resolve a classe
+   * inteira de conflitos por clock skew entre aparelhos.
+   *
+   * O problema: a edição carimba com o relógio de QUEM edita. Item criado no
+   * PC (relógio adiantado, T_pc) e editado no celular (relógio atrasado,
+   * T_cel < T_pc): o merge via "a versão do PC é mais nova" e DESCARTAVA a
+   * edição do celular — e re-subia a versão velha (a edição "não puxava").
+   *
+   * A solução: cada aparelho lembra o MAIOR dataModificacao que já viu em
+   * qualquer dado sincronizado (via pull) e nunca carimba abaixo dele.
+   * Propriedade Lamport: como todo aparelho viu (via pull) os carimbos dos
+   * outros antes de editar, os carimbos novos são sempre crescentes — a
+   * edição feita AGORA vence tudo que já existia, de qualquer relógio.
+   *
+   * `ler()`/`gravar()` são os únicos pontos de I/O (AsyncStorage no celular,
+   * localStorage no PC): o visto sobrevive a reinícios do app.
+   */
+  function criarRelogio(opcoes) {
+    var opts = opcoes || {};
+    var gravar = opts.gravar || function () {};
+    var agoraLocal = opts.agora || function () { return Date.now(); };
+    var visto = Number(opts.ler && opts.ler()) || 0;
+
+    /** Incorpora um carimbo visto em dados remotos/locais (nunca regride). */
+    function avancarCom(ts) {
+      var novo = Number(ts) || 0;
+      if (novo > visto) { visto = novo; gravar(visto); }
+      return visto;
+    }
+
+    /** Carimbo da próxima mutação local: nunca abaixo do maior já visto. */
+    function agora() {
+      var local = agoraLocal();
+      return local > visto ? local : (visto + 1);
+    }
+
+    return {
+      agora: agora,
+      avancarCom: avancarCom,
+      visto: function () { return visto; },
+    };
+  }
+
+  /**
    * BACKUP CANÔNICO: a conta pode acabar com MAIS DE UM `backup_notas.json`
    * (dois aparelhos criando o arquivo, ou um "apagar tudo" que removeu só o
    * primeiro). Pegar `files[0]` de uma lista sem ordem garantida fazia um
@@ -241,7 +285,7 @@
     JANELA_MS: JANELA_MS, LIMITE: LIMITE,
     tsDoItem: tsDoItem, criarRegistroApagados: criarRegistroApagados,
     mesclarPorItem: mesclarPorItem, aplicarWipe: aplicarWipe,
-    maiorTsDe: maiorTsDe,
+    maiorTsDe: maiorTsDe, criarRelogio: criarRelogio,
     ordenarBackups: ordenarBackups, escolherCanonico: escolherCanonico,
   };
 });

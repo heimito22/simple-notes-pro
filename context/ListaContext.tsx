@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
-import { registrarApagado, tsDoItemExportado } from './tombstones';
+import { registrarApagado, tsDoItemExportado, relogioAgora } from './tombstones';
 
 export interface ItemLista {
   id: string;
@@ -96,7 +96,7 @@ export const ListaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       // e sobrescrevemos com o que veio do editor (...listaEditada)
       const novas = prev.map(l => 
         l.id === listaEditada.id 
-          ? { ...l, ...listaEditada, dataModificacao: Date.now() } 
+          ? { ...l, ...listaEditada, dataModificacao: relogioAgora() } 
           : l
       );
       persistirDados(novas);
@@ -107,7 +107,7 @@ export const ListaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       // (tsDoItem caía em 0 — disputas de versão entre aparelhos eram
       // resolvidas por sorte) e o tombstone da exclusão não tinha contra o
       // que disputar ("editado depois da exclusão" nunca se decidia).
-      const novas = [{ ...listaEditada, dataModificacao: Date.now() }, ...prev];
+      const novas = [{ ...listaEditada, dataModificacao: relogioAgora() }, ...prev];
       persistirDados(novas);
       return novas;
     }
@@ -132,7 +132,7 @@ export const ListaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const alternarFixarLista = (id: string) => {
     setListas(prev => {
       const novas = prev.map(l => 
-        l.id === id ? { ...l, fixada: !l.fixada, dataModificacao: Date.now() } : l
+        l.id === id ? { ...l, fixada: !l.fixada, dataModificacao: relogioAgora() } : l
       );
       persistirDados(novas);
       return novas;
@@ -143,7 +143,7 @@ export const ListaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const moverListasParaPasta = (ids: string[], pastaId: string | null) => {
     const alvo = new Set(ids);
     setListas(prev => {
-      const novas = prev.map(l => (alvo.has(l.id) ? { ...l, pastaId: pastaId || undefined, dataModificacao: Date.now() } : l));
+      const novas = prev.map(l => (alvo.has(l.id) ? { ...l, pastaId: pastaId || undefined, dataModificacao: relogioAgora() } : l));
       persistirDados(novas);
       return novas;
     });
