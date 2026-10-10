@@ -252,7 +252,13 @@
     /** Carimbo da próxima mutação local: nunca abaixo do maior já visto. */
     function agora() {
       var local = agoraLocal();
-      return local > visto ? local : (visto + 1);
+      var ts = local > visto ? local : (visto + 1);
+      // O CARIMBO GERADO vira o novo piso — sem isto, duas mutações seguidas
+      // com o relógio físico atrás do "visto" saíam com o MESMO ts (empate no
+      // merge: o remoto vence e a edição local era descartada — era o que
+      // fazia mover para pasta no celular reverter sozinho).
+      if (ts > visto) { visto = ts; gravar(visto); }
+      return ts;
     }
 
     return {
