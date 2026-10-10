@@ -725,7 +725,15 @@ function iniciarAutoSync(){
             haMudancasLocais=false;
             ultimoPushAt=Date.now();
             syncEnviar();
-          } else if(rec.mudou){ await reagendarTarefas(); renderNotas(); renderTarefas(); renderConfig(); }
+          }
+          // RENDER INCONDICIONAL após qualquer pull: a interface nunca mais
+          // fica para trás esperando clique no botão Sincronizar. Antes o
+          // render dependia de `rec.mudou` — se qualquer etapa do fluxo
+          // devolvesse "não mudou" com a tela desatualizada, o usuário tinha
+          // que atualizar manualmente. Render de sobra é barato; tela velha
+          // não é.
+          try{ await reagendarTarefas(); }catch(e){}
+          renderNotas(); renderTarefas(); renderConfig();
           // puxou nota nova com anexo? hidrata já — não espera o ciclo de 60s
           hidratarAnexosSilencioso();
         }

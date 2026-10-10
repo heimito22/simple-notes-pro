@@ -1,5 +1,6 @@
-**Versão 1.5.3**
+**Versão 1.5.4**
 
-- Correção definitiva do auto-update: o instalador agora pede permissão de administrador por design
-- "Reiniciar agora" volta a reinstalar e abrir o app sozinho (antes fechava e nada instalava)
-- O Windows vai mostrar o pedido de permissão (UAC) na hora de instalar — um clique e pronto
+- Sincronização blindada entre celular e PC: edições e exclusões nunca mais se perdem ou ressuscitam — o app agora usa um relógio que ignora diferenças de hora entre aparelhos
+- O PC atualiza a tela sozinho: novas alterações do celular chegam em segundos, sem clicar em Sincronizar
+- No celular, cada item marcado na lista sobe na hora — o PC reflete enquanto você ainda está no editor
+- "Apagar tudo" agora limpa de verdade em todos os aparelhos, incluindo itens que só existiam no outro lado
