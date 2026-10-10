@@ -134,15 +134,30 @@
     ctxRef=ctx;
     var store=ctx.store, esc=ctx.esc, $=ctx.$;
     var Tags=ctx.TagsSync;
-    // ── CHIPS DE FILTRO POR TAGS: só abrem pelo botão de filtro (funil) na
-    // sidebar — nada de opções espalhadas pela tela. Toque alterna (E). ──
+    // ── FILTRO POR TAGS: o funil DENTRO da barra abre o POPUP (dropdown) —
+    // as opções só existem lá. Badge = quantidade filtrando. Toque alterna (E). ──
     var btnFiltroTag=$('#btnFiltroTag');
+    var badgeFiltro=$('#badgeFiltroTagPc');
+    if(badgeFiltro){
+      if(tagsFiltro.length>0){ badgeFiltro.style.display='flex'; badgeFiltro.textContent=String(tagsFiltro.length); }
+      else badgeFiltro.style.display='none';
+    }
     if(btnFiltroTag && !btnFiltroTag.dataset.bound){
       btnFiltroTag.dataset.bound='1';
-      btnFiltroTag.addEventListener('click', function(){
-        var aberto=chipsTagsAberto=!chipsTagsAberto;
-        btnFiltroTag.style.color=aberto?'var(--azul)':'var(--tx2)';
-        btnFiltroTag.style.borderColor=aberto?'var(--azul)':'var(--bd)';
+      btnFiltroTag.addEventListener('click', function(e){
+        e.stopPropagation();
+        chipsTagsAberto=!chipsTagsAberto;
+        btnFiltroTag.style.color=chipsTagsAberto?'var(--azul)':'var(--tx2)';
+        render(ctx);
+      });
+      // Clicar FORA do popup fecha (o funil e os chips não contam como fora).
+      document.addEventListener('click', function(e){
+        if(!chipsTagsAberto) return;
+        var alvo=e.target;
+        if(chipsTags && chipsTags.contains(alvo)) return;
+        if(btnFiltroTag && btnFiltroTag.contains(alvo)) return;
+        chipsTagsAberto=false;
+        btnFiltroTag.style.color='var(--tx2)';
         render(ctx);
       });
     }

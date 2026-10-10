@@ -759,16 +759,15 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
 
-          <View style={styles.linhaBuscaFiltro}>
-            <Animated.View
-              style={[
-                styles.searchBar,
-                { backgroundColor: cores.searchBar, flex: 1 },
-                buscaAtiva && { borderColor: cores.botaoAdd, borderWidth: 1.5 },
-                { transform: [{ scale: animaBusca.interpolate({ inputRange: [0, 1], outputRange: [1, 1.008] }) }] },
-              ]}
-            >
-              <Ionicons name="search" size={20} color={buscaAtiva ? cores.botaoAdd : cores.placeholder} style={{ marginLeft: 15 }} />
+          <Animated.View
+            style={[
+              styles.searchBar,
+              { backgroundColor: cores.searchBar },
+              buscaAtiva && { borderColor: cores.botaoAdd, borderWidth: 1.5 },
+              { transform: [{ scale: animaBusca.interpolate({ inputRange: [0, 1], outputRange: [1, 1.008] }) }] },
+            ]}
+          >
+            <Ionicons name="search" size={20} color={buscaAtiva ? cores.botaoAdd : cores.placeholder} style={{ marginLeft: 15 }} />
               <TextInput
                 placeholder={t('Procurar em suas notas...')}
                 placeholderTextColor={cores.placeholder}
@@ -783,66 +782,59 @@ export default function HomeScreen() {
                   <Ionicons name="close-circle" size={19} color={cores.placeholder} />
                 </TouchableOpacity>
               )}
-            </Animated.View>
-            {/* BOTÃO DE FILTRO: abre o seletor de tags (as opções só existem aqui
-                dentro — nada de chips de tag espalhados pela tela). O badge mostra
-                quantas tags estão filtrando. */}
-            <TouchableOpacity
-              onPress={() => { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); setPainelTagAberto(v => !v); }}
-              activeOpacity={0.8}
-              style={[
-                styles.botaoFiltroTag,
-                { backgroundColor: cores.searchBar, borderColor: painelTagAberto || tagsFiltro.length ? cores.botaoAdd : 'transparent' },
-              ]}
-            >
-              <Ionicons name="filter" size={19} color={painelTagAberto || tagsFiltro.length ? cores.botaoAdd : cores.placeholder} />
-              {tagsFiltro.length > 0 && (
-                <View style={[styles.badgeFiltroTag, { backgroundColor: cores.botaoAdd }]}>
-                  <Text style={styles.badgeFiltroTagTexto}>{tagsFiltro.length}</Text>
-                </View>
-              )}
-            </TouchableOpacity>
-          </View>
-
-          {/* SELETOR DE TAGS (só abre pelo botão de filtro): toque alterna —
-              selecionar #a e #b mostra só itens com AMBAS (E). Limpar zera. */}
-          {painelTagAberto && catalogoTags.length > 0 && (
-            <View style={styles.painelTag}>
-              <View style={styles.painelTagHeader}>
-                <Text style={[styles.painelTagTitulo, { color: cores.textoPrincipal }]}>{t('Filtrar por tag')}</Text>
+              {/* FILTRO POR TAGS: só o ícone, DENTRO da barra (ao lado do ✕). O
+                  badge mostra quantas tags estão filtrando. Abre o POPUP abaixo. */}
+              <TouchableOpacity
+                onPress={() => { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); setPainelTagAberto(v => !v); }}
+                hitSlop={6}
+                style={styles.filtroIconeDentro}
+              >
+                <Ionicons name="options-outline" size={19} color={painelTagAberto || tagsFiltro.length ? cores.botaoAdd : cores.placeholder} />
                 {tagsFiltro.length > 0 && (
-                  <TouchableOpacity onPress={() => setTagsFiltro([])} hitSlop={6}>
-                    <Text style={[styles.painelTagLimpar, { color: cores.botaoAdd }]}>{t('Limpar')}</Text>
-                  </TouchableOpacity>
+                  <View style={[styles.badgeFiltroTag, { backgroundColor: cores.botaoAdd }]}>
+                    <Text style={styles.badgeFiltroTagTexto}>{tagsFiltro.length}</Text>
+                  </View>
                 )}
-              </View>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tagsFiltroRow} contentContainerStyle={{ gap: 8, alignItems: 'center' }}>
-                {catalogoTags.map(({ nome, count }) => {
-                const ativo = tagsFiltro.includes(nome);
-                return (
-                  <TouchableOpacity
-                    key={nome}
-                    style={[
-                      styles.chipTagFiltro,
-                      ativo
-                        ? { backgroundColor: corDaTag(nome), borderColor: corDaTag(nome) }
-                        : { backgroundColor: corDaTag(nome) + '22', borderColor: corDaTag(nome) },
-                    ]}
-                    onPress={() => {
-                      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-                      setTagsFiltro(prev => prev.includes(nome) ? prev.filter(x => x !== nome) : [...prev, nome]);
-                    }}
-                    activeOpacity={0.7}
-                  >
-                    {ativo && <Ionicons name="checkmark" size={13} color="#0D0A08" />}
-                    <Text style={[styles.chipTagFiltroTexto, { color: ativo ? '#0D0A08' : corDaTag(nome), fontWeight: ativo ? '900' : '700' }]}>#{nome}</Text>
-                    <Text style={[styles.chipTagFiltroTexto, { color: ativo ? '#0D0A08' : cores.textoSecundario, opacity: 0.7, fontSize: 11 }]}>{count}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-              </ScrollView>
-            </View>
-          )}
+              </TouchableOpacity>
+            </Animated.View>
+
+            {/* POPUP DE FILTRO POR TAGS: flutuante (Modal transparente) — nunca
+                desalinha a tela. Toque alterna; #a + #b mostra itens com AMBAS (E). */}
+            <Modal transparent animationType="fade" visible={painelTagAberto} onRequestClose={() => setPainelTagAberto(false)}>
+              <TouchableOpacity style={styles.popupFundo} activeOpacity={1} onPress={() => setPainelTagAberto(false)}>
+                <TouchableOpacity activeOpacity={1} onPress={() => {}} style={[styles.popupTag, { backgroundColor: cores.card, borderColor: cores.borda }]}>
+                  <View style={styles.painelTagHeader}>
+                    <Text style={[styles.painelTagTitulo, { color: cores.textoPrincipal }]}>{t('Filtrar por tag')}</Text>
+                    {tagsFiltro.length > 0 && (
+                      <TouchableOpacity onPress={() => setTagsFiltro([])} hitSlop={6}>
+                        <Text style={[styles.painelTagLimpar, { color: cores.botaoAdd }]}>{t('Limpar')}</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                  <ScrollView style={{ maxHeight: 300 }}>
+                    {catalogoTags.length === 0 && (
+                      <Text style={[styles.popupTagVazio, { color: cores.textoSecundario, paddingVertical: 10 }]}>{t('Nenhuma tag ainda — escreva #tag em uma nota.')}</Text>
+                    )}
+                    {catalogoTags.map(({ nome, count }) => {
+                      const ativo = tagsFiltro.includes(nome);
+                      return (
+                        <TouchableOpacity
+                          key={nome}
+                          style={[styles.linhaPopupTag, ativo && { backgroundColor: corDaTag(nome) + '18', borderColor: corDaTag(nome) }]}
+                          onPress={() => setTagsFiltro(prev => prev.includes(nome) ? prev.filter(x => x !== nome) : [...prev, nome])}
+                          activeOpacity={0.7}
+                        >
+                          <View style={[styles.bolinhaTagMini, { backgroundColor: corDaTag(nome) }]} />
+                          <Text style={[styles.linhaPopupTagTexto, { color: cores.textoPrincipal, flex: 1 }]}>#{nome}</Text>
+                          <Text style={[styles.chipTagFiltroTexto, { color: cores.textoSecundario, opacity: 0.7, fontSize: 11 }]}>{count}</Text>
+                          {ativo && <Ionicons name="checkmark-circle" size={18} color={corDaTag(nome)} />}
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
+                </TouchableOpacity>
+              </TouchableOpacity>
+            </Modal>
 
         </View>
 
@@ -1952,6 +1944,30 @@ const styles = StyleSheet.create({
   pastaRowIcone: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   pastaRowNome: { fontSize: 16, fontWeight: '700', marginLeft: 12 },
   // ── TAGS: filtro da busca + chips nos cards ──
+  // ── TAGS: filtro (ícone dentro da barra + popup) e chips dos cards ──
+  filtroIconeDentro: { paddingHorizontal: 12, justifyContent: 'center', alignItems: 'center' },
+  popupFundo: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-start', alignItems: 'flex-end', paddingHorizontal: 16, paddingTop: 120 },
+  popupTag: {
+    width: '88%',
+    maxWidth: 420,
+    maxHeight: 420,
+    borderRadius: 18,
+    borderWidth: 1,
+    padding: 14,
+  },
+  popupTagVazio: { fontSize: 13, fontWeight: '600', textAlign: 'center' },
+  linhaPopupTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'transparent',
+    paddingVertical: 11,
+    paddingHorizontal: 10,
+    marginBottom: 4,
+  },
+  linhaPopupTagTexto: { fontSize: 14.5, fontWeight: '800' },
   tagsFiltroRow: { maxHeight: 44, marginBottom: 6 },
   linhaBuscaFiltro: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16 },
   botaoFiltroTag: {
