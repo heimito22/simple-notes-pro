@@ -48,6 +48,19 @@ export default function EditorL() {
   const [titulo, setTitulo] = useState('');
   const [itens, setItens] = useState<ItemLista[]>([]);
   const [novoItem, setNovoItem] = useState('');
+  // Lista NOVA: id fixado na 1ª renderização — o auto-save não pode gerar um
+  // id diferente a cada disparo (criaria N cópias da mesma lista).
+  const [idNovo] = useState(() => Date.now().toString());
+  const idLista = (id as string) || idNovo;
+  // SÓ CARREGA UMA VEZ: observar listaExistente para sempre faria o próprio
+  // auto-save (e o pull do Drive) sobrescrever o que o usuário está digitando.
+  const inicializadoRef = React.useRef(false);
+  // Assinatura do último estado gravado — o auto-save só dispara com mudança real.
+  const ultimoSalvoRef = React.useRef<string>('');
+  // Base DA VISITA (para o anúncio): depois do auto-save em tempo real o
+  // contexto fica igual ao editor — a comparação de "houve alteração" precisa
+  // do estado de quando a tela ABRIU, não do último save.
+  const baseVisitaRef = React.useRef<{ titulo: string; itens: ItemLista[] }>({ titulo: '', itens: [] });
 
   const [animacaoBotao] = useState(() => new Animated.Value(1));
   const [animacaoRotacao] = useState(() => new Animated.Value(0));
@@ -75,14 +88,21 @@ export default function EditorL() {
   const progresso = itens.length > 0 ? concluidos / itens.length : 0;
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      if (listaExistente) {
-        setTitulo(listaExistente.titulo);
-        setItens(listaExistente.itens);
-      }
-    }, 0);
-    return () => clearTimeout(timer);
-  }, [listaExistente]);
+    if (inicializadoRef.current || !id) return; // lista nova: o estado é 100% do usuário
+    if (listaExistente) {
+      inicializadoRef.current = true;
+      setTitulo(listaExistente.titulo);
+      setItens(listaExistente.itens);
+      // O estado carregado já é "salvo": o auto-save não regrava o que acabou
+      // de ser lido (e abrir a lista não dispara backup nenhum).
+      ultimoSalvoRef.current = JSON.stringify([
+        listaExistente.titulo.trim(), listaExistente.itens,
+        listaExistente.fixada, listaExistente.protegida,
+        listaExistente.pastaId ?? pastaId ?? null,
+      ]);
+      baseVisitaRef.current = { titulo: listaExistente.titulo.trim(), itens: listaExistente.itens };
+    }
+  }, [listaExistente, pastaId]);
 
   const adicionarItem = () => {
     if (!novoItem.trim()) return;
@@ -119,16 +139,44 @@ export default function EditorL() {
     setItens(prev => prev.filter(item => item.id !== itemId));
   };
 
-  // Só vale como "alteração" se algo mudou em relação ao que estava salvo
-  // quando a tela abriu (ou, em lista nova, em relação ao estado vazio).
+  // AUTO-SAVE EM TEMPO REAL (400ms de debounce): todo toggle/remoção/adição/
+  // título grava no contexto — que carimba dataModificacao, persiste por conta
+  // e dispara o ciclo de sync (~1s até o Drive). Antes o editor só gravava ao
+  // SAIR: o usuário marcava um item e o PC nunca ficava sabendo.
+  useEffect(() => {
+    // Lista nova intocada: nada a gravar ainda
+    if (!inicializadoRef.current && !(titulo.trim() || itens.length > 0)) return;
+    const assinatura = JSON.stringify([
+      titulo.trim(), itens,
+      listaExistente?.fixada, listaExistente?.protegida,
+      listaExistente?.pastaId ?? pastaId ?? null,
+    ]);
+    if (assinatura === ultimoSalvoRef.current) return; // nada mudou de verdade
+    const timer = setTimeout(() => {
+      ultimoSalvoRef.current = assinatura;
+      salvarLista({
+        id: idLista,
+        titulo: titulo.trim() || t('Nova Lista'),
+        itens,
+        fixada: listaExistente?.fixada,
+        protegida: listaExistente?.protegida,
+        pastaId: pastaId ? String(pastaId) : listaExistente?.pastaId,
+      });
+    }, 400);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [itens, titulo]);
+
+  // Só vale como "alteração" se algo mudou em relação ao que estava na tela
+  // quando ABRIU — não em relação ao último auto-save (que acompanha o
+  // usuário em tempo real e deixaria a comparação sempre falsa).
   const houveAlteracaoReal = () => {
-    const tituloBase = (listaExistente?.titulo ?? '').trim();
-    const itensBase = listaExistente?.itens ?? [];
-    if (titulo.trim() !== tituloBase) return true;
-    if (itens.length !== itensBase.length) return true;
+    const base = baseVisitaRef.current;
+    if (titulo.trim() !== base.titulo) return true;
+    if (itens.length !== base.itens.length) return true;
     return itens.some((item, i) => {
-      const base = itensBase[i];
-      return !base || item.texto !== base.texto || !!item.concluido !== !!base.concluido;
+      const itemBase = base.itens[i];
+      return !itemBase || item.texto !== itemBase.texto || !!item.concluido !== !!itemBase.concluido;
     });
   };
 
@@ -140,7 +188,7 @@ export default function EditorL() {
       mostrarAnuncio();
     }
     salvarLista({
-      id: (id as string) || Date.now().toString(),
+      id: idLista,
       titulo: titulo.trim() || t('Nova Lista'),
       itens,
       fixada: listaExistente?.fixada,
@@ -149,7 +197,7 @@ export default function EditorL() {
       pastaId: pastaId ? String(pastaId) : listaExistente?.pastaId,
     });
     router.back();
-  }, [id, titulo, itens, listaExistente, pastaId, salvarLista, router, t, mostrarAnuncio, houveAlteracaoReal]);
+  }, [id, titulo, itens, listaExistente, pastaId, salvarLista, router, t, mostrarAnuncio, houveAlteracaoReal, idLista]);
 
   // Salvar ao apertar o botão voltar do celular
   useFocusEffect(
