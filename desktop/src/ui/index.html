@@ -17,11 +17,12 @@
   <div class="shell" id="shell">
     <aside class="sidebar">
       <div class="sidebar-head">
-        <label class="busca" title="Buscar">
+        <label class="busca" title="Buscar" style="flex:1">
           <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
           <input id="busca" placeholder="Buscar…" data-i18n-ph="Buscar…">
         </label>
-        <!-- FILTRO POR TAGS: chips de todas as tags já criadas (por uso). -->
+        <button id="btnFiltroTag" title="Filtrar por tag" style="margin-left:6px;flex:none;width:34px;height:34px;border-radius:11px;border:1px solid var(--bd);background:var(--sf2);color:var(--tx2);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:15px"> funnel </button>
+        <!-- FILTRO POR TAGS: abre pelo botão acima — nada de chips sempre visíveis. -->
         <div id="chipsTags" style="display:none;flex-wrap:wrap;gap:6px;margin-top:8px"></div>
       </div>
       <nav class="nav">

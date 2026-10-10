@@ -7,6 +7,7 @@
   var tagsFiltro = [];
   var tagPrefixoAtual = '';
   var buscaPastasValor = '';
+  var chipsTagsAberto = false;
 
   function filtrados(ctx){
     var q=ctx.query, view=ctx.view, store=ctx.store, pastaAtiva=ctx.pastaAtiva;
@@ -26,6 +27,20 @@
   function temMidia(html){
     if(!html) return {img:false,audio:false};
     return { img:/<img/i.test(html), audio:/<audio/i.test(html) };
+  }
+  /** Escapa o texto E colore as hashtags no preview do card (mesma cor do app). */
+  function escPrevComTags(texto){
+    var saida='';
+    var re=/#[\p{L}\p{N}_-]{1,40}/gu;
+    var ultimo=0, m;
+    while((m=re.exec(texto))!==null){
+      saida+=esc(texto.slice(ultimo, m.index));
+      var cor=window.TagsSync ? window.TagsSync.corDaTag(m[0]) : 'var(--azul)';
+      saida+='<span style="color:'+cor+';font-weight:700">'+esc(m[0])+'</span>';
+      ultimo=m.index+m[0].length;
+    }
+    saida+=esc(texto.slice(ultimo));
+    return saida;
   }
 
   function atualizarBarra(ctx){
@@ -119,11 +134,22 @@
     ctxRef=ctx;
     var store=ctx.store, esc=ctx.esc, $=ctx.$;
     var Tags=ctx.TagsSync;
-    // ── CHIPS DE FILTRO POR TAGS: catálogo global (por uso), toque alterna (E) ──
+    // ── CHIPS DE FILTRO POR TAGS: só abrem pelo botão de filtro (funil) na
+    // sidebar — nada de opções espalhadas pela tela. Toque alterna (E). ──
+    var btnFiltroTag=$('#btnFiltroTag');
+    if(btnFiltroTag && !btnFiltroTag.dataset.bound){
+      btnFiltroTag.dataset.bound='1';
+      btnFiltroTag.addEventListener('click', function(){
+        var aberto=chipsTagsAberto=!chipsTagsAberto;
+        btnFiltroTag.style.color=aberto?'var(--azul)':'var(--tx2)';
+        btnFiltroTag.style.borderColor=aberto?'var(--azul)':'var(--bd)';
+        render(ctx);
+      });
+    }
     var chipsTags=$('#chipsTags');
     if(chipsTags && Tags){
       var catalogo=Tags.tagsDeItens(store.notas||[]);
-      if(!catalogo.length){ chipsTags.style.display='none'; }
+      if(!catalogo.length || !chipsTagsAberto){ chipsTags.style.display='none'; }
       else {
         chipsTags.style.display='flex';
         chipsTags.innerHTML='';
@@ -234,7 +260,7 @@
             return '<span class=\"chip-tag-mini\" style=\"background:'+cor+'22;color:'+cor+';border-color:'+cor+'\"><i style=\"background:'+cor+'\"></i>#'+esc(tg)+'</span>';
           }).join('')+(tagsItem.length>4?'<span class=\"chip-tag-mini mais\">+'+(tagsItem.length-4)+'</span>':'')+'</div>';
         }
-        card.innerHTML='<span class=\"card-check\">'+(sel?'✓':'')+'</span>'+thumb+'<h3>'+esc(o.titulo||T('Sem título'))+' '+badgePasta+'</h3>'+tagsHtml+'<p>'+esc(prev||'—')+'</p><div class=\"meta\"><span>'+esc(o.data||'')+'</span>'+(o.fixada?'<span class=\"badge\">'+esc(T('Fixada'))+'</span>':'')+(o.protegida?'<span class=\"badge lock\">'+esc(T('Protegida'))+'</span>':'')+audioBadge+imgBadge+'<span style=\"margin-left:auto\" class=\"badge\">'+esc(T('Nota'))+'</span></div>';
+        card.innerHTML='<span class=\"card-check\">'+(sel?'✓':'')+'</span>'+thumb+'<h3>'+esc(o.titulo||T('Sem título'))+' '+badgePasta+'</h3>'+tagsHtml+'<p>'+(prev?escPrevComTags(prev):'—')+'</p><div class=\"meta\"><span>'+esc(o.data||'')+'</span>'+(o.fixada?'<span class=\"badge\">'+esc(T('Fixada'))+'</span>':'')+(o.protegida?'<span class=\"badge lock\">'+esc(T('Protegida'))+'</span>':'')+audioBadge+imgBadge+'<span style=\"margin-left:auto\" class=\"badge\">'+esc(T('Nota'))+'</span></div>';
       } else {
         var txt=(o.itens||[]).slice(0,3).map(function(it){return (it.concluido?'☑ ':'☐ ')+it.texto;}).join(' · ') || '—';
         var pend=(o.itens||[]).filter(function(it){return !it.concluido;}).length;
@@ -404,7 +430,9 @@
       rich.addEventListener('input', function(){ persistirRichDebounced(); });
       rich.addEventListener('keyup', atualizarToolbarEstado);
       rich.addEventListener('mouseup', atualizarToolbarEstado);
-      // ── TAGS: sugestões ao digitar # (o #rich é DOM real — leitura direta) ──
+      // ── TAGS: sugestões ao digitar # (o #rich é DOM real — leitura direta).
+      // O detector manda o MATCH COMPLETO (com o '#'): sem o '#' digitado as
+      // sugestões NUNCA abrem — e somem ao usar ou apagar o hashtag. ──
       var su=$('#sugestoesTag');
       function detectarTagPrefixo(){
         if(!su) return;
@@ -416,13 +444,13 @@
             var node=r.startContainer;
             if(node.nodeType===3){
               var m=node.textContent.slice(0,r.startOffset).match(/#[^\s#]{0,40}$/);
-              if(m) pfx=m[0].slice(1);
+              if(m) pfx=m[0];
             }
           }
         }catch(err){}
         tagPrefixoAtual=pfx;
-        if(!pfx || !ctx.TagsSync){ su.style.display='none'; su.innerHTML=''; return; }
-        var pfxL=pfx.toLowerCase();
+        if(!pfx || pfx.charAt(0)!=='#' || !ctx.TagsSync){ su.style.display='none'; su.innerHTML=''; return; }
+        var pfxL=pfx.slice(1).toLowerCase();
         var cand=(ctx.TagsSync.tagsDeItens(ctx.store.notas||[])||[])
           .filter(function(ct){ return pfxL.length===0 ? true : (ct.nome.indexOf(pfxL)===0 && ct.nome!==pfxL); })
           .slice(0,8);
@@ -433,7 +461,7 @@
           var chip=document.createElement('button');
           chip.className='chip-tag';
           chip.style.cssText='background:'+cor+'22;color:'+cor+';border-color:'+cor;
-          chip.innerHTML=(ct.nome.indexOf(pfxL)===0 ? '#'+esc(pfx)+'<b style="color:'+cor+'">'+esc(ct.nome.slice(pfx.length))+'</b>' : '#'+esc(ct.nome))+' <span style="opacity:.65;font-size:10.5px">'+ct.count+'</span>';
+          chip.innerHTML=(ct.nome.indexOf(pfxL)===0 ? '#'+esc(pfxL)+'<b style="color:'+cor+'">'+esc(ct.nome.slice(pfxL.length))+'</b>' : '#'+esc(ct.nome))+' <span style="opacity:.65;font-size:10.5px">'+ct.count+'</span>';
           chip.onclick=function(ev){
             ev.stopPropagation();
             try{

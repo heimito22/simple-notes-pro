@@ -27,7 +27,7 @@ import { idiomaAtual, tIdioma } from '../context/idiomas';
 import { useMonetizacao } from '../context/monetizacao';
 import { appColors } from '../constants/theme';
 import RichTextEditor, { FormatoAtivo, RichTextEditorHandle } from '../components/rich-text-editor';
-import { corDaTag, tagsDeItens } from '../context/tags';
+import { PALETA_TAGS, corDaTag, tagsDeItens } from '../context/tags';
 import { excluirArquivoAudio, extrairAudios, removerAudioDoHtml, type AudioAttachment } from '../components/audio-chip';
 import * as Haptics from 'expo-haptics';
 
@@ -146,6 +146,12 @@ export default function EditorScreen() {
     // cursor (o WebView manda via __tag__). null = sem sugestões abertas.
     const [tagPrefixo, setTagPrefixo] = useState<string | null>(null);
     const catalogoTags = useMemo(() => tagsDeItens(notas), [notas]);
+    // O WebView manda o MATCH COMPLETO (com '#') quando há hashtag antes do
+    // cursor — sem '#' digitado o valor vem vazio e as sugestões NUNCA abrem.
+    const handleTagPrefixo = useCallback((raw: string) => {
+        if (!raw || raw.charAt(0) !== '#') { setTagPrefixo(null); return; }
+        setTagPrefixo(raw.slice(1).toLowerCase());
+    }, []);
     const sugestoesTag = useMemo(() => {
         if (tagPrefixo === null) return [];
         const pfx = tagPrefixo.toLowerCase();
@@ -1173,7 +1179,8 @@ export default function EditorScreen() {
                     initialValue={notaExistente?.conteudo || ''}
                     onChange={handleConteudoChange}
                     onFormatoChange={handleFormatoChange}
-                    onTagPrefixo={setTagPrefixo}
+                    onTagPrefixo={handleTagPrefixo}
+                    paletaTags={PALETA_TAGS}
                     editavel={editando}
                     placeholder={editando ? t('Comece a escrever...') : ""}
                     textColor={tema.texto}

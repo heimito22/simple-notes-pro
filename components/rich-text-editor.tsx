@@ -46,6 +46,8 @@ interface Props {
   onFormatoChange?: (fmt: FormatoAtivo) => void;
   /** `#prefixo` digitado imediatamente antes do cursor (sugestões de tags). */
   onTagPrefixo?: (prefixo: string) => void;
+  /** Paleta de cores das tags (destaque visual na leitura). */
+  paletaTags?: string[];
   /** Modo leitura inicial. Mudanças usam setEditable() (sem recarregar o WebView). */
   editavel?: boolean;
   placeholder?: string;
@@ -309,8 +311,9 @@ const buildDoc = (
     scheduleFormats();
   });
 
-  // TAGS: detecta o prefixo '#...' imediatamente antes do cursor e avisa o host
-  // (barra de sugestões). Sem prefixo, avisa vazio — o host fecha as sugestões.
+  // TAGS: detecta o hashtag imediatamente antes do cursor e avisa o host com o
+  // MATCH COMPLETO (com o '#'). Sem '#' digitado, avisa vazio — o host fecha as
+  // sugestões: elas NUNCA aparecem sem o usuário ter digitado o hashtag.
   function notificarTagPrefixo() {
     var pfx = '';
     try {
@@ -320,7 +323,7 @@ const buildDoc = (
         var node = r.startContainer;
         if (node.nodeType === 3) {
           var m = node.textContent.slice(0, r.startOffset).match(/#[^\s#]{0,40}$/);
-          if (m) pfx = m[0].slice(1);
+          if (m) pfx = m[0];
         }
       }
     } catch (e) {}
@@ -333,6 +336,54 @@ const buildDoc = (
   }
   el.addEventListener('input', scheduleTagPrefixo);
   document.addEventListener('selectionchange', scheduleTagPrefixo);
+
+  // Restaura o HTML limpo (sem os spans de destaque da leitura) — a fonte da
+  // verdade é o ultimoConteudo, então o destaque NUNCA vira conteúdo salvo.
+  window.editorRestaurarConteudo = function() {
+    el.innerHTML = ultimoConteudo.current || '';
+    return true;
+  };
+
+  // DESTAQUE VISUAL DAS TAGS NA LEITURA: envolve cada hashtag do texto num
+  // span colorido (cor por hash do nome — MESMA paleta do app, recebida do
+  // host como JSON). APENAS VISUAL: não chama notify() e não altera o
+  // ultimoConteudo — ao voltar para a edição o conteúdo limpo é restaurado.
+  window.editorAplicarDestaqueTags = function(paletaJson) {
+    try {
+      var PA = JSON.parse(paletaJson || '[]');
+      if (!PA.length) return true;
+      function corDe(nome) {
+        var h = 2166136261;
+        for (var i = 0; i < nome.length; i++) { h ^= nome.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
+        return PA[h % PA.length];
+      }
+      var re = /#[\p{L}\p{N}_-]{1,40}/gu;
+      function envolver(node) {
+        if (node.nodeType === 3) {
+          re.lastIndex = 0;
+          if (!re.test(node.textContent)) return;
+          re.lastIndex = 0;
+          var frag = document.createDocumentFragment();
+          var resto = node.textContent, idx = 0, mm;
+          while ((mm = re.exec(resto)) !== null) {
+            if (mm.index > idx) frag.appendChild(document.createTextNode(resto.slice(idx, mm.index)));
+            var span = document.createElement('span');
+            span.style.color = corDe(mm[0].slice(1));
+            span.style.fontWeight = '700';
+            span.textContent = mm[0];
+            frag.appendChild(span);
+            idx = mm.index + mm[0].length;
+          }
+          if (idx < resto.length) frag.appendChild(document.createTextNode(resto.slice(idx)));
+          node.parentNode.replaceChild(frag, node);
+        } else if (node.nodeType === 1 && node.nodeName !== 'SCRIPT' && node.nodeName !== 'STYLE' && node.nodeName !== 'AUDIO' && node.nodeName !== 'IMG') {
+          Array.prototype.slice.call(node.childNodes).forEach(envolver);
+        }
+      }
+      Array.prototype.slice.call(el.childNodes).forEach(envolver);
+    } catch (e) {}
+    return true;
+  };
 
   // Insere a TAG completa no cursor, substituindo o parcial '#...' já digitado
   // (procura o '#' imediatamente antes do cursor e o troca por '#tag ').
@@ -919,6 +970,7 @@ const RichTextEditor = memo(
       onChange,
       onFormatoChange,
       onTagPrefixo,
+      paletaTags,
       placeholder = '',
       textColor,
       placeholderColor,
@@ -962,6 +1014,11 @@ const RichTextEditor = memo(
     );
     // Objeto estável: evita que o react-native-webview recarregue a página em re-renders.
     const source = useMemo(() => ({ html: doc }), [doc]);
+    // Paleta serializada (estável) — o destaque de leitura usa no WebView.
+    const paletaTagsSerializada = useMemo(
+      () => (paletaTags && paletaTags.length ? JSON.stringify(paletaTags) : ''),
+      [paletaTags]
+    );
 
     const injetar = (script: string) => webviewRef.current?.injectJavaScript(script);
 
@@ -992,6 +1049,10 @@ const RichTextEditor = memo(
       },
       setEditable: (v: boolean) => {
         injetar(`window.editorSetEditable(${v}); true;`);
+        // Leitura: aplica o DESTAQUE visual das tags. Edição: restaura o HTML
+        // limpo (o conteúdo salvo vem do ref — o destaque nunca é gravado).
+        if (v) injetar('window.editorRestaurarConteudo(); true;');
+        else if (paletaTagsSerializada) injetar(`window.editorAplicarDestaqueTags(${paletaTagsSerializada}); true;`);
       },
       prepararEscrita: () => {
         injetar('window.editorPrepararEscrita(); true;');
@@ -1047,6 +1108,11 @@ const RichTextEditor = memo(
       }
       if (alvo != null) {
         injetar(`window.editorSetContent(${toJSString(alvo)}); true;`);
+      }
+      // Leitura: reaplica o DESTAQUE das tags após cada load (a injeção feita
+      // no setEditable pode se perder quando o load ainda não terminou).
+      if (!editavel && paletaTagsSerializada) {
+        injetar(`window.editorAplicarDestaqueTags(${paletaTagsSerializada}); true;`);
       }
       // Ao entrar em edição (a troca de modo recarrega o WebView), posiciona o
       // cursor no fim e rola até o final — sem isso, imagens grandes impedem de

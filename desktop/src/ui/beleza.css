@@ -510,3 +510,31 @@ html[data-tema="light"] .alarme-card{
   box-shadow:0 24px 80px rgba(11,16,30,.25);
   color:#0B101E;
 }
+
+/* ── TAGS: chips de filtro, mini-chips nos cards e sugestões no editor ── */
+.chip-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border-radius: 14px;
+  border: 1.5px solid var(--bd);
+  padding: 4px 10px;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  background: var(--sf2);
+}
+.chip-tag:hover { filter: brightness(1.12); }
+.linha-tags { display: flex; flex-wrap: wrap; gap: 5px; margin: 6px 0 2px; }
+.chip-tag-mini {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 10px;
+  border: 1px solid var(--bd);
+  padding: 2px 7px;
+  font-size: 11px;
+  font-weight: 800;
+}
+.chip-tag-mini i { width: 6px; height: 6px; border-radius: 3px; display: inline-block; }
+.chip-tag-mini.mais { color: var(--tx2); }

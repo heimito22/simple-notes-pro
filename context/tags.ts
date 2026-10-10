@@ -12,7 +12,7 @@
  */
 
 /** Paleta de 12 cores — vibrantes, legíveis nos temas claro e escuro. */
-const PALETA = [
+export const PALETA_TAGS = [
   '#FF991A', '#4FC3F7', '#BA68C8', '#66BB6A', '#EF5350', '#FFD54F',
   '#26C6DA', '#EC407A', '#7E57C2', '#A1887F', '#9CCC65', '#FF7043',
 ];
@@ -33,7 +33,7 @@ export const normalizarTag = (s: string): string =>
 
 /** Cor estável da tag (mesma tag = mesma cor, sempre). */
 export const corDaTag = (nome: string): string =>
-  PALETA[fnv1a(normalizarTag(nome)) % PALETA.length];
+  PALETA_TAGS[fnv1a(normalizarTag(nome)) % PALETA_TAGS.length];
 
 /** Remove HTML e decodifica as entidades mais comuns — só o TEXTO da nota. */
 const textoPlano = (html: string): string =>
