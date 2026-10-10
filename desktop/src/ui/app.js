@@ -207,6 +207,7 @@ var ctx={
   $, esc: esc, toast: toast, uid: uid, hoje: hoje, S: S, aplicarTema: aplicarTema,
   salvarLocal: salvarLocal, scheduleSave: scheduleSave, salvarConfigPatch: salvarConfigPatch, showView: showView,
   abrirGerirPasta: abrirGerirPasta, abrirMoverSelecionados: abrirModalMover, abrirModalApagarSelecionados: abrirModalApagarSelecionados,
+  TagsSync: window.TagsSync,
   refreshConta: function(){ return refreshConta(); }
 };
 

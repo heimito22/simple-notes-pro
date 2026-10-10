@@ -21,6 +21,8 @@
           <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
           <input id="busca" placeholder="Buscar…" data-i18n-ph="Buscar…">
         </label>
+        <!-- FILTRO POR TAGS: chips de todas as tags já criadas (por uso). -->
+        <div id="chipsTags" style="display:none;flex-wrap:wrap;gap:6px;margin-top:8px"></div>
       </div>
       <nav class="nav">
         <div class="nav-title" data-i18n="NAVEGAR">NAVEGAR</div>
@@ -31,6 +33,7 @@
         <div class="nav-item" data-view="ia"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2l2.5 6.5L21 11l-6.5 2.5L12 20l-2.5-6.5L3 11l6.5-2.5z"/><circle cx="12" cy="11" r="2.5"/></svg> IA</div>
       </nav>
       <div class="nav-title" style="padding:10px 16px 4px;display:flex;align-items:center;gap:8px"><span data-i18n="PASTAS">PASTAS</span> <button id="btnNovaPasta" class="pill" style="margin-left:auto" data-i18n="+ Nova">+ Nova</button></div>
+      <input id="buscaPastas" placeholder="Buscar pasta…" data-i18n-ph="Buscar pasta…" style="display:none;margin:0 16px 6px;padding:6px 10px;border-radius:10px;border:1px solid var(--bd);background:var(--sf2);color:var(--tx1);font-size:12.5px;outline:none">
       <div class="lista-pastas" id="listaPastas"></div>
       <div class="sidebar-foot">
         <div class="conta" id="contaBox">
@@ -208,6 +211,8 @@
           <button class="btn" id="btnFecharEditor" data-i18n="Fechar">Fechar</button>
         </div>
       </div>
+      <!-- Sugestões de TAG ao digitar # no editor (barra acima da toolbar) -->
+      <div id="sugestoesTag" style="display:none;flex-wrap:wrap;gap:6px;padding:8px 14px;border-bottom:1px solid var(--bd);background:var(--sf2);align-items:center"></div>
       <div class="editor-toolbar" id="editorToolbar">
         <button data-cmd="bold" title="Negrito"><b>B</b></button>
         <button data-cmd="italic" title="Itálico"><i>I</i></button>
@@ -349,6 +354,7 @@
 <script src="../lib/cripto.js"></script>
 <script src="../lib/tombstones.js"></script>
 <script src="../lib/merge.js"></script>
+<script src="../lib/tags.js"></script>
 
 <script src="movimento.js"></script>
 <script src="notas.js"></script>

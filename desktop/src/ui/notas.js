@@ -3,15 +3,24 @@
   var edit = null; // { kind:'nota'|'lista', id }
   var selecionados = new Set(); // ids de notas+listas
   var dragListaId = null;
+  // TAGS: filtro por múltiplas tags (E) + prefixo digitado no editor (sugestões)
+  var tagsFiltro = [];
+  var tagPrefixoAtual = '';
+  var buscaPastasValor = '';
 
   function filtrados(ctx){
     var q=ctx.query, view=ctx.view, store=ctx.store, pastaAtiva=ctx.pastaAtiva;
+    var Tags=ctx.TagsSync;
+    var buscando = !!q || tagsFiltro.length > 0;
     var notas=[].concat(store.notas||[]), listas=[].concat(store.listas||[]);
     if(q){ notas=notas.filter(function(n){ return String(n.titulo||'').toLowerCase().indexOf(q)!==-1 || String(n.conteudo||'').toLowerCase().indexOf(q)!==-1; }); listas=listas.filter(function(l){ return String(l.titulo||'').toLowerCase().indexOf(q)!==-1 || (l.itens||[]).some(function(it){ return String(it.texto).toLowerCase().indexOf(q)!==-1; }); }); }
+    if(tagsFiltro.length && Tags){ notas=notas.filter(function(n){ return Tags.temTodasAsTags(n.conteudo||'', tagsFiltro); }); listas=listas.filter(function(l){ return Tags.temTodasAsTags(l.titulo||'', tagsFiltro); }); }
     if(view==='fixadas'){ notas=notas.filter(function(n){return n.fixada;}); listas=listas.filter(function(l){return l.fixada;}); }
-    if(view==='pasta' && pastaAtiva){ notas=notas.filter(function(n){return n.pastaId===pastaAtiva;}); listas=listas.filter(function(l){return l.pastaId===pastaAtiva;}); }
+    // COM BUSCA/FILTRO DE TAGS ATIVO: a pesquisa vira GLOBAL — as pastas entram
+    // (a vista por pasta só limita quando não há busca, como no celular).
+    if(view==='pasta' && pastaAtiva && !buscando){ notas=notas.filter(function(n){return n.pastaId===pastaAtiva;}); listas=listas.filter(function(l){return l.pastaId===pastaAtiva;}); }
     notas.sort(function(a,b){ return (b.fixada?1:0)-(a.fixada?1:0); }); listas.sort(function(a,b){ return (b.fixada?1:0)-(a.fixada?1:0); });
-    return { notas: notas, listas: listas };
+    return { notas: notas, listas: listas, buscando: buscando };
   }
 
   function temMidia(html){
@@ -109,6 +118,51 @@
   function render(ctx){
     ctxRef=ctx;
     var store=ctx.store, esc=ctx.esc, $=ctx.$;
+    var Tags=ctx.TagsSync;
+    // ── CHIPS DE FILTRO POR TAGS: catálogo global (por uso), toque alterna (E) ──
+    var chipsTags=$('#chipsTags');
+    if(chipsTags && Tags){
+      var catalogo=Tags.tagsDeItens(store.notas||[]);
+      if(!catalogo.length){ chipsTags.style.display='none'; }
+      else {
+        chipsTags.style.display='flex';
+        chipsTags.innerHTML='';
+        if(tagsFiltro.length){
+          var limpar=document.createElement('button');
+          limpar.className='chip-tag';
+          limpar.style.cssText='background:var(--sf2);color:var(--tx2);border-color:var(--bd)';
+          limpar.innerHTML='✕ '+esc(T('Limpar'));
+          limpar.onclick=function(){ tagsFiltro=[]; render(ctx); };
+          chipsTags.appendChild(limpar);
+        }
+        catalogo.forEach(function(ct){
+          var ativo=tagsFiltro.indexOf(ct.nome)!==-1;
+          var cor=Tags.corDaTag(ct.nome);
+          var chip=document.createElement('button');
+          chip.className='chip-tag';
+          chip.style.cssText=ativo
+            ? 'background:'+cor+';color:#0D0A08;border-color:'+cor+';font-weight:900'
+            : 'background:'+cor+'22;color:'+cor+';border-color:'+cor;
+          chip.innerHTML=(ativo?'✓ ':'')+'#'+esc(ct.nome)+' <span style="opacity:.65;font-size:10.5px">'+ct.count+'</span>';
+          chip.onclick=function(){
+            var i=tagsFiltro.indexOf(ct.nome);
+            if(i===-1) tagsFiltro.push(ct.nome); else tagsFiltro.splice(i,1);
+            render(ctx);
+          };
+          chipsTags.appendChild(chip);
+        });
+      }
+    }
+    // ── BUSCAR PASTA pelo nome (campo aparece com 4+ pastas) ──
+    var buscaPastasEl=$('#buscaPastas');
+    if(buscaPastasEl){
+      buscaPastasEl.style.display=(store.pastas||[]).length>3?'block':'none';
+      if(!buscaPastasEl.dataset.bound){
+        buscaPastasEl.dataset.bound='1';
+        buscaPastasEl.addEventListener('input', function(){ buscaPastasValor=buscaPastasEl.value; render(ctx); });
+      }
+    }
+    var filtroPastaNome=buscaPastasValor.trim().toLowerCase();
     var listaPastas=$('#listaPastas');
     if(listaPastas){
       listaPastas.innerHTML='';
@@ -171,11 +225,28 @@
         var prev=String(o.conteudo||'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim().slice(0,180);
         var audioBadge=m.audio ? '<span class=\"card-audio\">'+esc(T('🎙 áudio'))+'</span>' : '';
         var imgBadge=m.img ? '<span class=\"card-audio\">'+esc(T('🖼 imagem'))+'</span>' : '';
-        card.innerHTML='<span class=\"card-check\">'+(sel?'✓':'')+'</span>'+thumb+'<h3>'+esc(o.titulo||T('Sem título'))+' '+badgePasta+'</h3><p>'+esc(prev||'—')+'</p><div class=\"meta\"><span>'+esc(o.data||'')+'</span>'+(o.fixada?'<span class=\"badge\">'+esc(T('Fixada'))+'</span>':'')+(o.protegida?'<span class=\"badge lock\">'+esc(T('Protegida'))+'</span>':'')+audioBadge+imgBadge+'<span style=\"margin-left:auto\" class=\"badge\">'+esc(T('Nota'))+'</span></div>';
+        // TAGS do item: mini-chips com a cor estável da tag (mesma do celular)
+        var tagsHtml='';
+        if(Tags){
+          var tagsItem=Tags.extrairTags(o.conteudo||'');
+          if(tagsItem.length) tagsHtml='<div class=\"linha-tags\">'+tagsItem.slice(0,4).map(function(tg){
+            var cor=Tags.corDaTag(tg);
+            return '<span class=\"chip-tag-mini\" style=\"background:'+cor+'22;color:'+cor+';border-color:'+cor+'\"><i style=\"background:'+cor+'\"></i>#'+esc(tg)+'</span>';
+          }).join('')+(tagsItem.length>4?'<span class=\"chip-tag-mini mais\">+'+(tagsItem.length-4)+'</span>':'')+'</div>';
+        }
+        card.innerHTML='<span class=\"card-check\">'+(sel?'✓':'')+'</span>'+thumb+'<h3>'+esc(o.titulo||T('Sem título'))+' '+badgePasta+'</h3>'+tagsHtml+'<p>'+esc(prev||'—')+'</p><div class=\"meta\"><span>'+esc(o.data||'')+'</span>'+(o.fixada?'<span class=\"badge\">'+esc(T('Fixada'))+'</span>':'')+(o.protegida?'<span class=\"badge lock\">'+esc(T('Protegida'))+'</span>':'')+audioBadge+imgBadge+'<span style=\"margin-left:auto\" class=\"badge\">'+esc(T('Nota'))+'</span></div>';
       } else {
         var txt=(o.itens||[]).slice(0,3).map(function(it){return (it.concluido?'☑ ':'☐ ')+it.texto;}).join(' · ') || '—';
         var pend=(o.itens||[]).filter(function(it){return !it.concluido;}).length;
-        card.innerHTML='<span class="card-check">'+(sel?'✓':'')+'</span><h3>'+esc(o.titulo||T('Lista'))+' '+badgePasta+'</h3><p>'+esc(txt)+'</p><div class="meta"><span>'+esc(Tf('{n} itens · {m} pendentes',{ n:(o.itens||[]).length, m:pend }))+'</span>'+(o.fixada?'<span class="badge">Fixada</span>':'')+'<span style="margin-left:auto" class="badge">'+esc(T('Lista'))+'</span></div>';
+        var tagsLHtml='';
+        if(Tags){
+          var tagsLista=Tags.extrairTags(o.titulo||'');
+          if(tagsLista.length) tagsLHtml='<div class=\"linha-tags\">'+tagsLista.slice(0,4).map(function(tg){
+            var cor=Tags.corDaTag(tg);
+            return '<span class=\"chip-tag-mini\" style=\"background:'+cor+'22;color:'+cor+';border-color:'+cor+'\"><i style=\"background:'+cor+'\"></i>#'+esc(tg)+'</span>';
+          }).join('')+'</div>';
+        }
+        card.innerHTML='<span class="card-check">'+(sel?'✓':'')+'</span><h3>'+esc(o.titulo||T('Lista'))+' '+badgePasta+'</h3>'+tagsLHtml+'<p>'+esc(txt)+'</p><div class="meta"><span>'+esc(Tf('{n} itens · {m} pendentes',{ n:(o.itens||[]).length, m:pend }))+'</span>'+(o.fixada?'<span class="badge">Fixada</span>':'')+'<span style="margin-left:auto" class="badge">'+esc(T('Lista'))+'</span></div>';
       }
       card.addEventListener('click', function(e){
         var isMulti = e.ctrlKey || e.metaKey || selecionados.size>0;
@@ -333,6 +404,63 @@
       rich.addEventListener('input', function(){ persistirRichDebounced(); });
       rich.addEventListener('keyup', atualizarToolbarEstado);
       rich.addEventListener('mouseup', atualizarToolbarEstado);
+      // ── TAGS: sugestões ao digitar # (o #rich é DOM real — leitura direta) ──
+      var su=$('#sugestoesTag');
+      function detectarTagPrefixo(){
+        if(!su) return;
+        var pfx='';
+        try{
+          var sel=root.getSelection();
+          if(sel && sel.rangeCount>0){
+            var r=sel.getRangeAt(0);
+            var node=r.startContainer;
+            if(node.nodeType===3){
+              var m=node.textContent.slice(0,r.startOffset).match(/#[^\s#]{0,40}$/);
+              if(m) pfx=m[0].slice(1);
+            }
+          }
+        }catch(err){}
+        tagPrefixoAtual=pfx;
+        if(!pfx || !ctx.TagsSync){ su.style.display='none'; su.innerHTML=''; return; }
+        var pfxL=pfx.toLowerCase();
+        var cand=(ctx.TagsSync.tagsDeItens(ctx.store.notas||[])||[])
+          .filter(function(ct){ return pfxL.length===0 ? true : (ct.nome.indexOf(pfxL)===0 && ct.nome!==pfxL); })
+          .slice(0,8);
+        if(!cand.length){ su.style.display='none'; su.innerHTML=''; return; }
+        su.innerHTML='<span style="font-size:11.5px;color:var(--tx2);font-weight:800">TAGS</span>';
+        cand.forEach(function(ct){
+          var cor=ctx.TagsSync.corDaTag(ct.nome);
+          var chip=document.createElement('button');
+          chip.className='chip-tag';
+          chip.style.cssText='background:'+cor+'22;color:'+cor+';border-color:'+cor;
+          chip.innerHTML=(ct.nome.indexOf(pfxL)===0 ? '#'+esc(pfx)+'<b style="color:'+cor+'">'+esc(ct.nome.slice(pfx.length))+'</b>' : '#'+esc(ct.nome))+' <span style="opacity:.65;font-size:10.5px">'+ct.count+'</span>';
+          chip.onclick=function(ev){
+            ev.stopPropagation();
+            try{
+              var s=root.getSelection();
+              if(s && s.rangeCount>0){
+                var rr=s.getRangeAt(0);
+                var nd=rr.startContainer;
+                if(nd.nodeType===3){
+                  var tt=nd.textContent.slice(0,rr.startOffset);
+                  var mm=tt.match(/#[^\s#]*$/);
+                  if(mm){ rr.setStart(nd, rr.startOffset-mm[0].length); rr.deleteContents(); }
+                }
+              }
+              rich.focus();
+              document.execCommand('insertHTML', false, '#'+esc(ct.nome)+'&nbsp;');
+            }catch(err){}
+            su.style.display='none'; su.innerHTML='';
+            persistirRichDebounced();
+          };
+          su.appendChild(chip);
+        });
+        su.style.display='flex';
+      }
+      rich.addEventListener('keyup', detectarTagPrefixo);
+      rich.addEventListener('input', detectarTagPrefixo);
+      rich.addEventListener('mouseup', detectarTagPrefixo);
+      rich.addEventListener('blur', function(){ setTimeout(function(){ if(su){ su.style.display='none'; } }, 180); });
       rich.addEventListener('paste', function(e){
         try{
           var items=e.clipboardData && e.clipboardData.items;
