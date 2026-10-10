@@ -186,6 +186,13 @@ export function NotasProvider({ children }: any) {
       console.log('[SYNC-DBG] LOAD chave=' + key + ' tem_dados=' + (!!dados));
       if (dados) {
         const parsed = JSON.parse(dados);
+        // O ESTADO LOCAL já contém os carimbos vistos (puxados antes) — o
+        // relógio deve considerá-los MESMO que a nuvem não mude depois (sem
+        // pull novo, o visto ficaria atrasado e uma edição feita agora
+        // carimbava abaixo do carimbo adiantado do PC: o PC descartava).
+        try {
+          avancarRelogioComItens(parsed.notas, parsed.listas, parsed.pastas, parsed.tarefas);
+        } catch {}
         // BUCKET DE OUTRA CONTA: sessão quebrada deixou notas de uma conta
         // estacionadas no offline. NÃO vira estado "offline" (senão o app
         // mostra notas de outra conta como se fossem suas, deslogado).
