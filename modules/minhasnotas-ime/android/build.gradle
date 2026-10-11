@@ -1,0 +1,15 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'com.seuusuario.simplesnotes.ime'
+version = '1.0.0'
+
+android {
+  namespace "com.seuusuario.simplesnotes.ime"
+  defaultConfig {
+    versionCode 1
+    versionName '1.0.0'
+  }
+}

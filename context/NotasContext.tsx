@@ -2,12 +2,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
-import { Alert, AppState } from 'react-native';
+import { Alert, AppState, Platform } from 'react-native';
 import { useListas } from './ListaContext';
 import { useTarefas } from './TarefasContext';
 import { agendarLembretes, cancelarLembretes, type LembreteNota } from './lembrete-notas';
 import { verificarTelaCheia } from './permissao-alarme';
-import { sincronizarAnexosUpload, restaurarAnexosDownload } from './anexos-cloud';
+import { sincronizarAnexosUpload, restaurarAnexosDownload, reapontarAnexosVirtuais } from './anexos-cloud';
 import { hidratarApagados, definirEscopoApagados, registrarApagado, registrarApagados, serializarApagados, carregarApagados, mesclarPorItem, assinaturaItem, tsDoItemExportado, hidratarRelogio, relogioAgora, avancarRelogioComItens } from './tombstones';
 import { acharBackupCanonico } from './backup-drive';
 import { useTheme } from './ThemeContext';
@@ -658,6 +658,21 @@ export function NotasProvider({ children }: any) {
 
     suprimirPushRef.current = true;
     try {
+    // ── ANEXOS DO PC: baixar + reapontar ANTES do merge ──
+    // O backup do PC traz refs virtuais (file://imagens_notas/…). Baixa os
+    // arquivos que faltam e reescreve os srcs para as URIs locais reais —
+    // assim a nota já entra mesclada com as imagens/áudios resolvidos (antes,
+    // o arquivo até chegava, mas o src virtual não resolvia no Android e a
+    // imagem ficava quebrada com o alt "imagem").
+    const htmlsBackup: string[] = (backupData.notas || []).map((n: any) => n?.conteudo || '');
+    try { await (restaurarAnexosDownload(htmlsBackup) as Promise<any>).catch(() => {}); } catch {}
+    if (Array.isArray(backupData.notas)) {
+      for (const n of backupData.notas) {
+        if (n && typeof n.conteudo === 'string' && n.conteudo.indexOf('file://') !== -1) {
+          n.conteudo = reapontarAnexosVirtuais(n.conteudo);
+        }
+      }
+    }
     const mNotas = backupData.notas ? mesclarComLocais(backupData.notas, notasRef.current) : null;
     const mListas = backupData.listas ? mesclarComLocais(backupData.listas, listas || []) : null;
     const mPastas = Array.isArray(backupData.pastas) ? mesclarComLocais(backupData.pastas, pastas || []) : null;
@@ -672,10 +687,6 @@ export function NotasProvider({ children }: any) {
     if (mNotas && !conjuntosIguais(mNotas.itens, notasRef.current)) setNotas(mNotas.itens);
     if (mListas && !conjuntosIguais(mListas.itens, listas || [])) setListas(mListas.itens);
     if (mPastas && !conjuntosIguais(mPastas.itens, pastas || [])) setPastas(mPastas.itens);
-    try {
-      const htmls: string[] = (backupData.notas || []).map((n: any) => n?.conteudo || '');
-      await (restaurarAnexosDownload(htmls) as Promise<any>).catch(() => {});
-    } catch {}
     if (mTarefas && typeof tarefasContext?.definirTarefas === 'function'
         && !conjuntosIguais(mTarefas.itens, dadosRef.current.tarefas || [])) {
       await (tarefasContext.definirTarefas as any)(mTarefas.itens).catch(() => {});
@@ -706,6 +717,41 @@ export function NotasProvider({ children }: any) {
     }
     return true;
   }, [pastas, tarefas, listas, configTema?.chaveIA, aplicarPreferenciasRemotas, mesclarComLocais, currentUserId]);
+
+  // ── HIGIENIZAÇÃO DE ANEXOS DO PC (cura notas já mescladas com srcs virtuais) ──
+  // Notas trazidas por backups antigos podem estar com refs virtuais do PC
+  // (file://imagens_notas/…) — o WebView do celular não resolve e a imagem
+  // aparece quebrada (alt "imagem"). Uma vez por abertura do app e por troca
+  // de conta: baixa os anexos que faltam e reescreve os srcs para URIs locais
+  // reais. Idempotente: sem refs virtuais, não faz nada.
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+    if (!currentUserId || currentUserId === 'local') return;
+    let cancelado = false;
+    const timer = setTimeout(async () => {
+      try {
+        const notas = notasRef.current || [];
+        const comVirtual = notas.filter((n: any) => typeof n?.conteudo === 'string' &&
+          (n.conteudo.indexOf('file://imagens_notas/') !== -1 || n.conteudo.indexOf('file://audios_notas/') !== -1));
+        if (comVirtual.length === 0) return;
+        const htmls = comVirtual.map((n: any) => n.conteudo);
+        await (restaurarAnexosDownload(htmls) as Promise<any>).catch(() => {});
+        if (cancelado) return;
+        let mudou = false;
+        const curadas = notas.map((n: any) => {
+          if (typeof n?.conteudo !== 'string' || n.conteudo.indexOf('file://') === -1) return n;
+          const novo = reapontarAnexosVirtuais(n.conteudo);
+          if (novo !== n.conteudo) { mudou = true; return { ...n, conteudo: novo }; }
+          return n;
+        });
+        if (mudou) {
+          setNotas(curadas);
+          console.log('[Anexos] higienizadas', comVirtual.length, 'nota(s) com refs virtuais do PC');
+        }
+      } catch {}
+    }, 2500); // deixa o store carregar e a conta assentar antes de tocar
+    return () => { cancelado = true; clearTimeout(timer); };
+  }, [currentUserId]);
 
   // Pull polling: modifiedTime a cada 12s quando em primeiro plano (só metadados, barato)
   useEffect(() => {

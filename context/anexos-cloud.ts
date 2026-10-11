@@ -230,6 +230,31 @@ const subirAnexos = async (htmls: string[]): Promise<number> => {
 };
 
 /**
+ * Reaponta refs virtuais do PC para as URIs locais reais deste aparelho.
+ *
+ * O PC desidrata imagens/áudios (data:uris) para refs virtuais no backup:
+ * `file://imagens_notas/img_<hash>.<ext>` e `file://audios_notas/audio_…`.
+ * No celular o arquivo é baixado por restaurarAnexosDownload para a pasta
+ * local, e ESTA função reescreve o src para a URI local real — sem ela o
+ * WebView renderiza a imagem quebrada ("imagem") porque o caminho virtual
+ * não existe no Android.
+ *
+ * Idempotente e seguro: URIs reais (`file:///data/user/0/…/imagens_notas/…`)
+ * NÃO casam com o padrão virtual (`file://` seguido direto do nome da pasta).
+ */
+export const reapontarAnexosVirtuais = (html: string): string => {
+  if (!html) return html;
+  let out = html;
+  if (DIR_IMAGENS && out.indexOf('file://imagens_notas/') !== -1) {
+    out = out.split('file://imagens_notas/').join(DIR_IMAGENS.uri + '/');
+  }
+  if (DIR_AUDIOS && out.indexOf('file://audios_notas/') !== -1) {
+    out = out.split('file://audios_notas/').join(DIR_AUDIOS.uri + '/');
+  }
+  return out;
+};
+
+/**
  * Baixa do Drive os anexos citados pelas notas que faltam localmente.
  * Chamado ao restaurar um backup. Retorna a quantidade de anexos restaurados.
  */

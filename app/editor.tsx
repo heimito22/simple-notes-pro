@@ -28,6 +28,7 @@ import { useMonetizacao } from '../context/monetizacao';
 import { appColors } from '../constants/theme';
 import RichTextEditor, { FormatoAtivo, RichTextEditorHandle } from '../components/rich-text-editor';
 import { PALETA_TAGS, corDaTag, tagsDeItens } from '../context/tags';
+import { imeHeightAtual, observarIme } from '../modules/minhasnotas-ime';
 import { excluirArquivoAudio, extrairAudios, removerAudioDoHtml, type AudioAttachment } from '../components/audio-chip';
 import * as Haptics from 'expo-haptics';
 
@@ -252,17 +253,29 @@ export default function EditorScreen() {
     // ainda não está à vista; some ao chegar no fim (maxScroll vem do WebView)
     const [temAnexo, setTemAnexo] = useState(false);
     const [mostrarBotao, setMostrarBotao] = useState(false);
-    // Altura real do teclado (Android). O KeyboardAvoidingView do RN, no Android,
-    // recalcula o padding com as coordenadas do evento 'keyboardDidHide' — que
-    // neste aparelho reportam um teclado "fantasma" de ~155px (faixa branca) e,
-    // quando o teclado "pisca" (ex.: diálogo de permissão do microfone leva o app
-    // a background), os eventos podem se perder ou vir com altura 0 — a toolbar
-    // ficava dentro do teclado. Aqui a altura vem DIRETA dos eventos (0 no hide,
-    // altura real no show, ignorando eventos com 0 ou inflados). Ao voltar do
-    // background, recupera-se usando a MELHOR altura já vista nos eventos — os
-    // valores crus do Keyboard.metrics()/insets do IME são instáveis (parciais
-    // ~276px ou inflados) e NÃO são aplicados diretamente. Sem gambiarra de
-    // posição absoluta.
+    // Altura real do teclado (Android). DUAS fontes, na ordem da verdade:
+    //
+    //   1. INSET NATIVO DO IME (módulo MinhasNotasIme) — WindowInsets.Type.ime,
+    //      a medida do SISTEMA. Inclui a faixa de sugestões do Samsung, a barra
+    //      extra do SwiftKey (área de transferência/tradução/pesquisa), teclado
+    //      flutuante/partido — qualquer modelo, qualquer tamanho. E muda JUNTO
+    //      com o teclado: quando a barra extra do SwiftKey aparece no meio da
+    //      digitação, a nova altura chega na hora (os eventos do RN só disparam
+    //      no show/hide e deixavam a toolbar antiga dentro do teclado novo).
+    //
+    //   2. EVENTOS DO RN (keyboardDidShow/DidChangeFrame/DidHide) — fallback
+    //      para API < 30 (onde o Android não despacha inset de IME) ou build
+    //      sem o módulo nativo. O didChangeFrame cobre também teclados que
+    //      mudam de altura sem um novo didShow.
+    //
+    // A altura vira paddingBottom do container e a toolbar no fluxo sobe junto.
+    // O KeyboardAvoidingView do RN, no Android, recalcula o padding com as
+    // coordenadas do evento 'keyboardDidHide' — que neste aparelho reportam um
+    // teclado "fantasma" de ~155px (faixa branca) e, quando o teclado "pisca"
+    // (ex.: diálogo de permissão do microfone leva o app a background), os
+    // eventos podem se perder ou vir com altura 0 — por isso nenhum valor
+    // corrompido passa pelo teto defensivo e a re-sincronização ao voltar do
+    // background consulta o inset nativo (a verdade) antes do máximo já visto.
     const [alturaTeclado, setAlturaTeclado] = useState(() => {
         // Inicializa com o metrics() SÓ se for plausível (os valores parciais
         // como ~276px ou inflados são ignorados — os eventos corrigem logo).
@@ -271,35 +284,86 @@ export default function EditorScreen() {
         const teto = Math.round(Dimensions.get('window').height * 0.6);
         return h > 0 && h <= teto ? h : 0;
     });
-    // Melhor (maior) altura real do teclado já vista nos eventos — a altura é
-    // constante no aparelho; os eventos parciais durante a animação são menores.
-    const melhorAlturaTecladoRef = useRef(0);
+    // Altura reportada por cada fonte: o inset nativo vence quando > 0.
+    const alturaNativaRef = useRef<number | null>(null);
+    const alturaEventosRef = useRef(0);
+    // Maior altura já vista nos EVENTOS — reserva da re-sincronização quando o
+    // inset nativo não está disponível (a altura é constante por teclado; os
+    // eventos parciais durante a animação são menores).
+    const melhorAlturaEventosRef = useRef(0);
+
+    const aplicarAlturaTeclado = () => {
+        setAlturaTeclado((atual) => {
+            const nativa = alturaNativaRef.current;
+            const alvo = nativa != null && nativa > 0 ? nativa : alturaEventosRef.current;
+            return atual === alvo ? atual : alvo;
+        });
+    };
+
     useEffect(() => {
         if (Platform.OS !== 'android') return;
         // Teto defensivo: nenhum teclado ocupa mais de ~60% da tela — valores
         // acima disso são eventos corrompidos e são ignorados.
         const ALTURA_MAX = Math.round(Dimensions.get('window').height * 0.6);
+
+        // FONTE 1 — o inset nativo em tempo real (a verdade do sistema)
+        const desObservarIme = observarIme((h) => {
+            if (h > ALTURA_MAX) return;
+            alturaNativaRef.current = h;
+            aplicarAlturaTeclado();
+        });
+
+        // FONTE 2 — eventos do RN (fallback)
         const show = Keyboard.addListener('keyboardDidShow', (e) => {
             const h = e.endCoordinates.height;
             if (h > 0 && h <= ALTURA_MAX) {
-                melhorAlturaTecladoRef.current = Math.max(melhorAlturaTecladoRef.current, h);
-                setAlturaTeclado(h);
+                melhorAlturaEventosRef.current = Math.max(melhorAlturaEventosRef.current, h);
+                alturaEventosRef.current = h;
+                aplicarAlturaTeclado();
             }
         });
-        const hide = Keyboard.addListener('keyboardDidHide', () => setAlturaTeclado(0));
+        // Mudança de frame NO MEIO da sessão: a barra extra do SwiftKey aparece
+        // some sem um novo didShow — este evento mantém o fallback honesto.
+        const change = Keyboard.addListener('keyboardDidChangeFrame', (e) => {
+            const h = e?.endCoordinates?.height ?? 0;
+            if (h > 0 && h <= ALTURA_MAX) {
+                melhorAlturaEventosRef.current = Math.max(melhorAlturaEventosRef.current, h);
+                alturaEventosRef.current = h;
+                aplicarAlturaTeclado();
+            }
+        });
+        const hide = Keyboard.addListener('keyboardDidHide', () => {
+            alturaEventosRef.current = 0;
+            aplicarAlturaTeclado();
+        });
+
         // Ao voltar do background (ex.: diálogo de permissão do microfone), os
-        // eventos podem se perder (teclado aberto com altura 0). Recupera com a
-        // MELHOR altura vista nos eventos — nunca valores crus do metrics/IME.
+        // eventos podem se perder (teclado aberto com altura 0). Consulta o
+        // inset nativo — a altura REAL do agora — e só usa o máximo já visto
+        // nos eventos quando o inset não está disponível.
         const appStateSub = AppState.addEventListener('change', (estado) => {
             if (estado !== 'active') return;
             setTimeout(() => {
-                setAlturaTeclado((atual) => {
-                    if (atual > 0 || !Keyboard.isVisible()) return atual;
-                    return melhorAlturaTecladoRef.current > 0 ? melhorAlturaTecladoRef.current : atual;
+                imeHeightAtual().then((h) => {
+                    if (h != null && h <= ALTURA_MAX) {
+                        alturaNativaRef.current = h;
+                        aplicarAlturaTeclado();
+                        return;
+                    }
+                    setAlturaTeclado((atual) => {
+                        if (atual > 0 || !Keyboard.isVisible()) return atual;
+                        return melhorAlturaEventosRef.current > 0 ? melhorAlturaEventosRef.current : atual;
+                    });
                 });
-            }, 350);
+            }, 300);
         });
-        return () => { show.remove(); hide.remove(); appStateSub.remove(); };
+        return () => {
+            desObservarIme();
+            show.remove();
+            change.remove();
+            hide.remove();
+            appStateSub.remove();
+        };
     }, []);
     // A IA de verdade só funciona com chave configurada
     const temChaveIA = !!config?.chaveIA;
