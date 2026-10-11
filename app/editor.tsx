@@ -1738,7 +1738,7 @@ const styles = StyleSheet.create({
     btnProntoSuperior: { minWidth: 72, height: 40, borderRadius: 14, paddingHorizontal: 13, justifyContent: 'center', alignItems: 'center' },
     txtProntoSuperior: { fontSize: 15, fontWeight: '800' },
     inputTitulo: { fontSize: 31, fontWeight: '900', marginHorizontal: 25, paddingTop: 12, paddingBottom: 8, letterSpacing: -0.7 },
-    inputConteudo: { flex: 1, minHeight: 300 },
+    inputConteudo: { flex: 1, minHeight: 150 },
     toolbarWrapper: {
         height: 58,
         borderRadius: 20,
