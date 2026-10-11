@@ -16,7 +16,14 @@ const SCOPES = ['openid','email','profile','https://www.googleapis.com/auth/driv
 function userDataDir(){
   try{ const {app}=require('electron'); return app.getPath('userData'); }catch{ return path.join(os.tmpdir(),'simple-notes-pro-desktop','userData'); }
 }
+// PERFIL ISOLADO (SN_USER_DATA, setado no main antes do app): quando ativo, a
+// sessão é lida e gravada SÓ dentro do perfil — os candidatos compartilhados
+// (pai do userData, pasta do exe, ~/, %TEMP%...) ficam desativados. Sem isso,
+// uma cópia de teste achava sessao.json antigos espalhados (ex.: %TEMP%) e
+// logava na conta real por trás — e sincronizava dados de verdade.
+function perfilIsolado() { return !!String(process.env.SN_USER_DATA || '').trim(); }
 function candidatosBase() {
+  if (perfilIsolado()) return [userDataDir()];
   const out = [];
   try { out.push(userDataDir()); } catch {}
   try { const { app } = require('electron'); out.push(path.join(app.getPath('userData'), '..')); } catch {}
@@ -77,7 +84,8 @@ function salvarSessao(usuario) {
   let ok=false;
   try { const p=path.join(userDataDir(),'sessao.json'); fs.mkdirSync(path.dirname(p),{recursive:true}); fs.writeFileSync(p, payload,'utf8'); ok=true; } catch(e){ console.error('[auth] salvar userData falhou', e && e.message); }
   // compat: também grava nos legados para quem atualizou de versão antiga
-  try { fs.writeFileSync(path.join(__dirname, '..', 'sessao.json'), payload, 'utf8'); } catch {}
+  // (NUNCA no perfil isolado — nada da sessão sai da pasta do perfil)
+  if (!perfilIsolado()) { try { fs.writeFileSync(path.join(__dirname, '..', 'sessao.json'), payload, 'utf8'); } catch {} }
   if(!ok) console.error('[auth] nenhuma escrita de sessao funcionou');
 }
 function carregarSessao() {
@@ -91,7 +99,10 @@ function carregarSessao() {
       } catch {}
     }
   }
-  try { return JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'sessao.json'), 'utf8')); } catch { return null; }
+  if (!perfilIsolado()) {
+    try { return JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'sessao.json'), 'utf8')); } catch { return null; }
+  }
+  return null;
 }
 function apagarSessao() {
   try{ fs.unlinkSync(path.join(userDataDir(),'sessao.json')); }catch{}

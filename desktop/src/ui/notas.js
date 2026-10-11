@@ -186,12 +186,18 @@
         chipsTags.style.display='flex';
         chipsTagsPainel.innerHTML='';
         if(tagsFiltro.length){
+          // Faixa full-width sticky: cobre a linha inteira com fundo opaco —
+          // chips que rolam por trás somem na borda, sem vazar nas laterais
+          // do chip (o sticky solto deixava pedaços de chip aparecendo ao lado).
+          var faixa=document.createElement('div');
+          faixa.style.cssText='position:sticky;top:-3px;z-index:1;flex-basis:100%;display:flex;margin:0 -3px;padding:2px 3px;background:var(--superficie2)';
           var limpar=document.createElement('button');
           limpar.className='chip-tag';
-          limpar.style.cssText='background:var(--sf2);color:var(--tx2);border-color:var(--bd)';
+          limpar.style.cssText='color:var(--tx2);border-color:var(--bd)';
           limpar.innerHTML='✕ '+esc(T('Limpar'));
           limpar.onclick=function(){ tagsFiltro=[]; render(ctx); };
-          chipsTagsPainel.appendChild(limpar);
+          faixa.appendChild(limpar);
+          chipsTagsPainel.appendChild(faixa);
         }
         catalogo.forEach(function(ct){
           var ativo=tagsFiltro.indexOf(ct.nome)!==-1;
@@ -201,7 +207,7 @@
           chip.style.cssText=ativo
             ? 'background:'+cor+';color:#0D0A08;border-color:'+cor+';font-weight:900'
             : 'background:'+cor+'22;color:'+cor+';border-color:'+cor;
-          chip.innerHTML=(ativo?'✓ ':'')+'#'+esc(ct.nome)+' <span style="opacity:.65;font-size:10.5px">'+ct.count+'</span>';
+          chip.innerHTML=(ativo?'✓ ':'')+'<span style="display:block;max-width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">#'+esc(ct.nome)+'</span> <span style="opacity:.65;font-size:10.5px;flex-shrink:0">'+ct.count+'</span>';
           chip.onclick=function(){
             var i=tagsFiltro.indexOf(ct.nome);
             if(i===-1) tagsFiltro.push(ct.nome); else tagsFiltro.splice(i,1);

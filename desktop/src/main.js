@@ -63,6 +63,18 @@ try {
 } catch {}
 
 // ---- Instância única: abrir o app 2x/3x = um processo só (o resto foca a janela existente) ----
+// Perfil sob demanda: a variável de ambiente SN_USER_DATA=<caminho> move TODA a instância
+// (store, logs e o próprio lock) para outro diretório — permite rodar uma versão de teste
+// ao lado do app instalado sem disputar o mesmo perfil. Tem que vir ANTES do
+// requestSingleInstanceLock. (Não é switch de linha de comando: o binário do Electron
+// recusa --user-data-dir com "bad option" antes de carregar o app.)
+try {
+  const ud = String(process.env.SN_USER_DATA || '').trim();
+  if (ud) {
+    const caminho = path.resolve(ud);
+    if (caminho) { fs.mkdirSync(caminho, { recursive: true }); app.setPath('userData', caminho); }
+  }
+} catch {}
 const pegouLock = app.requestSingleInstanceLock();
 try { require('fs').appendFileSync(path.join(app.getPath('userData'), 'renderer.log'), 'MAIN boot lock=' + pegouLock + ' ts=' + new Date().toISOString() + '\n'); } catch (e) {}
 if (!pegouLock) {
