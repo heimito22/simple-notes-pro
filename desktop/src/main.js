@@ -54,6 +54,7 @@ ipcMain.handle('update:reiniciar', async()=>{
 app.commandLine.appendSwitch('enable-gpu-rasterization');
 app.commandLine.appendSwitch('enable-zero-copy');
 app.commandLine.appendSwitch('ignore-gpu-blocklist');
+app.commandLine.appendSwitch('enable-logging');
 // cache em disco normal (Electron gerencia); evita EBUSY de tmpdir em headless apagando só o cache antigo
 if (process.platform === 'win32') app.commandLine.appendSwitch('no-sandbox');
 try {
@@ -63,6 +64,7 @@ try {
 
 // ---- Instância única: abrir o app 2x/3x = um processo só (o resto foca a janela existente) ----
 const pegouLock = app.requestSingleInstanceLock();
+try { require('fs').appendFileSync(path.join(app.getPath('userData'), 'renderer.log'), 'MAIN boot lock=' + pegouLock + ' ts=' + new Date().toISOString() + '\n'); } catch (e) {}
 if (!pegouLock) {
   app.quit();
 } else {

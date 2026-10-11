@@ -3,6 +3,16 @@
   var edit = null; // { kind:'nota'|'lista', id }
   var selecionados = new Set(); // ids de notas+listas
   var dragListaId = null;
+  // Escape LOCAL: o `esc` do app.js vive no escopo DELE (IIFE) — funções deste
+  // módulo que rodam FORA do render (cards, sugestões) não o enxergam.
+  // (escapes via unicode para sobreviverem intactos a qualquer pipeline)
+  function escL(s) {
+    return String(s || '')
+      .replace(/&/g, '\u0026amp;')
+      .replace(/</g, '\u0026lt;')
+      .replace(/>/g, '\u0026gt;')
+      .replace(/"/g, '\u0026quot;');
+  }
   // TAGS: filtro por múltiplas tags (E) + prefixo digitado no editor (sugestões)
   var tagsFiltro = [];
   var tagPrefixoAtual = '';
@@ -34,12 +44,12 @@
     var re=/#[\p{L}\p{N}_-]{1,40}/gu;
     var ultimo=0, m;
     while((m=re.exec(texto))!==null){
-      saida+=esc(texto.slice(ultimo, m.index));
+      saida+=escL(texto.slice(ultimo, m.index));
       var cor=window.TagsSync ? window.TagsSync.corDaTag(m[0]) : 'var(--azul)';
-      saida+='<span style="color:'+cor+';font-weight:700">'+esc(m[0])+'</span>';
+      saida+='<span style="color:'+cor+';font-weight:700">'+escL(m[0])+'</span>';
       ultimo=m.index+m[0].length;
     }
-    saida+=esc(texto.slice(ultimo));
+    saida+=escL(texto.slice(ultimo));
     return saida;
   }
 
@@ -167,8 +177,8 @@
         render(ctx);
       });
     }
-    var chipsTags=$('#chipsTags');           // fundo do popup (overlay)
-    var chipsTagsPainel=$('#chipsTagsPainel'); // painel branco central
+    var chipsTags=$('#chipsTags');           // overlay do modal
+    var chipsTagsPainel=$('#chipsTagsLista'); // área dos chips dentro do card
     if(chipsTags && chipsTagsPainel && Tags){
       var catalogo=Tags.tagsDeItens(store.notas||[]);
       if(!catalogo.length || !chipsTagsAberto){ chipsTags.style.display='none'; }
@@ -485,7 +495,7 @@
           var chip=document.createElement('button');
           chip.className='chip-tag';
           chip.style.cssText='background:'+cor+'22;color:'+cor+';border-color:'+cor;
-          chip.innerHTML=(ct.nome.indexOf(pfxL)===0 ? '#'+esc(pfxL)+'<b style="color:'+cor+'">'+esc(ct.nome.slice(pfxL.length))+'</b>' : '#'+esc(ct.nome))+' <span style="opacity:.65;font-size:10.5px">'+ct.count+'</span>';
+          chip.innerHTML=(ct.nome.indexOf(pfxL)===0 ? '#'+escL(pfxL)+'<b style="color:'+cor+'">'+escL(ct.nome.slice(pfxL.length))+'</b>' : '#'+escL(ct.nome))+' <span style="opacity:.65;font-size:10.5px">'+ct.count+'</span>';
           chip.onclick=function(ev){
             ev.stopPropagation();
             try{
@@ -500,7 +510,7 @@
                 }
               }
               rich.focus();
-              document.execCommand('insertHTML', false, '#'+esc(ct.nome)+'&nbsp;');
+              document.execCommand('insertHTML', false, '#'+escL(ct.nome)+'&nbsp;');
             }catch(err){}
             su.style.display='none'; su.innerHTML='';
             persistirRichDebounced();

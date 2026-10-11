@@ -26,10 +26,14 @@
             <span id="badgeFiltroTagPc" style="display:none;position:absolute;top:-4px;right:-4px;min-width:15px;height:15px;border-radius:8px;background:var(--azul);color:#fff;font-size:9.5px;font-weight:900;align-items:center;justify-content:center;padding:0 3px"></span>
           </button>
         </label>
-        <!-- FILTRO POR TAGS: POPUP centralizado com fundo — abre pelo funil
-             dentro da barra, fecha ao clicar fora. -->
-        <div id="chipsTags" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:300;justify-content:center;align-items:center">
-          <div id="chipsTagsPainel" style="background:var(--sf1);border:1px solid var(--bd);border-radius:16px;padding:14px;width:min(440px,92vw);max-height:70vh;overflow:auto"></div>
+        <!-- FILTRO POR TAGS: MODAL centralizado (mesmo padrão do criar pasta) —
+             abre pelo funil dentro da barra, fecha ao clicar fora. -->
+        <div id="chipsTags" class="modal-overlay" style="display:none">
+          <div class="modal-card" id="chipsTagsPainel">
+            <h3 style="margin:0" data-i18n="Filtrar por tag">Filtrar por tag</h3>
+            <p style="color:var(--tx2);font-size:.84rem;margin:0" data-i18n="Toque nas tags para filtrar — pode combinar várias.">Toque nas tags para filtrar — pode combinar várias.</p>
+            <div id="chipsTagsLista" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+          </div>
         </div>
       </div>
       <nav class="nav">
