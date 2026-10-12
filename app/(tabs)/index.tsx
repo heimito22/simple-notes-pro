@@ -1429,6 +1429,15 @@ export default function HomeScreen() {
         {!selecionando && <Animated.View pointerEvents="none" style={[styles.fabBackdrop, { opacity: animaMenu }]} />}
         {!selecionando && (
         <View style={styles.fabWrapper}>
+          {/* IA — aba de chat dedicada do NotaIA (cria tarefas, notas, pastas…).
+              Adaptável: com o botão de ajuda DESLIGADO nos ajustes, o ✨ desce
+              para o lugar dele — a pilha nunca fica com vão. */}
+          <Animated.View style={[styles.miniBotaoWrap, { opacity: animaMenu, transform: [{ scale: animaMenu }, { translateY: animaMenu.interpolate({ inputRange: [0, 1], outputRange: [0, config.exibirAjudaFAB !== false ? -285 : -215] }) }] }]}>
+            <TouchableOpacity style={[styles.miniBotao, { backgroundColor: paleta.primarySoft }]} onPress={() => { toggleMenu(); router.push('/ia'); }}>
+              <Ionicons name="sparkles" size={26} color={paleta.primary} />
+            </TouchableOpacity>
+          </Animated.View>
+
           {/* AJUSTE: Botão de ajuda condicional à configuração */}
           {(config.exibirAjudaFAB !== false) && (
             <Animated.View style={[styles.miniBotaoWrap, { opacity: animaMenu, transform: [{ scale: animaMenu }, { translateY: animaMenu.interpolate({ inputRange: [0, 1], outputRange: [0, -215] }) }] }]}>

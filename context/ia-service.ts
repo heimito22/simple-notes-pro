@@ -365,6 +365,66 @@ export function conteudoAplicadoDaProposta(conteudo: string, titulo: string, tit
 
 const URL_API = 'https://openrouter.ai/api/v1/chat/completions';
 
+/**
+ * Chamada à API do OpenRouter — O formato canônico do app.
+ *
+ * (1) content sempre como ARRAY DE PARTES `[{type:'text'}]`: o validador de
+ *     certos backends do roteador recusa string ("messages[N].content[M]
+ *     must be an object") — era o erro que fazia a IA do CELULAR nunca
+ *     conectar enquanto o PC funcionava.
+ * (2) model 'openrouter/auto' (o mesmo que o PC usa na prática — os modelos
+ *     "free" fixos que ele listava estão mortos/instáveis), com
+ *     'openrouter/free' de reserva.
+ * (3) Em falha, loga o corpo da requisição — diagnóstico no logcat sem
+ *     precisar de proxy.
+ * A resposta vem normalizada pra string (aceita content string OU partes).
+ */
+const chamarOpenRouter = async (
+  chaveApi: string,
+  model: string,
+  messages: any[],
+  maxTokens: number,
+  temperature: number,
+  fallback: string | null = null,
+): Promise<{ ok: boolean; status: number; texto: string; corpo: string }> => {
+  const corpoReq = JSON.stringify({
+    model,
+    messages: messages.map((m: any) => ({
+      role: m.role,
+      content: [{ type: 'text', text: String(m.content ?? '') }],
+    })),
+    temperature,
+    max_tokens: maxTokens,
+  });
+  const res = await fetch(URL_API, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${chaveApi}`,
+      'HTTP-Referer': 'https://simple-notes.app',
+      'X-Title': 'Simple Notes',
+    },
+    body: corpoReq,
+  });
+  if (!res.ok) {
+    const errTxt = await res.text().catch(() => '');
+    if (fallback && res.status !== 401 && res.status !== 429) {
+      console.warn(`[IA] modelo ${model} falhou (HTTP ${res.status}) — tentando ${fallback}`);
+      return chamarOpenRouter(chaveApi, fallback, messages, maxTokens, temperature, null);
+    }
+    console.warn(`[IA] requisição falhou (HTTP ${res.status}):`, errTxt.slice(0, 200), '| corpo:', corpoReq.slice(0, 400));
+    return { ok: false, status: res.status, texto: '', corpo: errTxt };
+  }
+  const data = await res.json().catch(() => null);
+  const bruto: any = data?.choices?.[0]?.message?.content;
+  const texto = typeof bruto === 'string'
+    ? bruto.trim()
+    : Array.isArray(bruto)
+      ? bruto.map((p: any) => String(p?.text || '')).join('').trim()
+      : '';
+  return { ok: true, status: res.status, texto, corpo: '' };
+};
+
 // Tetos de resposta: conversa é curta; EDIÇÃO devolve a nota inteira em HTML
 // (nota longa truncada perderia o bloco JSON e a edição nunca chegaria).
 const TETO_CHAT = 400;
@@ -572,35 +632,19 @@ export async function resumirNotaComIA(nota: any, chaveApi: string, idioma: Idio
   ];
 
   try {
-    const res = await fetch(URL_API, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${chaveApi}`,
-        'HTTP-Referer': 'https://simple-notes.app',
-        'X-Title': 'Simple Notes',
-      },
-      body: JSON.stringify({
-        model: 'openrouter/free',
-        messages,
-        temperature: 0.5,
-        max_tokens: 400,
-      }),
-    });
+    const r = await chamarOpenRouter(chaveApi, 'openrouter/auto', messages, 400, 0.5, 'openrouter/free');
 
-    if (!res.ok) {
-      const corpo = await res.text().catch(() => '');
-      if (res.status === 401) {
+    if (!r.ok) {
+      if (r.status === 401) {
         return { texto: tIdioma(idioma, 'A chave de IA configurada não é válida. Verifique em Ajustes → IA.'), modo: 'offline' };
       }
-      if (res.status === 429) {
+      if (r.status === 429) {
         return { texto: tIdioma(idioma, 'A IA gratuita está com limite de uso no momento. Aguarde um minuto e tente de novo.'), modo: 'offline' };
       }
-      throw new Error(`API ${res.status}: ${corpo.slice(0, 120)}`);
+      throw new Error(`API ${r.status}: ${r.corpo.slice(0, 120)}`);
     }
 
-    const data = await res.json();
-    const texto = data?.choices?.[0]?.message?.content?.trim();
+    const texto = r.texto;
     if (!texto) throw new Error('Resposta vazia da API');
     return { texto, modo: 'online' };
   } catch (e) {
@@ -760,57 +804,29 @@ export async function responderPergunta(
     },
   ];
 
-  /**
-   * Uma EDIÇÃO devolve o HTML completo da nota: teto alto para nota longa não
-   * ser truncada (o bloco JSON se perderia). Modelos grátis recusam tetos acima
-   * do próprio limite — nesse caso o recuo para TETO_RESERVA mantém funcionando.
-   */
-  const chamar = (maxTokens: number) => fetch(URL_API, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${chaveApi}`,
-      'HTTP-Referer': 'https://simple-notes.app',
-      'X-Title': 'Simple Notes',
-    },
-    body: JSON.stringify({
-      model: 'openrouter/free',
-      messages,
-      temperature: 0.7,
-      max_tokens: maxTokens,
-    }),
-  });
-
   try {
-    let res = await chamar(ordemEdicao || ordemAcao ? TETO_EDICAO : TETO_CHAT);
-    if ((ordemEdicao || ordemAcao) && res.status === 400) {
-      const corpo400 = await res.text().catch(() => '');
-      if (/max_tokens|maximum|too large|context length/i.test(corpo400)) {
-        res = await chamar(TETO_RESERVA);
-      } else {
-        throw new Error(`API 400: ${corpo400.slice(0, 120)}`);
-      }
+    let r = await chamarOpenRouter(chaveApi, 'openrouter/auto', messages, ordemEdicao || ordemAcao ? TETO_EDICAO : TETO_CHAT, 0.7, 'openrouter/free');
+    if ((ordemEdicao || ordemAcao) && r.status === 400 && /max_tokens|maximum|too large|context length/i.test(r.corpo)) {
+      r = await chamarOpenRouter(chaveApi, 'openrouter/auto', messages, TETO_RESERVA, 0.7, 'openrouter/free');
     }
 
-    if (!res.ok) {
-      const corpo = await res.text().catch(() => '');
-      if (res.status === 401) {
+    if (!r.ok) {
+      if (r.status === 401) {
         return {
           texto: tIdioma(idioma, 'A chave de IA configurada não é válida. Verifique em Ajustes → IA.'),
           modo: 'offline',
         };
       }
-      if (res.status === 429) {
+      if (r.status === 429) {
         return {
           texto: tIdioma(idioma, 'A IA gratuita está com limite de uso no momento (muitas perguntas em pouco tempo). Aguarde um minuto e tente de novo — ou pergunte em Ajustes → IA se a chave está certa.'),
           modo: 'offline',
         };
       }
-      throw new Error(`API ${res.status}: ${corpo.slice(0, 120)}`);
+      throw new Error(`API ${r.status}: ${r.corpo.slice(0, 120)}`);
     }
 
-    const data = await res.json();
-    const texto = data?.choices?.[0]?.message?.content?.trim();
+    const texto = r.texto;
     if (!texto) throw new Error('Resposta vazia da API');
     return { texto, modo: 'online', ordemEdicao };
   } catch (e) {
