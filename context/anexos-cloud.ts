@@ -44,7 +44,7 @@ const mimePorExtensao = (nome: string): string => {
 };
 
 /** Todos os anexos referenciados pelo HTML das notas (img src e audio src locais). */
-const extrairAnexosLocais = (htmls: string[]): { nome: string; caminho: string }[] => {
+export const extrairAnexosLocais = (htmls: string[]): { nome: string; caminho: string }[] => {
   const nomes = new Set<string>();
   const padrao = /(?:src|data-audio-uri)=["']([^"']*)["']/gi;
   for (const html of htmls) {
@@ -239,17 +239,34 @@ const subirAnexos = async (htmls: string[]): Promise<number> => {
  * WebView renderiza a imagem quebrada ("imagem") porque o caminho virtual
  * não existe no Android.
  *
- * Idempotente e seguro: URIs reais (`file:///data/user/0/…/imagens_notas/…`)
- * NÃO casam com o padrão virtual (`file://` seguido direto do nome da pasta).
+ * Também NORMALIZA a barra dupla que a versão anterior produzia: o uri do
+ * Directory já termina com '/' e a concatenação somava outra
+ * (`imagens_notas//img_…`) — caminho que o WebView não carrega (imagens
+ * inseridas pelo próprio celular usam Paths.join, sempre barra única).
+ *
+ * Idempotente e seguro: URIs reais corretas (`file:///data/user/0/…/imagens_notas/img_…`)
+ * NÃO casam com o padrão virtual nem com o padrão quebrado.
  */
+const uriComBarra = (uri: string): string => (uri.endsWith('/') ? uri : uri + '/');
+
 export const reapontarAnexosVirtuais = (html: string): string => {
   if (!html) return html;
   let out = html;
   if (DIR_IMAGENS && out.indexOf('file://imagens_notas/') !== -1) {
-    out = out.split('file://imagens_notas/').join(DIR_IMAGENS.uri + '/');
+    out = out.split('file://imagens_notas/').join(uriComBarra(DIR_IMAGENS.uri));
   }
   if (DIR_AUDIOS && out.indexOf('file://audios_notas/') !== -1) {
-    out = out.split('file://audios_notas/').join(DIR_AUDIOS.uri + '/');
+    out = out.split('file://audios_notas/').join(uriComBarra(DIR_AUDIOS.uri));
+  }
+  // Cura refs já quebradas pela barra dupla (nota salva antes deste fix):
+  // `…imagens_notas//img_…` → `…imagens_notas/img_…`
+  if (DIR_IMAGENS) {
+    const base = uriComBarra(DIR_IMAGENS.uri);
+    if (out.indexOf(base + '/') !== -1) out = out.split(base + '/').join(base);
+  }
+  if (DIR_AUDIOS) {
+    const base = uriComBarra(DIR_AUDIOS.uri);
+    if (out.indexOf(base + '/') !== -1) out = out.split(base + '/').join(base);
   }
   return out;
 };
@@ -276,6 +293,7 @@ export const restaurarAnexosDownload = async (htmls: string[]): Promise<number> 
 
     const faltantes = anexos.filter(a => !new File(a.caminho).exists);
     if (faltantes.length === 0) return 0;
+    console.log('[Anexos] download pendente:', faltantes.length, '—', faltantes.map(a => a.nome).join(', '));
 
     const token = await buscarToken();
     if (!token) return 0;
@@ -284,7 +302,10 @@ export const restaurarAnexosDownload = async (htmls: string[]): Promise<number> 
 
     for (const anexo of faltantes) {
       const info = existentes.get(PREFIXO + anexo.nome);
-      if (!info || info.size === 0) continue; // nunca subiu, ou vazio de falha antiga
+      if (!info || info.size === 0) {
+        console.log('[Anexos] anexo citado mas ausente/zerado no Drive:', anexo.nome);
+        continue; // nunca subiu, ou vazio de falha antiga
+      }
       try {
         const destino = new File(anexo.caminho);
         // Conteúdo pode ser binário puro OU base64-em-texto (fallback do upload
@@ -292,22 +313,36 @@ export const restaurarAnexosDownload = async (htmls: string[]): Promise<number> 
         const r = await fetch(`https://www.googleapis.com/drive/v3/files/${info.id}?alt=media`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        if (!r.ok) continue;
-        const texto = await r.text();
-        if (info.b64) {
-          const bytes = base64ParaBytes(texto);
-          if (bytes.length === 0) continue;
-          await destino.write(bytes, { encoding: 'binary' } as any);
-        } else {
-          // binário puro baixado como text corrompe; usa via arrayBuffer quando disponível
-          const ab = await r.arrayBuffer();
-          await destino.write(new Uint8Array(ab), { encoding: 'binary' } as any);
+        if (!r.ok) {
+          console.log('[Anexos] falha ao baixar', anexo.nome, 'HTTP', r.status);
+          continue;
         }
+        // Gravação: o enum nativo do expo-file-system no Android só conhece
+        // 'utf8' e 'base64' — 'binary' é rejeitado na ponte EXPO (era isto que
+        // impedia o anexo de chegar ao disco; o catch silencioso escondia).
+        // Então todo conteúdo é gravado via base64.
+        let b64: string;
+        if (info.b64) {
+          // conteúdo é base64-em-texto (upload do PC/celular): limpa e usa direto
+          b64 = (await r.text()).replace(/[^A-Za-z0-9+/=]/g, '');
+        } else {
+          // binário puro no Drive: baixa como arrayBuffer e converte para base64
+          const ab = await r.arrayBuffer();
+          b64 = bytesParaBase64(new Uint8Array(ab));
+        }
+        if (!b64) {
+          console.log('[Anexos] anexo vazio/ilegível no Drive:', anexo.nome);
+          continue;
+        }
+        await destino.write(b64, { encoding: 'base64' });
         if (destino.exists) restaurados++;
-      } catch {
+        else console.log('[Anexos] gravou mas o arquivo não apareceu:', anexo.nome);
+      } catch (e) {
+        console.log('[Anexos] erro no download de', anexo.nome, (e as any)?.message || e);
         // individual falhou — tenta no próximo ciclo
       }
     }
+    if (restaurados > 0) console.log('[Anexos] restaurado(s):', restaurados);
     return restaurados;
   } catch {
     return 0;

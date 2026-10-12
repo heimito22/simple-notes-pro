@@ -100,9 +100,14 @@ const normalizarAudioInline = (html: string) => html.replace(
   (_bloco, audioTag: string, uri: string) => `<span class="anexo-audio-inline" data-audio-uri="${uri}"><span class="anexo-audio-grip" contenteditable="false" aria-label="${rotuloGripAudio()}">⋮</span>${audioTag}</span>`
 );
 
-// Converte marcadores de anexos antigos ("[Imagem anexada: x.jpg]") em tags reais.
+// Converte marcadores de anexos antigos ("[Imagem anexada: x.jpg]") em tags reais
+// e RESOLVE refs virtuais do PC (file://imagens_notas/…) para o caminho local —
+// última linha de defesa: mesmo que uma nota chegue ao editor com a ref virtual
+// (sem passar pelo reapontar do sync), a imagem/áudio renderiza aqui.
 const converterMarcadores = (html: string, imagensDirUri?: string, audiosDirUri?: string) => {
   if (!html || (!imagensDirUri && !audiosDirUri)) return html;
+  const baseImagens = (imagensDirUri || '').endsWith('/') ? imagensDirUri : (imagensDirUri || '') + '/';
+  const baseAudios = (audiosDirUri || '').endsWith('/') ? audiosDirUri : (audiosDirUri || '') + '/';
   const convertido = html
     .replace(/\[Imagem anexada:\s*([^\]]+?)\s*\]/gi, (m, nome: string) =>
       imagensDirUri
@@ -114,7 +119,10 @@ const converterMarcadores = (html: string, imagensDirUri?: string, audiosDirUri?
       return audiosDirUri
         ? `<br>${audioInlineHtml(`${audiosDirUri}/${nomeLimpo}`, nomeLimpo)}<br>`
         : m;
-    });
+    })
+    // Refs virtuais do PC → caminho local real (idempotente: refs reais não casam)
+    .replace(/(src|data-audio-uri)=("|')file:\/\/imagens_notas\//gi, `$1=$2${baseImagens}`)
+    .replace(/(src|data-audio-uri)=("|')file:\/\/audios_notas\//gi, `$1=$2${baseAudios}`);
   return normalizarAudioInline(convertido);
 };
 

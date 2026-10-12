@@ -383,18 +383,25 @@ async function desidratarNotasParaEnvio(token, dados){
         nomes.set(b64, { nome: nome, nomeDrive: PREFIXO_ANEXO + nome });
       }
 
-      // 3) Sobe só o que ainda não existe no Drive (idempotente: push barato)
+      // 3) Sobe só o que ainda não existe no Drive (idempotente: push barato).
+      //    GARANTIDOS = confirmados no Drive (já existia OU subiu agora):
+      //    o passo 4 só troca data:uri por ref para anexo garantido — se o
+      //    upload falhou, a nota mantém o data:uri (renderiza em qualquer
+      //    aparelho) em vez de apontar para um anexo que não existe.
       var existentes = await listarAnexosDriveMapa(token);
       var subidos = 0;
+      var garantidos = new Set();
       for (var [b64b, n] of nomes) {
-        if (existentes.has(n.nomeDrive)) continue;
-        try { if (await subirAnexoDrive(token, n.nomeDrive, b64b)) subidos++; } catch(e){}
+        if (existentes.has(n.nomeDrive)) { garantidos.add(n.nomeDrive); continue; }
+        try { if (await subirAnexoDrive(token, n.nomeDrive, b64b)) { subidos++; garantidos.add(n.nomeDrive); } } catch(e){}
       }
       if (subidos) console.log('[sync] anexos separados do JSON:', subidos);
+      if (nomes.size !== garantidos.size) console.warn('[sync] anexo(s) NÃO confirmado(s) no Drive — data:uri mantido(s) no payload:', nomes.size - garantidos.size);
 
       // 4) Troca data:uri -> file://anexo no PAYLOAD (o store local fica intacto)
       var trocas = 0;
       for (var [b64c, n2] of nomes) {
+        if (!garantidos.has(n2.nomeDrive)) continue; // anexo não garantido: mantém data:uri
         var ref = 'file://imagens_notas/' + n2.nome;
         if (n2.nome.indexOf('audio_') === 0) ref = 'file://audios_notas/' + n2.nome;
         // troca precisa: o par data:uri completo que casa com ESTE b64 vira a sua própria referência

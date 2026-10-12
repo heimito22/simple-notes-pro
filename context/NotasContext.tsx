@@ -7,7 +7,8 @@ import { useListas } from './ListaContext';
 import { useTarefas } from './TarefasContext';
 import { agendarLembretes, cancelarLembretes, type LembreteNota } from './lembrete-notas';
 import { verificarTelaCheia } from './permissao-alarme';
-import { sincronizarAnexosUpload, restaurarAnexosDownload, reapontarAnexosVirtuais } from './anexos-cloud';
+import { sincronizarAnexosUpload, restaurarAnexosDownload, reapontarAnexosVirtuais, extrairAnexosLocais } from './anexos-cloud';
+import { File } from 'expo-file-system';
 import { hidratarApagados, definirEscopoApagados, registrarApagado, registrarApagados, serializarApagados, carregarApagados, mesclarPorItem, assinaturaItem, tsDoItemExportado, hidratarRelogio, relogioAgora, avancarRelogioComItens } from './tombstones';
 import { acharBackupCanonico } from './backup-drive';
 import { useTheme } from './ThemeContext';
@@ -731,10 +732,20 @@ export function NotasProvider({ children }: any) {
     const timer = setTimeout(async () => {
       try {
         const notas = notasRef.current || [];
-        const comVirtual = notas.filter((n: any) => typeof n?.conteudo === 'string' &&
-          (n.conteudo.indexOf('file://imagens_notas/') !== -1 || n.conteudo.indexOf('file://audios_notas/') !== -1));
-        if (comVirtual.length === 0) return;
-        const htmls = comVirtual.map((n: any) => n.conteudo);
+        // Alvo = qualquer nota que (a) o reapontar mudaria: refs virtuais do PC
+        // (file://imagens_notas/…) OU refs quebradas pela barra dupla da versão
+        // anterior (imagens_notas//img_…) — OU (b) cita anexo local que não
+        // existe no disco (download que falhou depois do src já curado:
+        // sem isto a imagem ficava quebrada para sempre, pois nada re-tentava).
+        const alvo = notas.filter((n: any) => {
+          if (typeof n?.conteudo !== 'string' || n.conteudo.indexOf('file://') === -1) return false;
+          if (reapontarAnexosVirtuais(n.conteudo) !== n.conteudo) return true;
+          try {
+            return extrairAnexosLocais([n.conteudo]).some(a => !new File(a.caminho).exists);
+          } catch { return false; }
+        });
+        if (alvo.length === 0) return;
+        const htmls = alvo.map((n: any) => n.conteudo);
         await (restaurarAnexosDownload(htmls) as Promise<any>).catch(() => {});
         if (cancelado) return;
         let mudou = false;
@@ -746,7 +757,7 @@ export function NotasProvider({ children }: any) {
         });
         if (mudou) {
           setNotas(curadas);
-          console.log('[Anexos] higienizadas', comVirtual.length, 'nota(s) com refs virtuais do PC');
+          console.log('[Anexos] higienizadas', alvo.length, 'nota(s) com refs quebradas/virtuais do PC');
         }
       } catch {}
     }, 2500); // deixa o store carregar e a conta assentar antes de tocar
