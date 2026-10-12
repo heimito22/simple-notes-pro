@@ -895,8 +895,20 @@ async function iaEnviar(){
     if(!iaLib){ throw new Error(T('IA não carregada')); }
     // Alvos de edição: notas + listas com ids — a IA propõe, o app confirma.
     if(iaLib.definirAlvos) iaLib.definirAlvos([].concat(store.notas||[], store.listas||[]));
+    // Inventário do agente: pastas e tarefas com ids p/ alvo/alvos das ações.
+    if(iaLib.definirInventario) iaLib.definirInventario(store.pastas||[], store.tarefas||[]);
     var res=await iaLib.perguntar(pergunta, store.notas||[], store.tarefas||[], chave, iaHistorico);
     var el=document.getElementById('iaLoading'); if(el) el.remove();
+    // 1º o protocolo de AÇÕES do agente (criar nota/lista/tarefa/pasta, mover,
+    // fixar, agendar); sem bloco de ações, cai no de edição tradicional.
+    var acoesLib=window.snIaAcoes;
+    var acoesExtra = acoesLib ? acoesLib.extrairAcoes(res.texto) : { acoes: null, textoLimpo: res.texto };
+    if(acoesExtra.acoes && acoesExtra.acoes.length){
+      iaAppend('ia', acoesExtra.textoLimpo||res.texto, false);
+      iaHistorico.push({papel:'ia', texto: acoesExtra.textoLimpo||res.texto});
+      mostrarCartaoAcoes(acoesExtra.acoes);
+      return;
+    }
     // A resposta pode conter proposta de edição (bloco ```json) — separa
     // o texto da conversa e mostra o cartão de confirmação.
     var extra={proposta:null, textoLimpo:res.texto};
@@ -911,6 +923,42 @@ async function iaEnviar(){
     var el2=document.getElementById('iaLoading'); if(el2) el2.remove();
     iaAppend('ia', T('Erro: ')+String(e.message||e).slice(0,200), true);
   }
+}
+
+// ---- Cartão de AÇÕES do agente IA (criar nota/lista/tarefa/pasta, mover,
+// fixar, agendar) — só executa quando o usuário toca em "Permitir tudo". ----
+function mostrarCartaoAcoes(acoes){
+  var hist=$('#iaHistorico'); if(!hist) return;
+  var acoesLib=window.snIaAcoes; if(!acoesLib){ iaAppend('ia', T('Módulo de ações da IA não carregado.'), true); return; }
+  var card=document.createElement('div');
+  card.className='ia-proposta';
+  var linhas=acoesLib.resumoAcoes(acoes, store, {T:T}).map(function(l){ return esc(l); }).join('<br>');
+  card.innerHTML=
+    '<div class="ia-proposta-head">✨ <b>'+esc(T('Quero fazer isto — permitir?'))+'</b></div>'+
+    '<pre class="ia-proposta-prev"></pre>'+
+    '<div class="ia-proposta-acoes">'+
+      '<button class="btn prim" data-act="ok">'+esc(T('Permitir tudo'))+'</button>'+
+      '<button class="btn ghost" data-act="no">'+esc(T('Não permitir'))+'</button>'+
+    '</div>';
+  card.querySelector('.ia-proposta-prev').innerHTML=linhas;
+  var btnOk=card.querySelector('[data-act="ok"]'), btnNo=card.querySelector('[data-act="no"]');
+  btnOk.addEventListener('click', async function(){
+    if(btnOk.disabled) return;
+    btnOk.disabled=true; btnOk.textContent=T('Aplicando…');
+    try{
+      var resultados=await acoesLib.executar(acoes, ctx, {salvarEAgora: salvarEAgora, renderNotas: renderNotas, renderTarefas: renderTarefas, T: T});
+      card.remove();
+      var fim=document.createElement('div'); fim.className='ia-msg ia'; fim.textContent=resultados.join('\n')||T('✅ Pronto!');
+      hist.appendChild(fim); hist.scrollTop=hist.scrollHeight;
+      toast(T('Ações da IA aplicadas — sincronizando'));
+    }catch(e){
+      btnOk.disabled=false; btnOk.textContent=T('Permitir tudo');
+      iaAppend('ia', T('Erro: ')+String(e.message||e).slice(0,200), true);
+    }
+  });
+  btnNo.addEventListener('click', function(){ card.remove(); });
+  hist.appendChild(card);
+  hist.scrollTop=hist.scrollHeight;
 }
 
 // ---- Proposta de edição da IA (cartão de confirmação no chat) ----

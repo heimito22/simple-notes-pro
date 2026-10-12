@@ -302,6 +302,48 @@
     if(/\?/.test(s)||palavras.length>12) return false;
     return verbo.test(palavras.slice(0,2).join(' '));
   }
+
+  /**
+   * CATÁLOGO DE AÇÕES DO AGENTE — o NotaIA pode propor CRIAR notas/listas/
+   * tarefas/pastas, mover, fixar, agendar, apagar. O app extrai o bloco,
+   * mostra o cartão e só executa após confirmação (nunca sozinho).
+   */
+  function instrucaoAcoes(){
+    return 'AÇÕES DE AGENTE: você pode EXECUTAR operações do app — o usuário sempre confirma antes de qualquer aplicação. Sempre que o usuário pedir para CRIAR, ORGANIZAR, AGENDAR, APAGAR ou ALTERAR algo (nota, lista de verificação, tarefa, pasta, lembrete, fixar), responda com 1-2 frases curtas dizendo o que fará e EM SEGUIDA — obrigatório — um bloco cercado: ```json {"acoes":[ ...uma ou mais ações... ]} ```. Tipos de ação (use EXATAMENTE estes "tipo"): {"tipo":"criar_nota","titulo":"...","conteudo":"...","pasta":"Nome da pasta (opcional)","fixar":true,"lembrete":{"tipo":"data","data":"yyyy-mm-dd","horario":"HH:MM"}} · {"tipo":"editar_nota","alvo":"<id da nota>","titulo":"...","conteudo":"<conteúdo final COMPLETO na notação>"} · {"tipo":"criar_lista","titulo":"...","itens":[{"texto":"...","concluido":false}],"pasta":"..."} · {"tipo":"editar_lista","alvo":"<id>","titulo":"...","itens":[...]} · {"tipo":"criar_tarefa","titulo":"...","recorrencia":"Uma vez"|"Diária"|"Segunda"|"Terça"|"Quarta"|"Quinta"|"Sexta"|"Sábado"|"Domingo","horario":"HH:MM"} · {"tipo":"concluir_tarefa","alvo":"<id>","valor":true} · {"tipo":"apagar_tarefa","alvo":"<id>"} · {"tipo":"apagar_nota","alvo":"<id de nota OU lista>"} · {"tipo":"fixar_nota","alvo":"<id>","valor":true} · {"tipo":"criar_pasta","nome":"..."} · {"tipo":"mover_para_pasta","alvos":["<id>"],"pasta":"Nome"} · {"tipo":"lembrete_nota","alvo":"<id>","lembrete":{"tipo":"data"|"dias"|"semana","data":"yyyy-mm-dd"|"intervaloDias":7|"diasSemana":["Segunda"],"horario":"HH:MM"}} (lembrete null remove). REGRAS: (1) "conteudo" usa a MESMA notação de formatação das notas (**negrito**, *itálico*, <u>sublinhado</u>, ~~riscado~~, - item, 1. numerado, # título, > citação); (2) tags de organização são #hashtags escritas DENTRO do conteúdo; (3) "alvo"/"alvos" DEVEM ser ids do INVENTÁRIO fornecido — nunca invente ids; (4) para EDITAR, o campo conteudo traz a nota INTEIRA final (as regras do protocolo de edição valem aqui); (5) lembrete exige horário; para "amanhã" use {"tipo":"dias","intervaloDias":1}; (6) NÃO proponha ações em perguntas de conversa — apenas em pedidos operativos; (7) pode combinar várias ações numa resposta só (ex.: nota + tarefa + lembrete do mesmo tema). O bloco JSON está ISENTO do limite de 180 palavras.';
+  }
+
+  /** Detecta pedido OPERACIONAL (criar/agendar/organizar/apagar/mover/fixar). */
+  function ehOrdemAcao(texto){
+    var s=String(texto||'').trim().toLowerCase();
+    if(!s) return false;
+    if(/^\s*(como|qual|quais|quando|onde|por que|porque|o que|quem|sera?\s*que|can|could|how|what|where|when|why|which|c[oó]mo|cu[aá]l|cu[aá]ndo|d[oó]nde|qu[ié])\b/.test(s)) return false;
+    return /\b(cria|crie|criar|adiciona|adicionar|novo|nova|apaga|apagar|apague|remove|remover|remova|mova|mover|move|organiza|organizar|organize|fixa|fixar|desafixa|desafixar|agenda|agendar|agende|lembra|lembrar|me lembra|conclui|concluir|marca|desmarca|anota pra mim|cadastra|cadastrar|create|add|make a|new note|new task|delete|organize|schedule|remind)\b/.test(s);
+  }
+
+  /**
+   * INVENTÁRIO com ids — o mapa que a IA usa para preencher alvo/alvos.
+   * Títulos truncados (o conteúdo relevante já vem no contexto).
+   */
+  function montarInventario(pastas, tarefas){
+    var linhas=[];
+    function corta(s,n){ return String(s||'').replace(/\s+/g,' ').trim().slice(0,n); }
+    (storeNotas||[]).slice(0,80).forEach(function(n){
+      if(!n || !n.id) return;
+      var pasta='';
+      for(var i=0;i<(pastas||[]).length;i++) if(pastas[i] && pastas[i].id===n.pastaId) pasta=' | pasta: '+corta(pastas[i].nome,40);
+      linhas.push('• [id='+n.id+'] '+(Array.isArray(n.itens)?'Lista':'Nota')+': "'+corta(n.titulo,80)+'"'+(n.fixada?' | 📌':'')+(Array.isArray(n.itens)?' ('+n.itens.length+' itens)':'')+pasta);
+    });
+    (pastas||[]).forEach(function(p){ if(p && p.id) linhas.push('• [id='+p.id+'] Pasta: "'+corta(p.nome,60)+'"'); });
+    (tarefas||[]).slice(0,40).forEach(function(t){
+      if(!t || !t.id) return;
+      linhas.push('• [id='+t.id+'] Tarefa: "'+corta(t.titulo,80)+'" — '+(t.recorrencia||'')+' '+(t.horario||'')+' ('+(t.concluida?'concluída':'pendente')+')');
+    });
+    return linhas.join('\n');
+  }
+  var pastasInventario=[], tarefasInventario=[];
+  /** Define pastas e tarefas com ids (chamado por app.js junto com definirAlvos). */
+  function definirInventario(pastas, tarefas){ pastasInventario=Array.isArray(pastas)?pastas:[]; tarefasInventario=Array.isArray(tarefas)?tarefas:[]; }
+
   async function perguntar(pergunta, notas, tarefas, chaveApi, historico){
     historico=historico||[];
     var perguntaLimpa=String(pergunta||'').trim();
@@ -356,12 +398,13 @@
 
     // Ordem de edição? Muda o que a IA recebe da nota (formatação + íntegra).
     var ordemEdicao=ehOrdemEdicao(perguntaLimpa);
+    var ordemAcao=ehOrdemAcao(perguntaLimpa);
     // Notas/listas com ids: a IA precisa dos ids para propor edição ("alvo").
     var ctxComIds=montarContextoComIds((storeNotas||[]), perguntaLimpa, ordemEdicao);
-    var system='Você é o NotaIA, assistente do app Simple Notes. '+instrucaoIdioma()+' Use as notas fornecidas como contexto quando fizer sentido. Se a pergunta for saudação, responda de forma simpática e curta. Se perguntarem quem é você, diga que é o NotaIA do Simple Notes. Recursos reais do app: '+RECURSOS_DO_APP+'. Nunca invente recursos. Se a pergunta realmente não tiver relação com as notas, diga gentilmente que só pode ajudar com as notas. Se for sobre um recurso do app, responda exatamente com o que está na lista. '+(ordemEdicao?instrucaoEdicao():'');
+    var system='Você é o NotaIA, assistente do app Simple Notes. '+instrucaoIdioma()+' Use as notas fornecidas como contexto quando fizer sentido. Se a pergunta for saudação, responda de forma simpática e curta. Se perguntarem quem é você, diga que é o NotaIA do Simple Notes. Recursos reais do app: '+RECURSOS_DO_APP+'. Nunca invente recursos. Se a pergunta realmente não tiver relação com as notas, diga gentilmente que só pode ajudar com as notas. Se for sobre um recurso do app, responda exatamente com o que está na lista. '+(ordemEdicao?instrucaoEdicao():'')+' '+instrucaoAcoes();
     var msgs=[{role:'system', content: system}];
     historico.slice(-6).forEach(function(m){ msgs.push({role: m.papel==='usuario'?'user':'assistant', content: m.texto}); });
-    msgs.push({role:'user', content:'Notas do usuário:\n'+ctxTexto+'\n\nTodas as notas e listas (com ids, para possíveis edições):\n'+(ctxComIds||'(vazio)')+ (tarefasTxt?('\n'+tarefasTxt):'') +'\n\nPergunta: '+perguntaLimpa});
+    msgs.push({role:'user', content:'Notas do usuário:\n'+ctxTexto+'\n\nTodas as notas e listas (com ids, para possíveis edições):\n'+(ctxComIds||'(vazio)')+ (tarefasTxt?('\n'+tarefasTxt):'') +'\n\nINVENTÁRIO COM IDs (use estes ids para preencher alvo/alvos das ações — também inclui pastas e tarefas):\n'+(montarInventario(pastasInventario, tarefasInventario)||'(vazio)') +'\n\nPergunta: '+perguntaLimpa});
 
     async function tentar(model, teto){
       var res=await fetch(URL_API, {method:'POST', headers:{'Content-Type':'application/json', Authorization:'Bearer '+chaveApi, 'HTTP-Referer':'https://simple-notes.app','X-Title':'Simple Notes'}, body: JSON.stringify({model:model, messages: msgs, temperature:0.7, max_tokens: teto})});
@@ -382,10 +425,10 @@
     // recusam tetos acima do próprio limite, então há recuo para TETO_RESERVA.
     var TETO_CHAT=400, TETO_EDICAO=16000, TETO_RESERVA=4000;
     async function tentarCom(model){
-      var teto=ordemEdicao?TETO_EDICAO:TETO_CHAT;
+      var teto=(ordemEdicao||ordemAcao)?TETO_EDICAO:TETO_CHAT;
       try{ return await tentar(model, teto); }
       catch(e){
-        if(ordemEdicao && /max_tokens|maximum|too large|context length/i.test(String(e.message||'')) ) return await tentar(model, TETO_RESERVA);
+        if((ordemEdicao||ordemAcao) && /max_tokens|maximum|too large|context length/i.test(String(e.message||'')) ) return await tentar(model, TETO_RESERVA);
         throw e;
       }
     }
@@ -409,6 +452,10 @@
   root.iaDesktop={ perguntar: perguntar, _ehSaudacao: ehSaudacao, _ehPerguntaIdentidade: ehPerguntaIdentidade,
     /** Define as notas/listas com ids (chamado por app.js antes de perguntar). */
     definirAlvos: function(itens){ storeNotas=Array.isArray(itens)?itens:[]; mapearMidias(storeNotas); },
+    /** Define pastas e tarefas (inventário p/ ações do agente). */
+    definirInventario: definirInventario,
+    /** Detecta pedido operacional p/ ações (criar/agendar/organizar/apagar). */
+    ehOrdemAcao: ehOrdemAcao,
     /**
      * Proposta de edição da IA (protocolo igual ao celular): procura bloco
      * ```json {"edicao":{...}} ``` na resposta. Retorna {proposta, textoLimpo}.

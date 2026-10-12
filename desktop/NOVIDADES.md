@@ -1,8 +1,8 @@
-**Versão 1.5.10**
+**Versão 1.5.11**
 
-- Barra de busca do PC: geometria reforçada — o funil e o badge de filtro nunca mais são cortados junto à borda arredondada
-- Filtro de tags à prova de muita tag: o painel agora tem altura máxima e **rolagem própria** (o cabeçalho fica fixo), com barra de rolagem discreta no estilo do app
-- Botão "Limpar" fica **grudado no topo** numa faixa opaca que cobre a linha inteira — as tags rolam por trás dela sem vazar
-- Corrigido fundo indefinido (`--sf2`) que deixava chips e sugestões com fundo transparente desde sempre
-- Tags com nomes longos viram reticências em vez de quebrar o painel; contagem sempre visível
-- Suporte a perfil separado (`SN_USER_DATA`): dá pra rodar uma versão de teste ao lado do app instalado sem disputar dados
+- A IA virou **agente**: peça "cria uma nota de treino" ou "cria uma tarefa de alongar todo dia às 7" — ela mostra o plano, você toca em **Permitir** e ela faz
+- Ela cria notas, listas, tarefas com alarme, pastas, move, fixa, apaga e agenda lembretes — tudo com confirmação, nada acontece sozinho
+- Notas criadas pela IA já nascem formatadas: negrito, listas, títulos e #tags
+- A IA enxerga o inventário completo do app com ids — aponta exatamente qual nota, lista, pasta ou tarefa mexer
+- Várias ações numa tacada: "anota o plano e me lembra amanhã às 8" vira nota + lembrete de uma vez
+- Backup mais duro: anexo que falha ao subir pro Drive nunca mais deixa a nota apontando pra um arquivo que não existe

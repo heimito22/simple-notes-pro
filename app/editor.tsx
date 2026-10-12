@@ -18,8 +18,10 @@ import {
     StyleSheet, Text, TextInput, TouchableOpacity, UIManager, View
 } from 'react-native';
 import { responderPergunta, resumirNotaComIA, extrairPropostaEdicao, conteudoAplicadoDaProposta, midiasDaNotaAberta, type MensagemChat, type PropostaEdicao } from '../context/ia-service';
+import { extrairAcoes, resumoAcao, executarAcoes, type AcaoIA, type DepsAcoes } from '../context/ia-acoes';
 import { useNotas } from '../context/NotasContext';
 import { useTarefas } from '../context/TarefasContext';
+import { useListas } from '../context/ListaContext';
 import { useTheme } from '../context/ThemeContext';
 import { bloqueioEstado } from '../context/bloqueio-estado';
 import { DIAS_SEMANA, resumoLembrete, type LembreteNota, type TipoLembrete } from '../context/lembrete-notas';
@@ -141,7 +143,7 @@ const TypingDots = ({ cor }: { cor: string }) => {
 export default function EditorScreen() {
     const router = useRouter();
     const params = useLocalSearchParams();
-    const { notas, salvarNota, salvarLembreteNota } = useNotas();
+    const { notas, pastas, salvarNota, salvarLembreteNota, criarPasta, moverNotasParaPasta, alternarFixarNota, excluirNota } = useNotas();
     // ── TAGS (#palavra no texto) ──
     // Catálogo global de tags (todas as notas) + prefixo digitado antes do
     // cursor (o WebView manda via __tag__). null = sem sugestões abertas.
@@ -160,7 +162,8 @@ export default function EditorScreen() {
             .filter(({ nome }) => pfx.length === 0 ? true : nome.startsWith(pfx) && nome !== pfx)
             .slice(0, 8);
     }, [tagPrefixo, catalogoTags]);
-    const { tarefas } = useTarefas();
+    const { tarefas, adicionarTarefa, alternarTarefa, excluirTarefa } = useTarefas();
+    const { listas, salvarLista, moverListasParaPasta, alternarFixarLista, excluirLista } = useListas();
     const { isDark, config, t } = useTheme();
     const insets = useSafeAreaInsets();
     const { mostrarAnuncio } = useMonetizacao();
@@ -232,6 +235,10 @@ export default function EditorScreen() {
     // A IA respondeu só com texto mesmo sendo uma ordem de edição: oferece aplicar
     // o próprio texto na nota (fallback para quando o modelo não devolve o JSON).
     const [sugestaoIA, setSugestaoIA] = useState<string | null>(null);
+    // AÇÕES do agente IA (criar nota/lista/tarefa/pasta, mover, fixar, lembretes):
+    // aguardando confirmação — cada uma executa pelas funções OFICIAIS dos contexts.
+    const [acoesIA, setAcoesIA] = useState<AcaoIA[] | null>(null);
+    const [executandoAcoes, setExecutandoAcoes] = useState(false);
     // Foto da nota ANTES da edição — permite cancelar (desfazer) depois de aplicada.
     const [desfazerIA, setDesfazerIA] = useState<{ titulo: string; conteudo: string } | null>(null);
     // Mídias (imagens/áudios) da nota no momento da proposta: garante que a
@@ -661,14 +668,25 @@ export default function EditorScreen() {
                     // Contexto de edição: a nota aberta — a IA pode propor alterações (com confirmação)
                     notaExistente
                         ? { titulo, conteudo: conteudoRef.current, tipo: 'nota' }
-                        : { titulo, tipo: 'lista' });
+                        : { titulo, tipo: 'lista' },
+                    // Inventário do agente: pastas e listas com ids p/ alvo/alvos das ações
+                    pastas || [],
+                    listas || []);
+                // 1º o protocolo de AÇÕES (agente); se não veio bloco, o de edição antigo.
+                const extraidas = extrairAcoes(resposta.texto);
+                const baseTexto = extraidas.acoes ? extraidas.textoLimpo : resposta.texto;
                 // A resposta pode conter proposta de edição (bloco ```json) —
                 // separa o texto da conversa da proposta aplicável.
-                const { proposta, textoLimpo } = extrairPropostaEdicao(resposta.texto);
-                setMensagensIA(prev => [...prev, { papel: 'ia', texto: textoLimpo || resposta.texto }]);
-                if (proposta) { setSugestaoIA(null); setMidiasProposta(midiasDaNotaAberta()); setPropostaIA(proposta); }
+                const { proposta, textoLimpo } = extrairPropostaEdicao(baseTexto);
+                setMensagensIA(prev => [...prev, { papel: 'ia', texto: extraidas.acoes ? (extraidas.textoLimpo || t('Tudo pronto — toque em Permitir para eu fazer.')) : (textoLimpo || resposta.texto) }]);
+                if (extraidas.acoes && extraidas.acoes.length) {
+                    setSugestaoIA(null);
+                    setPropostaIA(null);
+                    setAcoesIA(extraidas.acoes);
+                }
                 // Sem bloco JSON, mas foi claramente uma ordem de edição: oferece
                 // aplicar o texto que a IA escreveu (nunca aplica sozinho).
+                else if (proposta) { setSugestaoIA(null); setMidiasProposta(midiasDaNotaAberta()); setPropostaIA(proposta); }
                 else if (resposta.ordemEdicao) setSugestaoIA(textoLimpo || resposta.texto);
         } catch (e) {
             setMensagensIA(prev => [...prev, { papel: 'ia', texto: t('Desculpe, não consegui responder agora. Tente de novo.'), erro: true }]);
@@ -734,6 +752,36 @@ export default function EditorScreen() {
             setSugestaoIA(null);
         } finally {
             setAplicandoProposta(false);
+        }
+    };
+
+    // ── AÇÕES DO AGENTE IA ────────────────────────────────────────────────
+    // Executa as ações CONFIRMADAS pelo usuário. Cada uma passa pelas
+    // funções OFICIAIS dos contexts — mesmo caminho da UI: carimba
+    // dataModificacao, registra tombstones nas exclusões, agenda alarmes
+    // de tarefas/lembretes. A sincronização PC ↔ celular acontece igual
+    // a qualquer ação manual (pull/push automáticos).
+    const aplicarAcoesIA = async () => {
+        if (!acoesIA || executandoAcoes) return;
+        setExecutandoAcoes(true);
+        try {
+            const deps: DepsAcoes = {
+                notas, pastas, listas, tarefas,
+                salvarNota, criarPasta, moverNotasParaPasta, alternarFixarNota,
+                salvarLembreteNota, excluirNota,
+                salvarLista, moverListasParaPasta, alternarFixarLista, excluirLista,
+                adicionarTarefa, alternarTarefa, excluirTarefa,
+                notaAbertaId: notaExistente?.id,
+                aplicarNaNotaAberta: (novoTitulo, novoConteudo) => aplicarNaNota(novoTitulo, novoConteudo),
+                t,
+            };
+            const resultados = await executarAcoes(acoesIA, deps);
+            setAcoesIA(null);
+            setMensagensIA(prev => [...prev, { papel: 'ia', texto: resultados.join('\n') || t('✅ Pronto!') }]);
+        } catch (e) {
+            setMensagensIA(prev => [...prev, { papel: 'ia', texto: t('Algumas ações falharam — veja os avisos acima.'), erro: true }]);
+        } finally {
+            setExecutandoAcoes(false);
         }
     };
 
@@ -1604,8 +1652,42 @@ export default function EditorScreen() {
                                         </View>
                                     )}
 
+                                    {/* Cartão de AÇÕES do agente: a IA quer criar/editar/agendar —
+                                        só executa quando o usuário toca em "Permitir tudo". */}
+                                    {acoesIA && (
+                                        <View style={{
+                                            alignSelf: 'stretch', marginTop: 10, padding: 14, borderRadius: 16,
+                                            backgroundColor: tema.chipFundo, borderWidth: 1.5, borderColor: tema.accent,
+                                        }}>
+                                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                                                <Ionicons name="sparkles" size={18} color={tema.accent} />
+                                                <Text style={{ color: tema.sheetTitulo, fontWeight: '700', fontSize: 14.5, flex: 1 }}>
+                                                    {t('Quero fazer isto — permitir?')}
+                                                </Text>
+                                            </View>
+                                            {acoesIA.map((acao, i) => (
+                                                <Text key={i} style={{ color: tema.sheetSub, fontSize: 13.5, lineHeight: 19, marginBottom: 3 }}>
+                                                    {resumoAcao(acao, { notas, pastas, listas, tarefas } as Partial<DepsAcoes>)}
+                                                </Text>
+                                            ))}
+                                            <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
+                                                <TouchableOpacity
+                                                    style={{ flex: 1, backgroundColor: tema.accent, borderRadius: 12, paddingVertical: 11, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 6, opacity: executandoAcoes ? 0.6 : 1 }}
+                                                    onPress={aplicarAcoesIA} disabled={executandoAcoes} activeOpacity={0.8}>
+                                                    <Ionicons name="checkmark" size={17} color={tema.onPrimary} />
+                                                    <Text style={{ color: tema.onPrimary, fontWeight: '700', fontSize: 14 }}>{executandoAcoes ? t('Aplicando…') : t('Permitir tudo')}</Text>
+                                                </TouchableOpacity>
+                                                <TouchableOpacity
+                                                    style={{ flex: 1, backgroundColor: 'transparent', borderRadius: 12, paddingVertical: 11, alignItems: 'center', borderWidth: 1, borderColor: tema.chipBorda }}
+                                                    onPress={() => setAcoesIA(null)} disabled={executandoAcoes} activeOpacity={0.8}>
+                                                    <Text style={{ color: tema.sheetSub, fontWeight: '600', fontSize: 14 }}>{t('Não permitir')}</Text>
+                                                </TouchableOpacity>
+                                            </View>
+                                        </View>
+                                    )}
+
                                     {/* Cartão de confirmação: a IA propôs uma edição — só aplica com toque */}
-                                    {propostaIA && (
+                                    {propostaIA && !acoesIA && (
                                         <View style={{
                                             alignSelf: 'stretch', marginTop: 10, padding: 14, borderRadius: 16,
                                             backgroundColor: tema.chipFundo, borderWidth: 1.5, borderColor: tema.accent,
@@ -1648,7 +1730,7 @@ export default function EditorScreen() {
                                     )}
 
                                     {/* Sem bloco JSON: a IA escreveu só o texto — oferece aplicar na nota */}
-                                    {sugestaoIA && !propostaIA && (
+                                    {sugestaoIA && !propostaIA && !acoesIA && (
                                         <View style={{
                                             alignSelf: 'stretch', marginTop: 10, padding: 14, borderRadius: 16,
                                             backgroundColor: tema.chipFundo, borderWidth: 1.5, borderColor: tema.chipBorda,

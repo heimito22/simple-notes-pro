@@ -108,6 +108,69 @@ function instrucaoEdicao(idioma: Idioma): string {
 }
 
 /**
+ * CATÁLOGO DE AÇÕES — transforma o NotaIA em AGENTE: ele pode propor criar
+ * notas/listas/tarefas/pastas, mover, fixar, agendar lembretes, apagar.
+ * O app NUNCA aplica sozinho: extrai o bloco, mostra o cartão de confirmação
+ * e só executa pelas funções oficiais dos contexts quando o usuário permite.
+ */
+function instrucaoAcoes(idioma: Idioma): string {
+  if (idioma === 'en') {
+    return 'AGENT ACTIONS: you can EXECUTE app operations — the user always confirms before anything is applied. Whenever the user asks to CREATE, ORGANIZE, SCHEDULE, DELETE or CHANGE anything (note, checklist, task, folder, reminder, pin), reply with 1-2 short sentences saying what you will do and THEN — mandatory — a fenced block: ```json {"acoes":[ ...one or more actions... ]} ```. Action types (use EXACTLY these "tipo"): {"tipo":"criar_nota","titulo":"...","conteudo":"...","pasta":"Folder name (optional)","fixar":true,"lembrete":{"tipo":"data","data":"yyyy-mm-dd","horario":"HH:MM"}} · {"tipo":"editar_nota","alvo":"<note id>","titulo":"...","conteudo":"<complete final content>"} · {"tipo":"criar_lista","titulo":"...","itens":[{"texto":"...","concluido":false}],"pasta":"..."} · {"tipo":"editar_lista","alvo":"<id>","titulo":"...","itens":[...]} · {"tipo":"criar_tarefa","titulo":"...","recorrencia":"Uma vez"|"Diária"|"Segunda"|"Terça"|"Quarta"|"Quinta"|"Sexta"|"Sábado"|"Domingo","horario":"HH:MM"} · {"tipo":"concluir_tarefa","alvo":"<id>","valor":true} · {"tipo":"apagar_tarefa","alvo":"<id>"} · {"tipo":"apagar_nota","alvo":"<note OR checklist id>"} · {"tipo":"fixar_nota","alvo":"<id>","valor":true} · {"tipo":"criar_pasta","nome":"..."} · {"tipo":"mover_para_pasta","alvos":["<id>"],"pasta":"Name"} · {"tipo":"lembrete_nota","alvo":"<id>","lembrete":{"tipo":"data"|"dias"|"semana","data":"yyyy-mm-dd"|"intervaloDias":7|"diasSemana":["Segunda"],"horario":"HH:MM"}} (lembrete null removes). RULES: (1) "conteudo" uses the notes formatting notation (**bold**, *italic*, <u>underline</u>, ~~strikethrough~~, - item, 1. numbered, # title, > quote); (2) organization tags are #hashtags written INSIDE the content; (3) "alvo"/"alvos" MUST be ids from the provided INVENTORY — never invent ids; (4) to EDIT, "conteudo" carries the ENTIRE final note; (5) lembrete requires a horario; for "tomorrow" use {"tipo":"dias","intervaloDias":1}; (6) do NOT propose actions for casual questions — only for operational requests; (7) you may combine several actions in one reply (e.g. note + task + reminder of the same topic). The JSON block is EXEMPT from the length limit.';
+  }
+  if (idioma === 'es') {
+    return 'ACCIONES DEL AGENTE: puedes EJECUTAR operaciones de la app — el usuario siempre confirma antes de aplicar. Cuando el usuario pida CREAR, ORGANIZAR, AGENDAR, BORRAR o CAMBIAR algo (nota, checklist, tarea, carpeta, recordatorio, fijar), responde con 1-2 frases cortas diciendo qué harás y LUEGO — obligatorio — un bloque cercado: ```json {"acoes":[ ...una o más acciones... ]} ```. Tipos de acción (usa EXACTAMENTE estos "tipo"): {"tipo":"criar_nota","titulo":"...","conteudo":"...","pasta":"Nombre de carpeta (opcional)","fixar":true,"lembrete":{"tipo":"data","data":"yyyy-mm-dd","horario":"HH:MM"}} · {"tipo":"editar_nota","alvo":"<id de nota>","titulo":"...","conteudo":"<contenido final COMPLETO>"} · {"tipo":"criar_lista","titulo":"...","itens":[{"texto":"...","concluido":false}],"pasta":"..."} · {"tipo":"editar_lista","alvo":"<id>","titulo":"...","itens":[...]} · {"tipo":"criar_tarefa","titulo":"...","recorrencia":"Uma vez"|"Diária"|"Segunda"|"Terça"|"Quarta"|"Quinta"|"Sexta"|"Sábado"|"Domingo","horario":"HH:MM"} · {"tipo":"concluir_tarefa","alvo":"<id>","valor":true} · {"tipo":"apagar_tarefa","alvo":"<id>"} · {"tipo":"apagar_nota","alvo":"<id de nota O lista>"} · {"tipo":"fixar_nota","alvo":"<id>","valor":true} · {"tipo":"criar_pasta","nome":"..."} · {"tipo":"mover_para_pasta","alvos":["<id>"],"pasta":"Nombre"} · {"tipo":"lembrete_nota","alvo":"<id>","lembrete":{"tipo":"data"|"dias"|"semana","data":"yyyy-mm-dd"|"intervaloDias":7|"diasSemana":["Segunda"],"horario":"HH:MM"}} (lembrete null elimina). REGLAS: (1) "conteudo" usa la notación de formato de las notas (**negrita**, *cursiva*, <u>subrayado</u>, ~~tachado~~, - elemento, 1. numerado, # título, > cita); (2) las etiquetas de organización son #hashtags escritos DENTRO del contenido; (3) "alvo"/"alvos" DEBEN ser ids del INVENTARIO proporcionado — nunca inventes ids; (4) para EDITAR, "conteudo" lleva la nota ENTERA final; (5) lembrete exige horario; para "mañana" usa {"tipo":"dias","intervaloDias":1}; (6) NO propongas acciones en preguntas de conversación — solo ante peticiones operativas; (7) puedes combinar varias acciones en una respuesta. El bloque JSON está EXENTO del límite de longitud.';
+  }
+  return 'AÇÕES DE AGENTE: você pode EXECUTAR operações do app — o usuário sempre confirma antes de qualquer aplicação. Sempre que o usuário pedir para CRIAR, ORGANIZAR, AGENDAR, APAGAR ou ALTERAR algo (nota, lista de verificação, tarefa, pasta, lembrete, fixar), responda com 1-2 frases curtas dizendo o que fará e EM SEGUIDA — obrigatório — um bloco cercado: ```json {"acoes":[ ...uma ou mais ações... ]} ```. Tipos de ação (use EXATAMENTE estes "tipo"): {"tipo":"criar_nota","titulo":"...","conteudo":"...","pasta":"Nome da pasta (opcional)","fixar":true,"lembrete":{"tipo":"data","data":"yyyy-mm-dd","horario":"HH:MM"}} · {"tipo":"editar_nota","alvo":"<id da nota>","titulo":"...","conteudo":"<conteúdo final COMPLETO>"} · {"tipo":"criar_lista","titulo":"...","itens":[{"texto":"...","concluido":false}],"pasta":"..."} · {"tipo":"editar_lista","alvo":"<id>","titulo":"...","itens":[...]} · {"tipo":"criar_tarefa","titulo":"...","recorrencia":"Uma vez"|"Diária"|"Segunda"|"Terça"|"Quarta"|"Quinta"|"Sexta"|"Sábado"|"Domingo","horario":"HH:MM"} · {"tipo":"concluir_tarefa","alvo":"<id>","valor":true} · {"tipo":"apagar_tarefa","alvo":"<id>"} · {"tipo":"apagar_nota","alvo":"<id de nota OU lista>"} · {"tipo":"fixar_nota","alvo":"<id>","valor":true} · {"tipo":"criar_pasta","nome":"..."} · {"tipo":"mover_para_pasta","alvos":["<id>"],"pasta":"Nome"} · {"tipo":"lembrete_nota","alvo":"<id>","lembrete":{"tipo":"data"|"dias"|"semana","data":"yyyy-mm-dd"|"intervaloDias":7|"diasSemana":["Segunda"],"horario":"HH:MM"}} (lembrete null remove). REGRAS: (1) "conteudo" usa a notação de formatação das notas (**negrito**, *itálico*, <u>sublinhado</u>, ~~riscado~~, - item, 1. numerado, # título, > citação); (2) tags de organização são #hashtags escritas DENTRO do conteúdo; (3) "alvo"/"alvos" DEVEM ser ids do INVENTÁRIO fornecido — nunca invente ids; (4) para EDITAR, o campo conteudo traz a nota INTEIRA final; (5) lembrete exige horário; para "amanhã" use {"tipo":"dias","intervaloDias":1}; (6) NÃO proponha ações em perguntas de conversa — apenas em pedidos operativos; (7) pode combinar várias ações numa resposta só (ex.: nota + tarefa + lembrete do mesmo tema). O bloco JSON está ISENTO do limite de tamanho.';
+}
+
+/**
+ * Detecta pedido OPERACIONAL (criar/agendar/organizar/apagar/mover/fixar) —
+ * além das edições de nota. Nestes casos o teto de tokens sobe para o bloco
+ * de ações não ser truncado. Perguntas genuínas nunca casam.
+ */
+export function ehOrdemAcao(texto: string): boolean {
+  const s = String(texto || '').trim().toLowerCase();
+  if (!s) return false;
+  if (/^\s*(como|qual|quais|quando|onde|por que|porque|o que|quem|sera?\s*que|can|could|how|what|where|when|why|which|c[oó]mo|cu[aá]l|cu[aá]ndo|d[oó]nde|qu[ié])\b/.test(s)) return false;
+  return /\b(cria|crie|criar|adiciona|adicionar|adiciono|novo|nova|apaga|apagar|apague|remove|remover|remova|mova|mover|move|organiza|organizar|organize|fixa|fixar|desafixa|desafixar|agenda|agendar|agende|lembra|lembrar|me lembra|conclui|concluir|marca|desmarca|anota pra mim|cadastra|cadastrar|create|add|make a|new note|new task|delete|organize|schedule|remind)\b/.test(s);
+}
+
+/**
+ * INVENTÁRIO com ids — o mapa que a IA usa para preencher "alvo"/"alvos".
+ * Títulos truncados (o conteúdo das notas relevantes já vem no contexto).
+ */
+function montarInventario(notas: any[], listas: any[], pastas: any[], tarefas: any[], idioma: Idioma): string {
+  const corta = (s: any, n: number) => String(s || '').replace(/\s+/g, ' ').trim().slice(0, n);
+  const linhas: string[] = [];
+  const pastaDe = (pastaId?: string) => {
+    const p = (pastas || []).find((x: any) => x?.id === pastaId);
+    return p ? ` | ${tIdioma(idioma, 'pasta')}: ${corta(p.nome, 40)}` : '';
+  };
+  const rotNota = tIdioma(idioma, 'Nota');
+  const rotLista = tIdioma(idioma, 'Lista');
+  const rotPasta = tIdioma(idioma, 'Pasta');
+  const rotTarefa = tIdioma(idioma, 'Tarefa');
+  (notas || []).slice(0, 80).forEach((n: any) => {
+    if (!n?.id) return;
+    linhas.push(`• [id=${n.id}] ${rotNota}: "${corta(n.titulo, 80) || tIdioma(idioma, 'Sem título')}"${n.fixada ? ' | 📌' : ''}${n.lembrete ? ' | 🔔' : ''}${pastaDe(n.pastaId)}`);
+  });
+  (listas || []).slice(0, 40).forEach((l: any) => {
+    if (!l?.id) return;
+    linhas.push(`• [id=${l.id}] ${rotLista}: "${corta(l.titulo, 80)}" (${(l.itens || []).length} ${tIdioma(idioma, 'itens')})${l.fixada ? ' | 📌' : ''}${pastaDe(l.pastaId)}`);
+  });
+  (pastas || []).forEach((p: any) => {
+    if (!p?.id) return;
+    linhas.push(`• [id=${p.id}] ${rotPasta}: "${corta(p.nome, 60)}"`);
+  });
+  (tarefas || []).slice(0, 40).forEach((t: any) => {
+    if (!t?.id) return;
+    linhas.push(`• [id=${t.id}] ${rotTarefa}: "${corta(t.titulo, 80)}" — ${t.recorrencia || ''} ${t.horario || ''} (${t.concluida ? tIdioma(idioma, 'concluída') : tIdioma(idioma, 'pendente')})`);
+  });
+  return linhas.join('\n');
+}
+
+
+/**
  * Detecta ORDEM de edição (não pergunta). Só aqui a IA recebe a instrução de
  * propor a edição — conversa normal nunca gera bloco JSON, evitando que toda
  * pergunta vire um cartão de edição.
@@ -557,22 +620,29 @@ export async function responderPergunta(
   tarefas: any[] = [],
   idioma: Idioma = 'pt',
   /** Contexto de edição: a nota (ou lista) ABERTA no editor, para a IA poder propor alterações. */
-  notaAberta?: { titulo: string; conteudo?: string; itens?: { texto: string; concluido: boolean }[]; tipo: 'nota' | 'lista' }
+  notaAberta?: { titulo: string; conteudo?: string; itens?: { texto: string; concluido: boolean }[]; tipo: 'nota' | 'lista' },
+  /** Inventário p/ ações do agente: pastas e listas existentes (com ids). */
+  pastas: any[] = [],
+  listas: any[] = [],
 ): Promise<RespostaChat> {
   const todasNotas = Array.isArray(notas) ? notas : [];
   const todasTarefas = Array.isArray(tarefas) ? tarefas : [];
+  const ordemAcao = ehOrdemAcao(pergunta);
 
-  if (todasNotas.length === 0 && todasTarefas.length === 0) {
+  if (todasNotas.length === 0 && todasTarefas.length === 0 && (listas || []).length === 0) {
     // Sem notas nem tarefas: perguntas sobre o próprio app ainda são respondidas usando a
-    // lista REAL de recursos — nada de invenção.
+    // lista REAL de recursos — nada de invenção. Pedido OPERACIONAL com chave
+    // segue em frente — a IA pode CRIAR a primeira nota/tarefa/pasta.
     if (!chaveApi) {
       const recurso = respostaRecursoApp(pergunta, idioma);
       if (recurso) return { texto: recurso, modo: 'offline' };
     }
-    return {
-      texto: tIdioma(idioma, 'Você ainda não tem nenhuma nota ou tarefa. Crie uma nota ou tarefa primeiro e depois me pergunte! 📝✨'),
-      modo: 'fora',
-    };
+    if (!ordemAcao) {
+      return {
+        texto: tIdioma(idioma, 'Você ainda não tem nenhuma nota ou tarefa. Crie uma nota ou tarefa primeiro e depois me pergunte! 📝✨'),
+        modo: 'fora',
+      };
+    }
   }
 
   // --- Modo offline: sem chave, usa a busca local (instantânea) ---
@@ -600,6 +670,8 @@ export async function responderPergunta(
   // saudações e conversa normal nunca geram carta de edição.
   const ordemEdicao = ehOrdemEdicao(pergunta);
   const contexto = montarContexto(todasNotas, todasTarefas, pergunta, true, idioma);
+  // Inventário com ids: o mapa que a IA usa para preencher alvo/alvos das ações.
+  const inventario = montarInventario(todasNotas, listas || [], pastas || [], todasTarefas, idioma);
 
   // Contexto da nota/lista aberta: dá à IA o material exato que ela pode
   // propor editar (o app só aplica após confirmação do usuário).
@@ -642,6 +714,7 @@ export async function responderPergunta(
           `Se a pergunta não tiver relação com as notas, tarefas nem com o aplicativo, responda: ${foraEscopo}.`,
           'Responda de forma curta e objetiva (máx. ~180 palavras).',
           ...(ordemEdicao && notaAberta ? [instrucaoEdicao('pt')] : []),
+          instrucaoAcoes('pt'),
         ]
       : idioma === 'en'
         ? [
@@ -655,6 +728,7 @@ export async function responderPergunta(
           `If the question is unrelated to the notes, tasks or the app, answer: ${foraEscopo}.`,
           'Keep answers short and objective (max ~180 words).',
           ...(ordemEdicao && notaAberta ? [instrucaoEdicao('en')] : []),
+          instrucaoAcoes('en'),
         ]
       : [
           'Eres NotaIA, el asistente de IA de la app de notas "Simple Notes".',
@@ -667,6 +741,7 @@ export async function responderPergunta(
           `Si la pregunta no tiene relación con las notas, las tareas ni con la app, responde: ${foraEscopo}.`,
           'Responde de forma breve y objetiva (máx. ~180 palabras).',
           ...(ordemEdicao && notaAberta ? [instrucaoEdicao('es')] : []),
+          instrucaoAcoes('es'),
         ]
       .join(' ');
 
@@ -681,7 +756,7 @@ export async function responderPergunta(
     ...historicoMsgs,
     {
       role: 'user',
-      content: `Estas são as notas e tarefas do usuário:\n\n${contexto}${ctxAberta}\n\nPergunta do usuário: ${pergunta}`,
+      content: `Estas são as notas e tarefas do usuário:\n\n${contexto}${ctxAberta}\n\nINVENTÁRIO COM IDs (use estes ids para preencher alvo/alvos das ações):\n${inventario || '(vazio)'}\n\nPergunta do usuário: ${pergunta}`,
     },
   ];
 
@@ -707,8 +782,8 @@ export async function responderPergunta(
   });
 
   try {
-    let res = await chamar(ordemEdicao ? TETO_EDICAO : TETO_CHAT);
-    if (ordemEdicao && res.status === 400) {
+    let res = await chamar(ordemEdicao || ordemAcao ? TETO_EDICAO : TETO_CHAT);
+    if ((ordemEdicao || ordemAcao) && res.status === 400) {
       const corpo400 = await res.text().catch(() => '');
       if (/max_tokens|maximum|too large|context length/i.test(corpo400)) {
         res = await chamar(TETO_RESERVA);
