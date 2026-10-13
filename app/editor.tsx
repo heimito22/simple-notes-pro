@@ -1191,13 +1191,14 @@ export default function EditorScreen() {
             style={[
                 styles.container,
                 { backgroundColor: tema.fundo },
-                // Folga de 12px entre a toolbar e o topo do teclado (só com o
-                // teclado aberto). Fechado: usa o inset de navegação do sistema
-                // (botões na tela / gesto) para a toolbar nunca ficar atrás deles.
+                // Folga de 4px entre a toolbar e o topo do teclado (só com o
+                // teclado aberto) — quase colada, sem respirar visual. Fechado:
+                // usa o inset de navegação do sistema (botões na tela / gesto)
+                // para a toolbar nunca ficar atrás deles.
                 Platform.OS === 'android' && {
                     paddingBottom:
                         alturaTeclado > 0
-                            ? alturaTeclado + 12
+                            ? alturaTeclado + 4
                             : Math.max(insets.bottom, 12),
                 },
             ]}
