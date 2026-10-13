@@ -256,7 +256,7 @@ html[data-tema="light"] .config-wrap::-webkit-scrollbar-thumb{background:rgba(0,
 .switch.on i{left:calc(100% - 22px)}
 
 /* editor split */
-.shell.editor-aberto .main{flex:0 0 44%;max-width:56%}
+.shell.editor-aberto .main{flex:0 0 28%;max-width:340px}
 .editor{flex:1;min-width:360px;background:var(--bg);border-left:1px solid var(--bd);display:flex;flex-direction:column;overflow:hidden}
 .editor-head{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--bd);flex-shrink:0;flex-wrap:wrap}
 .editor-head input{flex:1;min-width:180px;font-size:1rem;font-weight:650}
@@ -269,6 +269,13 @@ html[data-tema="light"] .config-wrap::-webkit-scrollbar-thumb{background:rgba(0,
 .editor-body{flex:1;overflow:auto;padding:0;display:flex;flex-direction:column;min-height:0}
 .editor-body .rich-wrap{flex:1;display:flex;flex-direction:column;min-height:220px}
 .rich-editable{flex:1;min-height:180px;padding:14px 16px;outline:none;overflow:auto;line-height:1.6;font-size:.95rem;word-break:break-word}
+/* Listas no editor: o reset global (*) zera o padding padrão do <ol>/<ul> —
+   sem isto os números penduram FORA da caixa (list-style-position: outside)
+   e o overflow:auto corta o primeiro dígito: "10" virava "0". O mesmo
+   conserto que o WebView do celular já tem (ul,ol{padding-left:26px}). */
+.rich-editable ol{padding-left:36px}
+.rich-editable ul{padding-left:28px}
+.rich-editable li{margin:2px 0}
 .rich-editable:empty:before{content:attr(data-placeholder);color:var(--tx2)}
 .rich-editable img{max-width:100%;border-radius:10px;margin:8px 0;display:block;cursor:grab}
 .rich-editable img:active{cursor:grabbing}

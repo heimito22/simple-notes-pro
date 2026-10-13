@@ -1,7 +1,7 @@
 {
   "name": "simple-notes-pro-desktop",
-  "version": "1.5.11",
-  "description": "Simple Notes Pro para desktop Ã¢â‚¬â€ vinculado ao celular via Google Drive",
+  "version": "1.5.12",
+  "description": "Simple Notes Pro para desktop ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â vinculado ao celular via Google Drive",
   "main": "src/main.js",
   "author": "Simple Notes Pro",
   "scripts": {

@@ -287,7 +287,7 @@ html[data-tema="light"] .modal-card{background:#FFFFFF;border-color:#E5E5EA}
 
 /* ========== 19. Transição do split editor (main encolhe suavemente) ========== */
 .main{transition:flex .42s var(--suave), max-width .42s var(--suave)}
-.shell.editor-aberto .main{flex:0 0 44%;max-width:56%}
+.shell.editor-aberto .main{flex:0 0 28%;max-width:340px}
 
 /* Barra de seleção entra deslizando */
 .barra-selecao{animation:none}
