@@ -53,3 +53,14 @@ app-example
 # generated module build artifacts
 modules/*/android/.gradle/
 modules/*/android/build/
+
+# materiais de producao de video (pesados: clips, beats, renders) - ficam so no disco
+marketing/video/beats/
+marketing/video/audio/
+marketing/video/audio-longo/
+marketing/video/*.mp4
+marketing/video/frames-pc/
+
+marketing/video/sheet-*.png
+marketing/video/qc-*.png
+
