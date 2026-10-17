@@ -777,6 +777,7 @@ export default function SettingsScreen() {
                   activeOpacity={0.7}
                   onPress={() => {
                     atualizarConfig('idioma', idioma.cod);
+                    atualizarConfig('idiomaEscolhido', true);
                     setIdiomaModalAberto(false);
                   }}
                 >

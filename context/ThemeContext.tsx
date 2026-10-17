@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { NativeModules, Platform } from 'react-native';
+import * as Localization from 'expo-localization';
+import { Platform } from 'react-native';
 import { definirSomAlarme } from '../modules/minhasnotas-alarm';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { ehSomAlarme, SOM_PADRAO, type SomAlarme } from './sons-alarme';
@@ -7,18 +8,14 @@ import { definirIdiomaAtual, ehIdioma, tIdioma, type Idioma } from './idiomas';
 
 /**
  * Idioma do DISPOSITIVO (primeira execução, antes de qualquer escolha do usuário).
+ * Usa expo-localization (a API nativa correta — o NativeModules.I18nManager
+ * não funciona mais no RN/Expo atual e retornava undefined, deixando o app
+ * sempre em inglês).
  * pt* → pt · es* → es · qualquer outro → en (universal).
  */
 function idiomaDoDispositivo(): Idioma {
   try {
-    const locale =
-      (NativeModules.I18nManager && NativeModules.I18nManager.localeIdentifier) ||
-      (NativeModules.SettingsManager &&
-        NativeModules.SettingsManager.settings &&
-        (NativeModules.SettingsManager.settings.AppleLocale ||
-          (NativeModules.SettingsManager.settings.AppleLanguages || [])[0])) ||
-      'en';
-    const cod = String(locale).toLowerCase().split(/[-_]/)[0];
+    const cod = Localization.getLocales()[0]?.languageCode?.toLowerCase() || 'en';
     if (cod === 'pt') return 'pt';
     if (cod === 'es') return 'es';
     return 'en';
@@ -37,6 +34,8 @@ interface Config {
   somAlarme: SomAlarme;
   chaveIA: string;
   idioma: Idioma;
+  /** true = o usuário escolheu manualmente (respeita sempre). false/undefined = segue o dispositivo. */
+  idiomaEscolhido?: boolean;
   /** DESKTOP: PIN de 4 dígitos do próprio app (armazenado ofuscado). Vazio = sem PIN. */
   pinDesbloqueio: string;
 }
@@ -96,9 +95,10 @@ export default function ThemeProvider({ children }: { children: React.ReactNode 
           if (parseada.idioma !== undefined && !ehIdioma(parseada.idioma)) {
             delete parseada.idioma;
           }
-          // Sem idioma salvo (primeira execução): segue o idioma do DISPOSITIVO.
-          // Escolha manual explícita (idioma válido salvo) sempre vence.
-          if (parseada.idioma === undefined) {
+          // Sem idioma salvo OU idioma que veio do bug antigo (nunca foi
+          // escolhido manualmente): segue o idioma do DISPOSITIVO.
+          // Escolha manual explícita (idiomaEscolhido = true) sempre vence.
+          if (!parseada.idiomaEscolhido) {
             parseada.idioma = idiomaDoDispositivo();
           }
           setConfig({ ...CONFIG_PADRAO, ...parseada });
