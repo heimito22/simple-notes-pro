@@ -1,12 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import * as LocalAuthentication from 'expo-local-authentication';
+import * as ScreenOrientation from 'expo-screen-orientation';
 import { Stack } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Animated,
   AppState,
   AppStateStatus,
+  Dimensions,
   Easing,
   Modal,
   Platform,
@@ -68,6 +70,19 @@ const ARCO_BRILHO = 'M 9 30 C 9 19 18 9 29 9 C 40 9 49 19 49 30';
 const AnimatedRect = Animated.createAnimatedComponent(Rect);
 
 export default function RootLayout() {
+  // Compatibilidade com telas grandes: trava portrait em CELULAR, mas permite
+  // qualquer orientação em TABLET/Chromebook (requisito do Play Console).
+  useEffect(() => {
+    if (Platform.OS === 'android') {
+      const { width, height } = Dimensions.get('window');
+      const ehTablet = Math.min(width, height) >= 600;
+      if (ehTablet) {
+        ScreenOrientation.unlockAsync().catch(() => {});
+      } else {
+        ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(() => {});
+      }
+    }
+  }, []);
   return (
     <ThemeProvider>
       <MonetizacaoProvider>

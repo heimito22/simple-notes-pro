@@ -1,0 +1,8 @@
+file 'C:\MinhasNotas\marketing\video/nbeat1.mp4'
+file 'C:\MinhasNotas\marketing\video/nbeat2.mp4'
+file 'C:\MinhasNotas\marketing\video/nbeat3.mp4'
+file 'C:\MinhasNotas\marketing\video/nbeat4.mp4'
+file 'C:\MinhasNotas\marketing\video/nbeat5.mp4'
+file 'C:\MinhasNotas\marketing\video/nbeat6.mp4'
+file 'C:\MinhasNotas\marketing\video/nbeat7.mp4'
+file 'C:\MinhasNotas\marketing\video/nbeat8.mp4'

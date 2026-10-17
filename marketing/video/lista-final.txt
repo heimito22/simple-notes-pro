@@ -1,0 +1,8 @@
+file 'C:\MinhasNotas\marketing\video/fhook.mp4'
+file 'C:\MinhasNotas\marketing\video/rbeat2.mp4'
+file 'C:\MinhasNotas\marketing\video/rbeat3.mp4'
+file 'C:\MinhasNotas\marketing\video/rbeat4.mp4'
+file 'C:\MinhasNotas\marketing\video/rbeat5.mp4'
+file 'C:\MinhasNotas\marketing\video/rbeat6.mp4'
+file 'C:\MinhasNotas\marketing\video/rbeat7.mp4'
+file 'C:\MinhasNotas\marketing\video/fcta.mp4'

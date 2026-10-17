@@ -1,0 +1,2 @@
+file 'C:\MinhasNotas\marketing\video/nbeat2a.mp4'
+file 'C:\MinhasNotas\marketing\video/nbeat2b.mp4'

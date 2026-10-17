@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:1080px;height:1920px;overflow:hidden;background:#060608;font-family:'Segoe UI',system-ui,sans-serif}
+#stage{position:relative;width:1080px;height:1920px;overflow:hidden}
+#bg{position:absolute;width:100%;height:100%;background:linear-gradient(160deg,#060608 0%,#0D0D14 40%,#101020 70%,#060608 100%)}
+#glowA{position:absolute;width:900px;height:900px;border-radius:50%;pointer-events:none}
+#glowB{position:absolute;width:800px;height:800px;border-radius:50%;pointer-events:none}
+#progress{position:absolute;top:0;left:0;height:8px;border-radius:0 4px 4px 0;z-index:99}
+#particles{position:absolute;width:100%;height:100%;pointer-events:none}
+.pt{position:absolute;border-radius:50%;pointer-events:none}
+
+/* App screenshot containers */
+.app-frame{position:absolute;border-radius:30px;overflow:hidden;
+  box-shadow:0 40px 80px rgba(0,0,0,.7),0 0 50px rgba(10,132,255,.12),inset 0 1px 0 rgba(255,255,255,.08);
+  border:1px solid rgba(255,255,255,.06)}
+.app-frame img{width:100%;height:100%;object-fit:cover;object-position:top}
+
+.split-half{position:absolute;border-radius:26px;overflow:hidden;
+  border:1px solid rgba(255,255,255,.07);box-shadow:0 30px 60px rgba(0,0,0,.6)}
+.split-half img{width:100%;height:100%;object-fit:cover;object-position:top}
+
+/* Text overlay */
+.text-bg{position:absolute;pointer-events:none}
+.text-label{position:absolute;font-weight:900;color:#FFD60A;text-align:center;width:100%;
+  text-shadow:0 3px 20px rgba(0,0,0,.9),0 0 30px rgba(255,214,10,.15);pointer-events:none}
+
+/* Hook text */
+.hook-txt{position:absolute;font-weight:900;text-align:center;width:100%;text-shadow:0 4px 30px rgba(0,0,0,.8)}
+.hook-txt .ch{display:inline-block}
+
+/* Notification */
+#notif{position:absolute;width:750px;height:150px;background:rgba(28,28,38,.95);
+  border-radius:22px;border-left:7px solid #0A84FF;display:flex;align-items:center;
+  box-shadow:0 20px 50px rgba(0,0,0,.5),0 0 30px rgba(10,132,255,.1)}
+#notif .nicon{width:66px;height:66px;background:#0A84FF;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:36px;color:#fff;font-weight:900;margin:0 22px;flex-shrink:0}
+#notif .nt1{font-size:40px;font-weight:900;color:#fff}
+#notif .nt2{font-size:32px;color:rgba(255,255,255,.5);margin-top:2px}
+
+/* CTA elements */
+#ctab{position:absolute;font-size:190px;font-weight:900;color:#FFD60A;text-align:center;width:100%;
+  text-shadow:0 6px 40px rgba(0,0,0,.9),0 0 50px rgba(255,214,10,.2)}
+#ctas{position:absolute;font-size:56px;font-weight:700;color:#fff;text-align:center;width:100%;letter-spacing:3px;text-transform:uppercase}
+#ctabtn{position:absolute;background:#0A84FF;color:#fff;font-size:54px;font-weight:900;padding:28px 80px;border-radius:22px;
+  text-align:center;letter-spacing:2px}
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="bg"></div>
+  <div id="glowA"></div>
+  <div id="glowB"></div>
+  <div id="particles"></div>
+  <div id="progress"></div>
+
+  <!-- Hook -->
+  <div class="hook-txt" id="h1" style="top:280px;font-size:72px;color:#fff;letter-spacing:-2px"></div>
+  <div class="hook-txt" id="h2" style="top:410px;font-size:160px;color:#FFD60A;letter-spacing:-4px"></div>
+  <div class="hook-txt" id="h3" style="top:600px;font-size:130px;color:#FFD60A;letter-spacing:-3px"></div>
+  <div id="accentbar" style="position:absolute;top:780px;height:5px;background:#0A84FF;border-radius:3px;box-shadow:0 0 20px rgba(10,132,255,.6)"></div>
+  <div class="hook-txt" id="hsub" style="top:810px;font-size:44px;color:rgba(255,255,255,.85);letter-spacing:6px;text-transform:uppercase"></div>
+  <div class="app-frame" id="hookPhone" style="width:380px;height:700px"><img src="tela-demo.png"></div>
+
+  <!-- Beats: app screenshots -->
+  <div class="app-frame" id="app1" style="width:460px;height:810px"><img src="tela-demo.png"></div>
+  <div class="app-frame" id="app2" style="width:460px;height:810px"><img src="tela-demo.png"></div>
+  <div class="app-frame" id="app3" style="width:460px;height:810px"><img src="tela-demo.png"></div>
+  <div class="app-frame" id="app4" style="width:460px;height:810px"><img src="tela-demo.png"></div>
+  <div class="app-frame" id="app5" style="width:460px;height:810px"><img src="tela-demo.png"></div>
+
+  <!-- Split screen -->
+  <div class="split-half" id="splL" style="width:500px;height:890px"><img src="tela-demo.png"></div>
+  <div class="split-half" id="splR" style="width:500px;height:890px"><img src="teste-ol-final.png"></div>
+
+  <!-- Notification -->
+  <div id="notif">
+    <div class="nicon">OK</div>
+    <div><div class="nt1">Reunião de segunda</div><div class="nt2">sincronizada no PC</div></div>
+  </div>
+
+  <!-- Text labels -->
+  <div class="text-bg" id="tbg1"></div><div class="text-label" id="lbl1" style="top:1340px;font-size:60px"></div>
+  <div class="text-bg" id="tbg2"></div><div class="text-label" id="lbl2" style="top:1340px;font-size:60px"></div>
+  <div class="text-bg" id="tbg3"></div><div class="text-label" id="lbl3" style="top:1340px;font-size:60px"></div>
+  <div class="text-bg" id="tbg4"></div><div class="text-label" id="lbl4" style="top:1340px;font-size:60px"></div>
+  <div class="text-bg" id="tbg5"></div><div class="text-label" id="lbl5" style="top:1340px;font-size:60px"></div>
+  <div class="text-bg" id="tbg6"></div><div class="text-label" id="lbl6" style="top:1340px;font-size:60px"></div>
+
+  <!-- CTA -->
+  <div id="ctab">GRÁTIS</div>
+  <div id="ctas">PC + CELULAR · EM PORTUGUÊS</div>
+  <div id="ctabtn">BAIXE AGORA</div>
+</div>
+
+<script>
+// ===== DETERMINISTIC RENDERER — sem CSS animations =====
+// Cada frame e computado por JS puro: renderFrame(t) posiciona tudo.
+
+// Easing functions
+function easeOutBack(t) { const c1=1.70158, c3=c1+1; return 1 + c3*Math.pow(t-1,3) + c1*Math.pow(t-1,2); }
+function easeOutCubic(t) { return 1 - Math.pow(1-t, 3); }
+function easeOutQuart(t) { return 1 - Math.pow(1-t, 4); }
+function easeInOutCubic(t) { return t < .5 ? 4*t*t*t : 1 - Math.pow(-2*t+2,3)/2; }
+function clamp01(v) { return Math.max(0, Math.min(1, v)); }
+function lerp(a, b, t) { return a + (b-a) * t; }
+
+// Staggered letters
+function setLetters(el, text) {
+  if (!el._initialized) {
+    el.innerHTML = '';
+    [...text].forEach(ch => {
+      const s = document.createElement('span');
+      s.className = 'ch';
+      s.textContent = ch === ' ' ? '\u00A0' : ch;
+      el.appendChild(s);
+    });
+    el._initialized = true;
+  }
+  return el.querySelectorAll('.ch');
+}
+
+setLetters(document.getElementById('h1'), 'PARE DE USAR');
+setLetters(document.getElementById('h2'), '4 APPS');
+setLetters(document.getElementById('h3'), 'DIFERENTES');
+document.getElementById('hsub').textContent = 'notas - listas - tarefas - pastas';
+
+const labels = ['TUDO EM 1 LUGAR','EDITOR DE VERDADE','ALARME QUE TOCA','E AINDA TEM IA','PC = CELULAR','GRÁTIS · SEGURO'];
+for (let i = 0; i < 6; i++) {
+  const lbl = document.getElementById('lbl' + (i+1));
+  const bg = document.getElementById('tbg' + (i+1));
+  if (lbl) lbl.textContent = labels[i];
+  if (bg) { bg.style.background = 'linear-gradient(to right,transparent,rgba(6,6,8,.92) 15%,rgba(6,6,8,.92) 85%,transparent)'; }
+}
+
+// Particles setup
+const parts = [];
+for (let i = 0; i < 25; i++) {
+  const p = document.createElement('div');
+  p.className = 'pt';
+  p.style.width = p.style.height = (2 + Math.random() * 5) + 'px';
+  p.style.background = Math.random() > .5 ? 'rgba(10,132,255,.5)' : 'rgba(255,214,10,.3)';
+  document.getElementById('particles').appendChild(p);
+  parts.push({
+    el: p, x: Math.random() * 1080, y: Math.random() * 1920,
+    spd: 8 + Math.random() * 20, amp: 20 + Math.random() * 60,
+    phase: Math.random() * Math.PI * 2
+  });
+}
+
+// Scene timing
+const scenes = [
+  { start: 0,    dur: 3.7 },  // hook
+  { start: 3.7,  dur: 6.4 },  // lista
+  { start: 10.1, dur: 5.2 },  // nota
+  { start: 15.3, dur: 4.5 },  // tarefas
+  { start: 19.8, dur: 6.1 },  // IA
+  { start: 25.9, dur: 5.0 },  // sync (split)
+  { start: 30.9, dur: 4.6 },  // gratis
+  { start: 35.5, dur: 4.9 },  // CTA
+];
+const TOTAL = 40.4;
+
+function hide(el) { if (el) { el.style.opacity = 0; el.style.display = 'none'; } }
+function show(el) { if (el) { el.style.display = 'block'; } }
+function hideAll() {
+  ['h1','h2','h3','hsub','accentbar','hookPhone',
+   'app1','app2','app3','app4','app5',
+   'splL','splR','notif',
+   'lbl1','lbl2','lbl3','lbl4','lbl5','lbl6',
+   'tbg1','tbg2','tbg3','tbg4','tbg5','tbg6',
+   'ctab','ctas','ctabtn'].forEach(id => hide(document.getElementById(id)));
+}
+
+function renderFrame(t) {
+  hideAll();
+  const time = t;
+
+  // Background glows (sempre visiveis)
+  const ga = document.getElementById('glowA');
+  const gb = document.getElementById('glowB');
+  const drift = Math.sin(time * 0.5) * 80;
+  ga.style.background = 'radial-gradient(circle,rgba(10,132,255,.22) 0%,transparent 65%)';
+  ga.style.left = (-200 + drift) + 'px';
+  ga.style.top = (-200 + drift * 0.5) + 'px';
+  gb.style.background = 'radial-gradient(circle,rgba(255,214,10,.08) 0%,transparent 65%)';
+  gb.style.right = (-250 - drift * 0.7) + 'px';
+  gb.style.bottom = (-150 - drift * 0.4) + 'px';
+
+  // Particles
+  parts.forEach(p => {
+    p.el.style.left = (p.x + Math.sin(time * 0.8 + p.phase) * p.amp) + 'px';
+    p.el.style.top = ((p.y + p.spd * time) % 1920) + 'px';
+    p.el.style.opacity = 0.2 + 0.3 * Math.abs(Math.sin(time * 1.2 + p.phase));
+  });
+
+  // Progress bar
+  const prog = document.getElementById('progress');
+  prog.style.width = clamp01(time / TOTAL) * 100 + '%';
+  prog.style.background = 'linear-gradient(90deg,#0A84FF,#4AA9FF)';
+  prog.style.boxShadow = '0 0 15px rgba(10,132,255,.5)';
+
+  // Encontra cena ativa
+  let scene = 0;
+  for (let i = 0; i < scenes.length; i++) {
+    if (time >= scenes[i].start && time < scenes[i].start + scenes[i].dur) { scene = i; break; }
+  }
+  const st = time - scenes[scene].start;
+  const sd = scenes[scene].dur;
+
+  switch(scene) {
+    case 0: { // HOOK
+      const h1 = document.getElementById('h1');
+      const h2 = document.getElementById('h2');
+      const h3 = document.getElementById('h3');
+      const hsub = document.getElementById('hsub');
+      const ab = document.getElementById('accentbar');
+      const hp = document.getElementById('hookPhone');
+      show(h1); show(h2); show(h3); show(hsub); show(ab); show(hp);
+
+      // h1 letters: staggered bounce
+      const c1 = setLetters(h1, 'PARE DE USAR');
+      c1.forEach((s, i) => {
+        const d = i * 0.035;
+        const p = clamp01((st - d) / 0.5);
+        if (p > 0) {
+          const e = easeOutBack(p);
+          s.style.opacity = p;
+          s.style.transform = `translateY(${lerp(80, 0, e)}px) scale(${lerp(0.3, 1, e)}) rotateX(${lerp(-90, 0, e)}deg)`;
+        } else { s.style.opacity = 0; }
+      });
+
+      // h2 letters
+      const c2 = setLetters(h2, '4 APPS');
+      c2.forEach((s, i) => {
+        const d = 0.35 + i * 0.045;
+        const p = clamp01((st - d) / 0.5);
+        if (p > 0) {
+          const e = easeOutBack(p);
+          s.style.opacity = p;
+          s.style.transform = `translateY(${lerp(100, 0, e)}px) scale(${lerp(0.2, 1, e)})`;
+        } else { s.style.opacity = 0; }
+      });
+
+      // h3 letters
+      const c3 = setLetters(h3, 'DIFERENTES');
+      c3.forEach((s, i) => {
+        const d = 0.6 + i * 0.035;
+        const p = clamp01((st - d) / 0.5);
+        if (p > 0) {
+          const e = easeOutBack(p);
+          s.style.opacity = p;
+          s.style.transform = `translateY(${lerp(80, 0, e)}px) scale(${lerp(0.3, 1, e)})`;
+        } else { s.style.opacity = 0; }
+      });
+
+      // Accent bar
+      const bp = clamp01((st - 0.3) / 0.4);
+      ab.style.opacity = bp;
+      ab.style.left = (1080/2 - lerp(0, 200, easeOutCubic(bp))/2) + 'px';
+      ab.style.width = lerp(0, 200, easeOutCubic(bp)) + 'px';
+
+      // Subtitle
+      const sp = clamp01((st - 0.9) / 0.35);
+      hsub.style.opacity = easeOutCubic(sp);
+
+      // Phone: entra com perspectiva
+      const pp = clamp01((st - 0.4) / 0.7);
+      const pe = easeOutCubic(pp);
+      hp.style.opacity = pe;
+      hp.style.left = (1080/2 - 190) + 'px';
+      hp.style.top = lerp(1100, 900, pe) + 'px';
+      hp.style.transform = `perspective(800px) rotateX(${lerp(15, 2, pe)}deg) rotateY(0deg)`;
+
+      break;
+    }
+
+    case 1: case 2: case 3: case 4: case 5: { // App beats
+      const appIdx = scene; // 1-5
+      const app = document.getElementById('app' + appIdx);
+      const lbl = document.getElementById('lbl' + appIdx);
+      const tbg = document.getElementById('tbg' + appIdx);
+      if (app) {
+        show(app);
+        // slide up com overshoot
+        const p = clamp01(st / 0.5);
+        const e = easeOutBack(p);
+        app.style.opacity = clamp01(p * 2);
+        const cx = 1080/2 - 230;
+        app.style.left = cx + 'px';
+        app.style.top = lerp(320, 160, easeOutCubic(clamp01(p))) + 'px';
+        // float suave depois de entrar
+        const floatT = Math.max(0, st - 0.5);
+        const fy = Math.sin(floatT * 2.5) * 6;
+        app.style.transform = `perspective(900px) rotateX(${1 + Math.sin(floatT*1.5)*0.5}deg) translateY(${fy}px)`;
+      }
+      if (lbl) {
+        show(lbl);
+        const lp = clamp01((st - 0.15) / 0.35);
+        lbl.style.opacity = easeOutCubic(lp);
+        lbl.style.transform = `translateY(${lerp(40, 0, easeOutCubic(lp))}px) scale(${lerp(0.8, 1, easeOutBack(lp))})`;
+      }
+      if (tbg) {
+        show(tbg);
+        tbg.style.left = '0'; tbg.style.width = '100%';
+        tbg.style.top = '1320px'; tbg.style.height = '140px';
+        tbg.style.opacity = clamp01((st - 0.05) / 0.2);
+      }
+      break;
+    }
+
+    case 6: { // Sync / split screen
+      const sl = document.getElementById('splL');
+      const sr = document.getElementById('splR');
+      const nt = document.getElementById('notif');
+      const lbl = document.getElementById('lbl6');
+      const tbg = document.getElementById('tbg6');
+      show(sl); show(sr); show(nt); show(lbl); show(tbg);
+
+      const pL = clamp01(st / 0.6);
+      const pR = clamp01((st - 0.1) / 0.6);
+      const eL = easeOutBack(pL);
+      const eR = easeOutBack(pR);
+      sl.style.opacity = pL;
+      sl.style.left = lerp(-520, 20, eL) + 'px';
+      sl.style.top = '160px';
+      sr.style.opacity = pR;
+      sr.style.right = lerp(-520, 20, eR) + 'px';
+      sr.style.top = '160px';
+
+      // Notificacao voadora
+      const np = clamp01((st - 0.8) / 1.2);
+      const ne = easeOutCubic(np);
+      nt.style.opacity = clamp01(np * 3);
+      nt.style.left = lerp(-800, 165, ne) + 'px';
+      nt.style.top = lerp(1150, 1120, ne) + 'px';
+
+      if (lbl) {
+        const lp = clamp01((st - 0.15) / 0.35);
+        lbl.style.opacity = easeOutCubic(lp);
+        lbl.style.transform = `translateY(${lerp(40, 0, easeOutCubic(lp))}px)`;
+      }
+      if (tbg) {
+        show(tbg);
+        tbg.style.left = '0'; tbg.style.width = '100%';
+        tbg.style.top = '1320px'; tbg.style.height = '140px';
+        tbg.style.opacity = clamp01((st - 0.05) / 0.2);
+      }
+      break;
+    }
+
+    case 7: { // CTA
+      const ctb = document.getElementById('ctab');
+      const cts = document.getElementById('ctas');
+      const cbtn = document.getElementById('ctabtn');
+      show(ctb); show(cts); show(cbtn);
+
+      const bp = clamp01(st / 0.5);
+      const be = easeOutBack(bp);
+      ctb.style.opacity = bp;
+      ctb.style.top = lerp(600, 480, be) + 'px';
+      ctb.style.transform = `scale(${lerp(0.4, 1, be)})`;
+
+      const sp = clamp01((st - 0.3) / 0.4);
+      cts.style.opacity = easeOutCubic(sp);
+      cts.style.top = lerp(740, 720, easeOutCubic(sp)) + 'px';
+
+      const bp2 = clamp01((st - 0.15) / 0.5);
+      const be2 = easeOutBack(bp2);
+      cbtn.style.opacity = bp2;
+      cbtn.style.left = (1080/2 - 200) + 'px';
+      cbtn.style.top = lerp(950, 880, be2) + 'px';
+      cbtn.style.transform = `scale(${lerp(0.5, 1, be2)})`;
+      // pulso
+      const pulse = Math.sin(st * 4) * 8;
+      cbtn.style.boxShadow = `0 20px ${50 + pulse}px rgba(10,132,255,${.4 + pulse/100}),0 0 ${30 + pulse}px rgba(10,132,255,.25)`;
+      break;
+    }
+  }
+}
+
+// Exporta pra o capturador
+window.renderFrame = renderFrame;
+window.TOTAL = TOTAL;
+</script>
+</body>
+</html>
