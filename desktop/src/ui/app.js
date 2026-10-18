@@ -461,7 +461,7 @@ function montarPatchPreferencias(prefs){
   if(!prefs || typeof prefs!=='object') return null;
   var patch={};
   if(prefs.config && typeof prefs.config==='object'){
-    for(var k in prefs.config) if(k!=='pinDesbloqueio') patch[k]=prefs.config[k];
+    for(var k in prefs.config) if(k!=='pinDesbloqueio' && k!=='idioma' && k!=='idiomaEscolhido' && k!=='idiomaEscolhaVersao') patch[k]=prefs.config[k];
   }
   if(typeof prefs.isDark==='boolean') patch.temaEscuro=prefs.isDark;
   return Object.keys(patch).length ? patch : null;

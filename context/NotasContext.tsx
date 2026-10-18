@@ -399,9 +399,17 @@ export function NotasProvider({ children }: any) {
       
       // Preferencias (tema + config sem PIN) sincronizadas dentro do mesmo backup — PC<->celular ficam iguais.
       // Fonte única: ThemeContext (em memória), não AsyncStorage cru — reflete na hora sem reinício.
+      // Idioma NÃO entra: é preferência por aparelho (seguir o idioma do celular).
+      const prefsConfig: Record<string, any> = {};
+      if (configTema) {
+        for (const [chave, valor] of Object.entries(configTema)) {
+          if (chave === 'pinDesbloqueio' || chave === 'idioma' || chave === 'idiomaEscolhido' || chave === 'idiomaEscolhaVersao') continue;
+          prefsConfig[chave] = valor;
+        }
+      }
       const prefsParaBackup: any = {
         isDark: typeof isDarkTema === 'boolean' ? isDarkTema : undefined,
-        config: configTema ? (({ pinDesbloqueio, ...resto }: any) => resto)(configTema) : undefined,
+        config: configTema ? prefsConfig : undefined,
       };
       const agoraIso = new Date().toISOString();
       const payloadBackup = {

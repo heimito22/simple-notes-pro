@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Localization from 'expo-localization';
 import { Platform } from 'react-native';
 import { definirSomAlarme } from '../modules/minhasnotas-alarm';
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { ehSomAlarme, SOM_PADRAO, type SomAlarme } from './sons-alarme';
 import { definirIdiomaAtual, ehIdioma, tIdioma, type Idioma } from './idiomas';
 
@@ -13,9 +13,13 @@ import { definirIdiomaAtual, ehIdioma, tIdioma, type Idioma } from './idiomas';
  * sempre em inglês).
  * pt* → pt · es* → es · qualquer outro → en (universal).
  */
-function idiomaDoDispositivo(): Idioma {
+export function idiomaDoDispositivo(): Idioma {
   try {
-    const cod = Localization.getLocales()[0]?.languageCode?.toLowerCase() || 'en';
+    const locale = Localization.getLocales()[0] as any;
+    // languageCode é o campo oficial; languageTag cobre versões antigas do módulo.
+    const cod = String(locale?.languageCode || locale?.languageTag || 'en')
+      .slice(0, 2)
+      .toLowerCase();
     if (cod === 'pt') return 'pt';
     if (cod === 'es') return 'es';
     return 'en';
@@ -36,6 +40,8 @@ interface Config {
   idioma: Idioma;
   /** true = o usuário escolheu manualmente (respeita sempre). false/undefined = segue o dispositivo. */
   idiomaEscolhido?: boolean;
+  /** Marca de versão da lógica de idioma (migração de configs antigas). */
+  idiomaEscolhaVersao?: number;
   /** DESKTOP: PIN de 4 dígitos do próprio app (armazenado ofuscado). Vazio = sem PIN. */
   pinDesbloqueio: string;
 }
@@ -58,6 +64,8 @@ interface ThemeContextData {
   toggleTheme: () => void;
   config: Config;
   atualizarConfig: (chave: keyof Config, valor: any) => void;
+  /** Atualiza várias chaves de uma vez (evita perder a primeira quando são feitas duas chamadas seguidas). */
+  atualizarConfigs: (parcial: Partial<Config>) => Promise<void>;
   /** Aplica preferencias vindas do backup na nuvem (tema + config) — usado para sincronizar PC<->celular. */
   aplicarPreferenciasRemotas: (prefs: { isDark?: boolean; config?: Partial<Config> }) => Promise<void>;
   /** Traduz uma chave para o idioma ativo do app. */
@@ -95,13 +103,25 @@ export default function ThemeProvider({ children }: { children: React.ReactNode 
           if (parseada.idioma !== undefined && !ehIdioma(parseada.idioma)) {
             delete parseada.idioma;
           }
-          // Sem idioma salvo OU idioma que veio do bug antigo (nunca foi
-          // escolhido manualmente): segue o idioma do DISPOSITIVO.
-          // Escolha manual explícita (idiomaEscolhido = true) sempre vence.
+          // MIGRAÇÃO v27: a build anterior salvava idioma e idiomaEscolhido em
+          // DUAS chamadas de atualizarConfig seguidas — a segunda partia do
+          // estado antigo e sobrescrevia a primeira. Quem tocava em "Português"
+          // ficava travado no idioma anterior (inglês), com idiomaEscolhido=true
+          // e essa config ia para o Drive (envenenando PC e reinstalações).
+          // Config sem a marca de versão volta a seguir o dispositivo UMA vez.
+          if (parseada.idiomaEscolhido && parseada.idiomaEscolhaVersao !== 2) {
+            parseada.idiomaEscolhido = false;
+          }
+          // Idioma é preferência POR APARELHO: nunca vem da nuvem.
+          parseada.idiomaEscolhaVersao = 2;
+          // Sem escolha manual explícita: segue o idioma do DISPOSITIVO.
           if (!parseada.idiomaEscolhido) {
             parseada.idioma = idiomaDoDispositivo();
           }
-          setConfig({ ...CONFIG_PADRAO, ...parseada });
+          const normalizada: Config = { ...CONFIG_PADRAO, ...parseada };
+          setConfig(normalizada);
+          // Grava a versão migrada (senão a migração rodaria em todo boot).
+          await AsyncStorage.setItem('@config_seguranca', JSON.stringify(normalizada));
         } else {
           // Nunca configurado: idioma do dispositivo (fallback en universal)
           setConfig({ ...CONFIG_PADRAO, idioma: idiomaDoDispositivo() });
@@ -130,10 +150,30 @@ export default function ThemeProvider({ children }: { children: React.ReactNode 
     }
   }, [config.somAlarme]);
 
-  const atualizarConfig = async (chave: keyof Config, valor: any) => {
-    const novasConfigs = { ...config, [chave]: valor };
-    setConfig(novasConfigs);
-    await AsyncStorage.setItem('@config_seguranca', JSON.stringify(novasConfigs));
+  // ── Fonte síncrona do config ──────────────────────────────────────────────
+  // setConfig é assíncrono: duas chamadas seguidas de atualizarConfig partiam
+  // do mesmo `config` antigo e a segunda apagava a primeira (era o bug do
+  // idioma: escolher "Português" gravava idiomaEscolhido=true com o idioma
+  // ANTERIOR). O ref é atualizado na hora, então as chamadas se compõem.
+  const configRef = useRef<Config>(CONFIG_PADRAO);
+  useEffect(() => { configRef.current = config; }, [config]);
+
+  const salvarConfig = async (novas: Config) => {
+    configRef.current = novas;
+    setConfig(novas);
+    try {
+      await AsyncStorage.setItem('@config_seguranca', JSON.stringify(novas));
+    } catch (e) {
+      console.error('Erro ao salvar configurações', e);
+    }
+  };
+
+  const atualizarConfigs = async (parcial: Partial<Config>) => {
+    await salvarConfig({ ...configRef.current, ...parcial });
+  };
+
+  const atualizarConfig = (chave: keyof Config, valor: any) => {
+    atualizarConfigs({ [chave]: valor } as Partial<Config>);
   };
 
   /** Normaliza uma config parcial vinda da nuvem: valida som/idioma, remove pin e mescla com padrões. */
@@ -141,6 +181,10 @@ export default function ThemeProvider({ children }: { children: React.ReactNode 
     const sanitizada: any = { ...(parcial || {}) };
     if (sanitizada.somAlarme !== undefined && !ehSomAlarme(sanitizada.somAlarme)) delete sanitizada.somAlarme;
     if (sanitizada.idioma !== undefined && !ehIdioma(sanitizada.idioma)) delete sanitizada.idioma;
+    // Idioma nunca viaja entre aparelhos (ver atualizarConfigs).
+    delete sanitizada.idioma;
+    delete sanitizada.idiomaEscolhido;
+    delete sanitizada.idiomaEscolhaVersao;
     delete sanitizada.pinDesbloqueio; // nunca sincroniza
     const mesclada = { ...CONFIG_PADRAO, ...base, ...sanitizada } as Config;
     (mesclada as any).pinDesbloqueio = base.pinDesbloqueio; // preserva pin local
@@ -165,6 +209,11 @@ export default function ThemeProvider({ children }: { children: React.ReactNode 
       const tmp: any = { ...(prefs.config as any) };
       if (tmp.somAlarme !== undefined && !ehSomAlarme(tmp.somAlarme)) delete tmp.somAlarme;
       if (tmp.idioma !== undefined && !ehIdioma(tmp.idioma)) delete tmp.idioma;
+      // Idioma é POR APARELHO: o backup do Drive traz o idioma de outro
+      // dispositivo — ignorar evita que o PC/celular imponha inglês aqui.
+      delete tmp.idioma;
+      delete tmp.idiomaEscolhido;
+      delete tmp.idiomaEscolhaVersao;
       delete tmp.pinDesbloqueio;
       if (Object.keys(tmp).length) {
         const mesclada = sanitizarConfigRemota(prefs.config, config);
@@ -191,7 +240,7 @@ export default function ThemeProvider({ children }: { children: React.ReactNode 
     tIdioma(config.idioma, chave, vars);
 
   return (
-    <ThemeContext.Provider value={{ isDark, toggleTheme, config, atualizarConfig, aplicarPreferenciasRemotas, t, loading }}>
+    <ThemeContext.Provider value={{ isDark, toggleTheme, config, atualizarConfig, atualizarConfigs, aplicarPreferenciasRemotas, t, loading }}>
       {children}
     </ThemeContext.Provider>
   );

@@ -8,14 +8,14 @@ import { Alert, KeyboardAvoidingView, Linking, Modal, Platform, ScrollView, Styl
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import PreviewSom from '../../components/preview-som';
 import { useMonetizacao } from '../../context/monetizacao';
-import { useTheme } from '../../context/ThemeContext';
+import { idiomaDoDispositivo, useTheme } from '../../context/ThemeContext';
 import { appColors } from '../../constants/theme';
 import { infoDoSom, SONS_ALARME } from '../../context/sons-alarme';
 import { IDIOMAS } from '../../context/idiomas';
 import { alarmeNativoDisponivel, obterPrecoRemoverAnuncios, pararSomAlarme, previewSomAlarme } from '../../modules/minhasnotas-alarm';
 
 export default function SettingsScreen() {
-  const { isDark, toggleTheme, config, atualizarConfig, t } = useTheme();
+  const { isDark, toggleTheme, config, atualizarConfig, atualizarConfigs, t } = useTheme();
   const insets = useSafeAreaInsets();
   const { anunciosRemovidos, premiumPorEmail, comprando, comprarRemoverAnuncios, emailLogado, emailDonoCompra, solicitarLoginParaCompra, cancelarCompraPendente } = useMonetizacao();
   const router = useRouter();
@@ -110,8 +110,7 @@ export default function SettingsScreen() {
       if (valor) {
         setModalPinVisivel(true);
       } else {
-        atualizarConfig('pinDesbloqueio', '');
-        atualizarConfig('exigirBiometriaApp', false);
+        atualizarConfigs({ pinDesbloqueio: '', exigirBiometriaApp: false });
       }
       return;
     }
@@ -257,7 +256,9 @@ export default function SettingsScreen() {
               <Text style={[styles.subText, { color: cores.textoSecundario } ]}>{t('Idioma do aplicativo e do assistente de IA')}</Text>
             </View>
             <Text style={{ color: cores.accent, fontWeight: 'bold', fontSize: 16 }}>
-              {IDIOMAS.find(i => i.cod === config.idioma)?.rotulo ?? 'Português'}
+              {config.idiomaEscolhido
+                ? (IDIOMAS.find(i => i.cod === config.idioma)?.rotulo ?? 'Português')
+                : t('Automático')}
             </Text>
             <Ionicons name="chevron-forward" size={20} color="#999" />
           </TouchableOpacity>
@@ -584,8 +585,7 @@ export default function SettingsScreen() {
                       setPinConfirma('');
                       return;
                     }
-                    atualizarConfig('pinDesbloqueio', pinNovo);
-                    atualizarConfig('exigirBiometriaApp', true);
+                    atualizarConfigs({ pinDesbloqueio: pinNovo, exigirBiometriaApp: true });
                     fecharModalPin();
                   }
                 }}
@@ -764,8 +764,33 @@ export default function SettingsScreen() {
               </TouchableOpacity>
             </View>
 
+            <TouchableOpacity
+              style={[
+                styles.somRow,
+                { backgroundColor: cores.somRowFundo, borderColor: cores.somRowBorda },
+                !config.idiomaEscolhido && { borderColor: cores.accent },
+              ]}
+              activeOpacity={0.7}
+              onPress={() => {
+                // Volta a seguir o idioma do aparelho (desfaz qualquer escolha travada).
+                atualizarConfigs({ idioma: idiomaDoDispositivo(), idiomaEscolhido: false, idiomaEscolhaVersao: 2 });
+                setIdiomaModalAberto(false);
+              }}
+            >
+              <View style={[styles.somIcone, { backgroundColor: cores.somIconeFundo }]}>
+                <Ionicons name="phone-portrait-outline" size={20} color={cores.accent} />
+              </View>
+              <View style={{ flex: 1, marginLeft: 12 }}>
+                <Text style={[styles.somNome, { color: cores.somNome }]}>{t('Automático (idioma do celular)')}</Text>
+                <Text style={[styles.somDesc, { color: cores.sheetSub }]}>{t('Segue o idioma do aparelho')}</Text>
+              </View>
+              {!config.idiomaEscolhido && (
+                <Ionicons name="checkmark-circle" size={24} color={cores.accent} style={{ marginLeft: 12 }} />
+              )}
+            </TouchableOpacity>
+
             {IDIOMAS.map(idioma => {
-              const selecionado = config.idioma === idioma.cod;
+              const selecionado = !!config.idiomaEscolhido && config.idioma === idioma.cod;
               return (
                 <TouchableOpacity
                   key={idioma.cod}
@@ -776,8 +801,8 @@ export default function SettingsScreen() {
                   ]}
                   activeOpacity={0.7}
                   onPress={() => {
-                    atualizarConfig('idioma', idioma.cod);
-                    atualizarConfig('idiomaEscolhido', true);
+                    // Uma única gravação: idioma + "escolhido manualmente" juntos.
+                    atualizarConfigs({ idioma: idioma.cod, idiomaEscolhido: true, idiomaEscolhaVersao: 2 });
                     setIdiomaModalAberto(false);
                   }}
                 >
