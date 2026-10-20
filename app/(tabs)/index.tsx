@@ -1070,7 +1070,7 @@ export default function HomeScreen() {
                         <View>
                           {anexos.imgUri && (
                             <View style={styles.linhaAnexo}>
-                              <Image source={{ uri: anexos.imgUri }} style={styles.thumbAnexo} />
+                              <Image source={{ uri: anexos.imgUri }} style={styles.thumbAnexo} resizeMethod="resize" />
                             </View>
                           )}
                           {audios[0] && (
@@ -1139,7 +1139,7 @@ export default function HomeScreen() {
 
               {user ? (
                 <View style={styles.userInfoSection}>
-                   {user.photo && <Image source={{ uri: user.photo }} style={styles.modalAvatar} />}
+                   {user.photo && <Image source={{ uri: user.photo }} style={styles.modalAvatar} resizeMethod="resize" />}
                    <Text style={[styles.userName, { color: cores.textoPrincipal }]}>{user.name || t('Usuário')}</Text>
                    <Text style={[styles.userEmail, { color: cores.textoSecundario }]}>{user.email}</Text>
                    <BarraArmazenamento
