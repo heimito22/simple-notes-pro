@@ -1,5 +1,6 @@
-**Versão 1.5.12**
+**Versão 1.5.13**
 
-- Editor de notas com o DOBRO de espaço: com uma nota aberta, a lista vira uma coluna compacta e o editor ocupa ~2/3 da tela
-- Corrigido: listas numeradas cortavam o primeiro dígito a partir do 10 ("10" aparecia como "0")
-- Números de 2+ algarismos agora têm espaço de sobra nas listas, igual ao celular
+- O app agora abre no idioma do Windows (português, inglês ou espanhol)
+- Novo modo "Automático" em Ajustes → Idioma: volte a seguir o PC quando quiser
+- Sua escolha de idioma não é mais sobrescrita pela sincronização com o celular
+- Ajustes menores de estabilidade
