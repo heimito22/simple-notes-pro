@@ -91,7 +91,7 @@
     var swBloq=$('#swBloqueio'), rowPin=$('#rowPin'), pinStatus=$('#pinStatus'), btnPin=$('#btnDefinirPin');
     var chaveInput=$('#cfgChaveIA');
     if(swTema) swTema.classList.toggle('on', !!config.temaEscuro);
-    if(selIdioma) selIdioma.value=config.idioma||'pt';
+    if(selIdioma) selIdioma.value=config.idiomaEscolhido?(config.idioma||'pt'):'auto';
     if(selBloq) selBloq.value=String(config.tempoBloqueio||0);
     if(selSoneca) selSoneca.value=String(config.tempoSoneca||10);
     if(selSom) selSom.value=config.somAlarme||'classico';
@@ -112,7 +112,21 @@
     var $=ctx.$;
     var swTema=$('#swTema'), selIdioma=$('#selIdioma'), selBloq=$('#selTempoBloqueio'), selSoneca=$('#selSoneca'), selSom=$('#selSom'), swBloq=$('#swBloqueio'), btnPin=$('#btnDefinirPin');
     if(swTema) swTema.addEventListener('click', function(){ ctx.salvarConfigPatch({ temaEscuro: !ctx.config.temaEscuro }); render(ctx); ctx.toast(ctx.config.temaEscuro?T('Tema escuro'):T('Tema claro')); });
-    if(selIdioma) selIdioma.addEventListener('change', function(){ ctx.salvarConfigPatch({ idioma: selIdioma.value }); if(window.I18N) window.I18N.definir(selIdioma.value); render(ctx); if(window.snNotas&&window.snNotas.render) window.snNotas.render(ctx); if(window.snTarefas&&window.snTarefas.render) window.snTarefas.render(ctx); if(ctx.refreshConta) ctx.refreshConta(); ctx.toast(T('Idioma: ')+({pt:'Português',en:'English',es:'Español'}[selIdioma.value]||selIdioma.value)); });
+    if(selIdioma) selIdioma.addEventListener('change', function(){
+      var auto=selIdioma.value==='auto';
+      var cod=selIdioma.value;
+      if(auto){
+        try{ var nav=(navigator.languages&&navigator.languages[0])||navigator.language||''; cod=String(nav).toLowerCase().split(/[-_]/)[0]; }catch(e){ cod='pt'; }
+        if(cod!=='pt'&&cod!=='es') cod='en';
+      }
+      ctx.salvarConfigPatch({ idioma: cod, idiomaEscolhido: !auto, idiomaEscolhaVersao: 2 });
+      if(window.I18N) window.I18N.definir(cod);
+      render(ctx);
+      if(window.snNotas&&window.snNotas.render) window.snNotas.render(ctx);
+      if(window.snTarefas&&window.snTarefas.render) window.snTarefas.render(ctx);
+      if(ctx.refreshConta) ctx.refreshConta();
+      ctx.toast(T('Idioma: ')+(auto?T('Automático'):({pt:'Português',en:'English',es:'Español'}[cod]||cod)));
+    });
     if(selBloq) selBloq.addEventListener('change', function(){ ctx.salvarConfigPatch({ tempoBloqueio: parseInt(selBloq.value,10)||0 }); });
     if(selSoneca) selSoneca.addEventListener('change', function(){ ctx.salvarConfigPatch({ tempoSoneca: parseInt(selSoneca.value,10)||10 }); });
     if(selSom) selSom.addEventListener('change', function(){ ctx.salvarConfigPatch({ somAlarme: selSom.value }); });

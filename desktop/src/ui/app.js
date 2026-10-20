@@ -672,7 +672,7 @@ async function syncEnviar(){
   var u=await S.googleUsuario().catch(function(){return null;});
   if(!u || !u.email) return;
   try{
-    var prefsConfig=config ? (function(c){ var o={}; for(var k in c) if(k!=='pinDesbloqueio') o[k]=c[k]; return o; })(config) : null;
+    var prefsConfig=config ? (function(c){ var o={}; for(var k in c) if(k!=='pinDesbloqueio'&&k!=='idioma'&&k!=='idiomaEscolhido'&&k!=='idiomaEscolhaVersao') o[k]=c[k]; return o; })(config) : null;
     var agoraIso=new Date().toISOString();
     var payload={ notas: store.notas, listas: store.listas, pastas: store.pastas, tarefas: store.tarefas, apagados: (window.Tombstones?window.Tombstones.serializar():[]), chaveIA: (config&&config.chaveIA)||store.chaveIA||'', preferencias: { isDark: config ? config.temaEscuro!==false : true, config: prefsConfig }, ultimaSincronizacao: agoraIso };
     var r=await S.syncEnviar(payload).catch(function(){return null;});
@@ -1153,6 +1153,12 @@ async function carregar(){
     config=store.config || await S.configLer().catch(function(){return null;}) || store.config;
     if(!config) config={ temaEscuro:true, idioma:idiomaDoSistema(), chaveIA:'', pinDesbloqueio:'', exigirBiometriaApp:false, tempoBloqueio:0, tempoSoneca:10, somAlarme:'classico', exibirAjudaFAB:true };
     if(!config.idioma) config.idioma=idiomaDoSistema();
+    // MIGRAÇÃO (mesma do celular): config que veio da nuvem podia trazer idioma
+    // de outro aparelho. Sem escolha manual declarada (versão 2 da lógica),
+    // segue o idioma do Windows uma única vez e destrava quem ficou em inglês.
+    if(config.idiomaEscolhido && config.idiomaEscolhaVersao!==2) config.idiomaEscolhido=false;
+    config.idiomaEscolhaVersao=2;
+    if(!config.idiomaEscolhido) config.idioma=idiomaDoSistema();
     if(store.chaveIA && !config.chaveIA) config.chaveIA=store.chaveIA;
     // ISOLAMENTO DE CONTAS: o store pertence a uma conta ('local' = offline).
     store.conta=store.conta||'local';
