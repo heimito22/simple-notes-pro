@@ -167,64 +167,78 @@ export function NotasProvider({ children }: any) {
 
   const carregarTudo = useCallback(async () => {
     try {
-      const key = await getStorageKey();
-      const dados = await AsyncStorage.getItem(key);
-      // FIX CRÍTICO: o id da conta ativa precisa bater com o estado AQUI.
-      // Antes ele só atualizava no boot do app — um login em execução deixava
-      // currentUserId apontando para a conta antiga e o ciclo de sync morria.
-      const user = GoogleSignin.getCurrentUser();
-      const userId = user ? user.user.id : 'local';
-      if (userId !== currentUserId) setCurrentUserId(userId);
-      // Dono do estado que entra agora (chave da conta ou modo offline).
-      contaEstadoRef.current = userId;
-      // Tombstones desta conta (escopo por conta: exclusoes da conta B
-      // nunca tocam a conta A - antes eram globais e 'vinculavam' as contas).
-      await definirEscopoApagados(userId);
-      // Relógio híbrido: o "visto" persistido entra na memória (as próximas
-      // mutações carimbam acima de tudo que este aparelho já viu).
-      await hidratarRelogio();
+      // Até 3 tentativas: se a CONTA MUDAR no meio da leitura (troca A → B),
+      // recomeça. Antes a chave do storage era resolvida numa chamada separada:
+      // dava para ler o bucket da conta A e já estar logado como B — o estado
+      // de A entrava como sendo de B (notas de uma conta aparecendo na outra).
+      for (let tentativa = 0; tentativa < 3; tentativa++) {
+        const userInicio = GoogleSignin.getCurrentUser();
+        const userId = userInicio ? userInicio.user.id : 'local';
+        const key = userInicio ? `@notas_user_${userId}` : '@minhas_notas_locais';
+        const dados = await AsyncStorage.getItem(key);
+        // Tombstones desta conta (escopo por conta: exclusoes da conta B
+        // nunca tocam a conta A - antes eram globais e 'vinculavam' as contas).
+        await definirEscopoApagados(userId);
+        // Relógio híbrido: o "visto" persistido entra na memória (as próximas
+        // mutações carimbam acima de tudo que este aparelho já viu).
+        await hidratarRelogio();
+        // A conta ainda é a mesma depois dos awaits? Se não, descarta este lote.
+        const userAgora = GoogleSignin.getCurrentUser();
+        const userIdAgora = userAgora ? userAgora.user.id : 'local';
+        if (userIdAgora !== userId) {
+          console.log('[Isolamento] conta mudou durante o carregamento — recarregando o bucket certo');
+          continue;
+        }
+        // FIX CRÍTICO: o id da conta ativa precisa bater com o estado AQUI.
+        // Antes ele só atualizava no boot do app — um login em execução deixava
+        // currentUserId apontando para a conta antiga e o ciclo de sync morria.
+        if (userId !== currentUserId) setCurrentUserId(userId);
+        // Dono do estado que entra agora (chave da conta ou modo offline).
+        contaEstadoRef.current = userId;
 
-      console.log('[SYNC-DBG] LOAD chave=' + key + ' tem_dados=' + (!!dados));
-      if (dados) {
-        const parsed = JSON.parse(dados);
-        // O ESTADO LOCAL já contém os carimbos vistos (puxados antes) — o
-        // relógio deve considerá-los MESMO que a nuvem não mude depois (sem
-        // pull novo, o visto ficaria atrasado e uma edição feita agora
-        // carimbava abaixo do carimbo adiantado do PC: o PC descartava).
-        try {
-          avancarRelogioComItens(parsed.notas, parsed.listas, parsed.pastas, parsed.tarefas);
-        } catch {}
-        // BUCKET DE OUTRA CONTA: sessão quebrada deixou notas de uma conta
-        // estacionadas no offline. NÃO vira estado "offline" (senão o app
-        // mostra notas de outra conta como se fossem suas, deslogado).
-        // Fica estacionado — o próximo login da conta dona recebe de volta.
-        const origemBucket = (!Array.isArray(parsed) && parsed && typeof parsed.origem === 'string') ? parsed.origem : 'local';
-        if (key === '@minhas_notas_locais' && origemBucket !== 'local') {
-          console.log('[Isolamento] bucket é da conta', origemBucket, '— não carrega como offline');
+        console.log('[SYNC-DBG] LOAD chave=' + key + ' tem_dados=' + (!!dados));
+        if (dados) {
+          const parsed = JSON.parse(dados);
+          // O ESTADO LOCAL já contém os carimbos vistos (puxados antes) — o
+          // relógio deve considerá-los MESMO que a nuvem não mude depois (sem
+          // pull novo, o visto ficaria atrasado e uma edição feita agora
+          // carimbava abaixo do carimbo adiantado do PC: o PC descartava).
+          try {
+            avancarRelogioComItens(parsed.notas, parsed.listas, parsed.pastas, parsed.tarefas);
+          } catch {}
+          // BUCKET DE OUTRA CONTA: sessão quebrada deixou notas de uma conta
+          // estacionadas no offline. NÃO vira estado "offline" (senão o app
+          // mostra notas de outra conta como se fossem suas, deslogado).
+          // Fica estacionado — o próximo login da conta dona recebe de volta.
+          const origemBucket = (!Array.isArray(parsed) && parsed && typeof parsed.origem === 'string') ? parsed.origem : 'local';
+          if (key === '@minhas_notas_locais' && origemBucket !== 'local') {
+            console.log('[Isolamento] bucket é da conta', origemBucket, '— não carrega como offline');
+            setNotas([]);
+            if (typeof setListas === 'function') setListas([]);
+            setPastas([]);
+          } else if (Array.isArray(parsed)) {
+            // Formato legado: array puro de notas
+            setNotas(parsed);
+            registrarSnap([parsed]);
+          } else {
+            // Formato atual: { notas, listas, pastas } — não quebra se só existirem listas/pastas salvas
+            setNotas(parsed.notas || []);
+            // Já estão no aparelho: não são "mudança local" (senão o primeiro
+            // carimbo marcaria tudo como novo e o telefone sobrescreveria o Drive)
+            registrarSnap([parsed.notas, parsed.listas, parsed.pastas]);
+            if (parsed.listas && typeof setListas === 'function') {
+              setListas(parsed.listas);
+            }
+            if (Array.isArray(parsed.pastas)) {
+              setPastas(parsed.pastas);
+            }
+          }
+        } else {
           setNotas([]);
           if (typeof setListas === 'function') setListas([]);
           setPastas([]);
-        } else if (Array.isArray(parsed)) {
-          // Formato legado: array puro de notas
-          setNotas(parsed);
-          registrarSnap([parsed]);
-        } else {
-          // Formato atual: { notas, listas, pastas } — não quebra se só existirem listas/pastas salvas
-          setNotas(parsed.notas || []);
-          // Já estão no aparelho: não são "mudança local" (senão o primeiro
-          // carimbo marcaria tudo como novo e o telefone sobrescreveria o Drive)
-          registrarSnap([parsed.notas, parsed.listas, parsed.pastas]);
-          if (parsed.listas && typeof setListas === 'function') {
-            setListas(parsed.listas);
-          }
-          if (Array.isArray(parsed.pastas)) {
-            setPastas(parsed.pastas);
-          }
         }
-      } else {
-        setNotas([]);
-        if (typeof setListas === 'function') setListas([]);
-        setPastas([]);
+        break;
       }
 
       const bloqueio = await AsyncStorage.getItem('@config_bloqueio_app');
@@ -403,7 +417,7 @@ export function NotasProvider({ children }: any) {
       const prefsConfig: Record<string, any> = {};
       if (configTema) {
         for (const [chave, valor] of Object.entries(configTema)) {
-          if (chave === 'pinDesbloqueio' || chave === 'idioma' || chave === 'idiomaEscolhido' || chave === 'idiomaEscolhaVersao') continue;
+          if (chave === 'pinDesbloqueio' || chave === 'chaveIA' || chave === 'idioma' || chave === 'idiomaEscolhido' || chave === 'idiomaEscolhaVersao') continue;
           prefsConfig[chave] = valor;
         }
       }
@@ -418,7 +432,9 @@ export function NotasProvider({ children }: any) {
         pastas: dados.pastas,
         tarefas: dados.tarefas,
         apagados: serializarApagados(), // exclusões viajam no backup
-        chaveIA: configTema?.chaveIA || '',
+        // A chave da IA NUNCA vai para o Drive: é segredo do aparelho e vazaria
+        // para qualquer conta que abrisse o mesmo backup.
+        chaveIA: '',
         preferencias: prefsParaBackup,
         ultimaSincronizacao: agoraIso
       };
@@ -503,7 +519,7 @@ export function NotasProvider({ children }: any) {
     } catch { return null; }
   }, []);
 
-  // Baixa o backup do Drive ({ notas, listas, chaveIA }). Retorna null se não
+  // Baixa o backup do Drive ({ notas, listas, preferencias }). Retorna null se não
   // houver arquivo na conta. Lança erro se a leitura falhar (rede/sessão).
   const buscarBackupDrive = useCallback(async (): Promise<any | null> => {
     const token = await obterTokenRapido();
@@ -705,10 +721,7 @@ export function NotasProvider({ children }: any) {
     if ([mNotas, mListas, mPastas, mTarefas].some(m => m?.localVenceu)) {
       haMudancasLocaisRef.current = true;
     }
-    const chaveLocal = configTema?.chaveIA || '';
-    if (backupData.chaveIA && !chaveLocal && typeof atualizarConfigTema === 'function') {
-      await (atualizarConfigTema as any)('chaveIA', backupData.chaveIA).catch(() => {});
-    }
+    // Chave da IA não sincroniza mais (por aparelho).
     if (backupData.preferencias) {
       // Gate antigo REMOVIDO: isRemotoMaisNovo comparava o relógio de quem
       // subiu com o relógio deste aparelho — preferências do PC (relógio
@@ -976,12 +989,7 @@ export function NotasProvider({ children }: any) {
       registrarSnap([mTarefas.itens]);
       await tarefasContext.definirTarefas(mTarefas.itens);
     }
-      // Restaura a chave de IA SOMENTE se o aparelho não tiver uma configurada
-      // (evita que um backup antigo apague uma chave local recém-colada).
-      const chaveLocal = configTema?.chaveIA || '';
-      if (backupData.chaveIA && !chaveLocal && typeof atualizarConfigTema === 'function') {
-        await atualizarConfigTema('chaveIA', backupData.chaveIA);
-      }
+    // Chave da IA é por aparelho: backup nunca a restaura.
       // Preferencias vindas do PC: só aplica se remoto for mais novo (evita last-writer-wins)
       if (backupData.preferencias) {
         const localIso = await obterUltimaSyncLocal();
@@ -1113,9 +1121,7 @@ export function NotasProvider({ children }: any) {
         if (!user) return;
         const backup = await buscarBackupDrive();
         if (!backup) return;
-        if (!configTema?.chaveIA && backup?.chaveIA && typeof atualizarConfigTema === 'function') {
-          await atualizarConfigTema('chaveIA', backup.chaveIA);
-        }
+        // Chave da IA é por aparelho: não vem do backup.
         if (backup?.preferencias) {
           const localIso2 = await obterUltimaSyncLocal();
           if (isRemotoMaisNovo(backup.ultimaSincronizacao, localIso2)) {

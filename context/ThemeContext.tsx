@@ -186,6 +186,7 @@ export default function ThemeProvider({ children }: { children: React.ReactNode 
     delete sanitizada.idiomaEscolhido;
     delete sanitizada.idiomaEscolhaVersao;
     delete sanitizada.pinDesbloqueio; // nunca sincroniza
+    delete sanitizada.chaveIA; // segredo do aparelho: nunca sincroniza
     const mesclada = { ...CONFIG_PADRAO, ...base, ...sanitizada } as Config;
     (mesclada as any).pinDesbloqueio = base.pinDesbloqueio; // preserva pin local
     // normaliza tipos restantes (temaEscuro não faz parte de Config aqui, fica em isDark)
@@ -215,6 +216,7 @@ export default function ThemeProvider({ children }: { children: React.ReactNode 
       delete tmp.idiomaEscolhido;
       delete tmp.idiomaEscolhaVersao;
       delete tmp.pinDesbloqueio;
+      delete tmp.chaveIA; // segredo do aparelho: nunca vem do backup
       if (Object.keys(tmp).length) {
         const mesclada = sanitizarConfigRemota(prefs.config, config);
         novoConfig = mesclada;

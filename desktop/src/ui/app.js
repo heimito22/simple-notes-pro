@@ -220,7 +220,7 @@ var ultimoPushAt=0, autoPollTimer=null, syncPullEmAndamento=false, haMudancasLoc
  */
 function salvarLocal(){
   try{ if(window.Merge) window.Merge.carimbarAlterados(store); }catch(e){}
-  var payload={ notas: store.notas, listas: store.listas, pastas: store.pastas, tarefas: store.tarefas, chaveIA: (config&&config.chaveIA)||'', config: config };
+  var payload={ notas: store.notas, listas: store.listas, pastas: store.pastas, tarefas: store.tarefas, chaveIA: '', config: (function(c){ if(!c) return c; var o={}; for(var k in c) if(k!=='chaveIA') o[k]=c[k]; return o; })(config) };
   S.storeSalvar(payload).catch(function(){});
   ultimoPushAt=Date.now();
   haMudancasLocais=true;
@@ -461,7 +461,7 @@ function montarPatchPreferencias(prefs){
   if(!prefs || typeof prefs!=='object') return null;
   var patch={};
   if(prefs.config && typeof prefs.config==='object'){
-    for(var k in prefs.config) if(k!=='pinDesbloqueio' && k!=='idioma' && k!=='idiomaEscolhido' && k!=='idiomaEscolhaVersao') patch[k]=prefs.config[k];
+    for(var k in prefs.config) if(k!=='pinDesbloqueio' && k!=='chaveIA' && k!=='idioma' && k!=='idiomaEscolhido' && k!=='idiomaEscolhaVersao') patch[k]=prefs.config[k];
   }
   if(typeof prefs.isDark==='boolean') patch.temaEscuro=prefs.isDark;
   return Object.keys(patch).length ? patch : null;
@@ -548,10 +548,7 @@ async function reconciliarComNuvem(dados, metaIso){
   }
 
   await aplicarPreferenciasRemotasDesktop(dados.preferencias, metaIso);
-  if(config && dados.chaveIA && !config.chaveIA){
-    try{ await S.configSalvar({ chaveIA: dados.chaveIA }); }catch(e){}
-    config.chaveIA=dados.chaveIA;
-  }
+  // A chave da IA é segredo do aparelho: nunca vem do backup.
   // ── WIPE MARKER: "apagar tudo" do outro aparelho ──
   // Sem isto, notas que SÓ existiam no PC sobreviviam ao "apagar tudo"
   // do celular (o celular nem sabia que elas existiam pra criar tombstone).
@@ -592,7 +589,7 @@ async function reconciliarComNuvem(dados, metaIso){
       rp=mesclar(dados.pastas, store.pastas), rt=mesclar(dados.tarefas, store.tarefas);
   var localVenceu = rn.localVenceu||rl.localVenceu||rp.localVenceu||rt.localVenceu;
   store={ notas:rn.itens, listas:rl.itens, pastas:rp.itens, tarefas:rt.itens,
-          chaveIA: dados.chaveIA||store.chaveIA||'', config: config,
+          chaveIA: store.chaveIA||'', config: config,
           ultimaSincronizacao: store.ultimaSincronizacao };
   ctx.store=store;
   // Tudo o que acabou de ser mesclado já é conhecido: não é "mudança local".
@@ -672,9 +669,9 @@ async function syncEnviar(){
   var u=await S.googleUsuario().catch(function(){return null;});
   if(!u || !u.email) return;
   try{
-    var prefsConfig=config ? (function(c){ var o={}; for(var k in c) if(k!=='pinDesbloqueio'&&k!=='idioma'&&k!=='idiomaEscolhido'&&k!=='idiomaEscolhaVersao') o[k]=c[k]; return o; })(config) : null;
+    var prefsConfig=config ? (function(c){ var o={}; for(var k in c) if(k!=='pinDesbloqueio'&&k!=='chaveIA'&&k!=='idioma'&&k!=='idiomaEscolhido'&&k!=='idiomaEscolhaVersao') o[k]=c[k]; return o; })(config) : null;
     var agoraIso=new Date().toISOString();
-    var payload={ notas: store.notas, listas: store.listas, pastas: store.pastas, tarefas: store.tarefas, apagados: (window.Tombstones?window.Tombstones.serializar():[]), chaveIA: (config&&config.chaveIA)||store.chaveIA||'', preferencias: { isDark: config ? config.temaEscuro!==false : true, config: prefsConfig }, ultimaSincronizacao: agoraIso };
+    var payload={ notas: store.notas, listas: store.listas, pastas: store.pastas, tarefas: store.tarefas, apagados: (window.Tombstones?window.Tombstones.serializar():[]), chaveIA: '', preferencias: { isDark: config ? config.temaEscuro!==false : true, config: prefsConfig }, ultimaSincronizacao: agoraIso };
     var r=await S.syncEnviar(payload).catch(function(){return null;});
     if(r && r.ok){
       try{ await S.storeSalvar({ ultimaSincronizacao: agoraIso }); store.ultimaSincronizacao=agoraIso; }catch(e){}
