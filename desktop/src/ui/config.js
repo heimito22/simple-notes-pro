@@ -100,6 +100,13 @@
     if(pinStatus) pinStatus.textContent=config.pinDesbloqueio?T('PIN definido (4 dígitos) — toque para alterar'):T('Nenhum PIN definido');
     if(btnPin) btnPin.textContent=config.pinDesbloqueio?T('Alterar PIN'):T('Definir PIN');
     if(chaveInput) chaveInput.value=config.chaveIA||'';
+    // Mostra claramente se a IA em uso é a incluída no app ou a chave do usuário
+    var iaTitulo=$('#cfgIAStatusTitulo'), iaTexto=$('#cfgIAStatusTexto');
+    var temChave=!!(config.chaveIA||'').trim();
+    if(iaTitulo) iaTitulo.textContent = temChave ? T('Usando sua chave (ilimitado)') : T('IA incluída no app (grátis)');
+    if(iaTexto) iaTexto.textContent = temChave
+      ? T('Sua chave OpenRouter está ativa. Apague o campo para voltar à IA incluída.')
+      : T('Já funciona sem configurar nada. Quer respostas ilimitadas? Use sua chave OpenRouter abaixo.');
     // Auto-start: reflete o estado REAL do Windows (fonte da verdade)
     var swAuto=ctx.$('#swAutoStart');
     if(swAuto && window.snDesktop && window.snDesktop.iniciarComWindowsLer){

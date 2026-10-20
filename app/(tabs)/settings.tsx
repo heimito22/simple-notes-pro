@@ -413,11 +413,31 @@ export default function SettingsScreen() {
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: cores.textoSecundario } ]}>{t('IA')}</Text>
         <View style={[styles.group, { backgroundColor: cores.itemFundo, borderColor: cores.borda, borderWidth: 1 }]}>
+          {/* Deixa claro o que está sendo usado: IA inclusa (grátis) ou chave própria (ilimitada) */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 15, paddingTop: 14 }}>
+            <Ionicons
+              name={(config.chaveIA || '').trim() ? 'key-outline' : 'sparkles-outline'}
+              size={20}
+              color={cores.accent}
+            />
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.itemText, { color: cores.textoPrincipal }]}>
+                {(config.chaveIA || '').trim()
+                  ? t('Usando sua chave (ilimitado)')
+                  : t('IA incluída no app (grátis)')}
+              </Text>
+              <Text style={[styles.subText, { color: cores.textoSecundario }]}>
+                {(config.chaveIA || '').trim()
+                  ? t('Sua chave OpenRouter está ativa. Pode apagar o campo para voltar à IA incluída.')
+                  : t('Já funciona sem configurar nada. Quer respostas ilimitadas? Cole sua chave OpenRouter abaixo.')}
+              </Text>
+            </View>
+          </View>
           <View style={styles.innerItem}>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.itemText, { color: cores.textoPrincipal }]}>{t('Chave da IA (gratuita)')}</Text>
+              <Text style={[styles.itemText, { color: cores.textoPrincipal }]}>{t('Chave da IA (opcional)')}</Text>
               <Text style={[styles.subText, { color: cores.textoSecundario } ]}>
-                {t('Respostas como ChatGPT usando modelos grátis do OpenRouter')}
+                {t('Use a sua própria API do OpenRouter para respostas ilimitadas')}
               </Text>
             </View>
           </View>

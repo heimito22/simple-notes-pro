@@ -1,5 +1,5 @@
-**Versão 1.5.15**
+**Versão 1.5.16**
 
-- IA não mostra mais código/JSON na conversa: só o cartão "Permitir" quando é para agir
-- Corrigido o caso em que a IA dizia que tinha alterado, mas nada era aplicado
-- Respostas mais confiáveis (mesmo motor do celular)
+- Em Configurações → IA agora aparece o que está em uso: **IA incluída no app (grátis)** ou **sua chave (ilimitado)**
+- Dá para alternar quando quiser: apagar a chave volta para a IA incluída
+- Mesmo comportamento do celular
