@@ -11,8 +11,8 @@ App de notas com IA agente e sync PC↔celular.
 - Site: `C:\Users\Pichau\Downloads\simple-notes-pro-site`
 
 ### Versões
-- Play Store: v1.7.6 (code 31) pronta para subir — chave da IA não sincroniza mais (segurança). Produção em 1.7.3/28.
-- Desktop: 1.5.17 publicada no GitHub (mesma correção da chave).
+- Play Store: v1.7.7 (code 32) pronta para subir — token do Google por conta + verificação de dono antes do Drive (fim do vazamento entre contas). Produção em 1.7.3/28.
+- Desktop: 1.5.17 publicada no GitHub (chave da IA não sincroniza; isolamento por email já existia).
 - Repo: `origin/main` = último commit do dia (mobile e PC).
 
 ### Idioma (recém-corrigido, não regredir)
