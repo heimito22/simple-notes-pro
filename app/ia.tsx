@@ -163,11 +163,13 @@ export default function TelaIA() {
                 pastas || [], listas || [],
             );
             const extraidas = extrairAcoes(resposta.texto);
+            const textoLimpo = (extraidas.textoLimpo || '').trim();
             setMensagens(prev => [...prev, {
                 papel: 'ia',
                 texto: extraidas.acoes?.length
-                    ? (extraidas.textoLimpo || t('Tudo pronto — toque em Permitir para eu fazer.'))
-                    : resposta.texto,
+                    ? (textoLimpo || t('Tudo pronto — toque em Permitir para eu fazer.'))
+                    // Nunca mostrar JSON cru; se a ação veio inválida, avisa em vez de fingir que fez.
+                    : (textoLimpo || t('Entendi o pedido, mas não consegui aplicar. Pode repetir de outro jeito?')),
             }]);
             if (extraidas.acoes?.length) setAcoesIA(extraidas.acoes);
         } catch (e: any) {

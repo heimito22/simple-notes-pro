@@ -73,6 +73,8 @@
         for(var i=0;i<lista.length;i++){
           var a = lista[i];
           if(!a || typeof a!=='object') continue;
+          // Modelo free pode mandar camelCase ("editarLista") — normaliza.
+          a.tipo = String(a.tipo||'').replace(/([a-z])([A-Z])/g,'$1_$2').toLowerCase().replace(/[\s-]+/g,'_');
           if(TIPOS_VALIDOS.indexOf(a.tipo)===-1) continue;
           var ok =
             (a.tipo==='criar_nota' && tem(a.titulo)) ||
@@ -95,7 +97,7 @@
         }
       }catch(e){ /* JSON inválido — próximo candidato */ }
     }
-    return { acoes: null, textoLimpo: bruto };
+    return { acoes: null, textoLimpo: bruto.replace((cerca&&cerca[0])||'','').replace((solto&&solto[0])||'','').trim() };
   }
 
   function tituloDoId(store, id){

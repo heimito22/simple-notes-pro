@@ -2,7 +2,7 @@
   "expo": {
     "name": "Simple Notes",
     "slug": "MinhasNotas",
-    "version": "1.7.3",
+    "version": "1.7.4",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "simplesnotes",
@@ -12,7 +12,7 @@
     },
     "android": {
       "package": "com.seuusuario.simplesnotes",
-      "versionCode": 28,
+      "versionCode": 29,
       "softwareKeyboardLayoutMode": "resize",
       "googleServicesFile": "./google-services.json",
       "predictiveBackGestureEnabled": true,
@@ -36,7 +36,7 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "O aplicativo precisa acessar suas fotos para anexÃ¡-las Ã s notas."
+          "photosPermission": "O aplicativo precisa acessar suas fotos para anexÃƒÂ¡-las ÃƒÂ s notas."
         }
       ],
       [
@@ -67,7 +67,7 @@
       [
         "expo-audio",
         {
-          "microphonePermission": "O aplicativo precisa acessar o microfone para gravar Ã¡udios nas notas."
+          "microphonePermission": "O aplicativo precisa acessar o microfone para gravar ÃƒÂ¡udios nas notas."
         }
       ],
       "./plugins/withAlarmFullScreen",
@@ -93,3 +93,4 @@
     }
   }
 }
+

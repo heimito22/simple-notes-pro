@@ -36,8 +36,8 @@ Se o OpenRouter bater no limite diário, o Worker cai automaticamente no
 
 1. Worker → **Settings** → **Bindings** → **Add** → **Workers AI**.
 2. Nome da variável: `AI` → **Save/Deploy**.
-3. (Opcional) Variable `MODELO_WORKERS_AI` = `@cf/meta/llama-3.1-8b-instruct`
-   (padrão) ou outro modelo de texto do catálogo da Cloudflare.
+- Se quiser trocar o modelo do plano B, defina `MODELO_WORKERS_AI`
+  (padrão: `@cf/meta/llama-3.3-70b-instruct-fp8-fast,@cf/meta/llama-3.1-8b-instruct`).
 
 ## Limites (importante)
 - Cota do Worker: 120 mensagens/dia por conta Google, 4000/dia no total.

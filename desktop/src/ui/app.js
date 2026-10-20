@@ -911,10 +911,13 @@ async function iaEnviar(){
     }
     // A resposta pode conter proposta de edição (bloco ```json) — separa
     // o texto da conversa e mostra o cartão de confirmação.
-    var extra={proposta:null, textoLimpo:res.texto};
-    if(iaLib.extrairPropostaEdicao) extra=iaLib.extrairPropostaEdicao(res.texto);
-    iaAppend('ia', extra.textoLimpo||res.texto, false);
-    iaHistorico.push({papel:'ia', texto: res.texto});
+    var sobra = (acoesExtra.textoLimpo||'').trim();
+    var extra={proposta:null, textoLimpo: sobra};
+    if(iaLib.extrairPropostaEdicao) extra=iaLib.extrairPropostaEdicao(sobra);
+    // Se o JSON foi descartado (ação inválida), não mostra código nem finge sucesso.
+    var fala = extra.textoLimpo || 'Entendi o pedido, mas não consegui aplicar. Pode repetir de outro jeito?';
+    iaAppend('ia', fala, false);
+    iaHistorico.push({papel:'ia', texto: fala});
     if(extra.proposta) mostrarPropostaEdicao(extra.proposta);
     // Sem bloco JSON, mas foi uma ORDEM de edição: oferece aplicar o texto na
     // nota aberta (nunca aplica sozinho — o usuário decide).

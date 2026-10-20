@@ -207,9 +207,16 @@ export function extrairAcoes(texto: string): { acoes: AcaoIA[] | null; textoLimp
       const lista = obj && Array.isArray(obj.acoes) ? obj.acoes : null;
       if (!lista || !lista.length) continue;
       const validas: AcaoIA[] = [];
+      // Modelo free às vezes manda o tipo em camelCase ("editarLista"):
+      // normaliza antes de validar, senão a ação era descartada em silêncio.
+      const normalizarTipo = (v: any) =>
+        String(v || '')
+          .replace(/([a-z])([A-Z])/g, '$1_$2')
+          .toLowerCase()
+          .replace(/[\s-]+/g, '_');
       for (const a of lista) {
         if (!a || typeof a !== 'object') continue;
-        const tipo = TIPOS_VALIDOS.find(x => x === a.tipo);
+        const tipo = TIPOS_VALIDOS.find(x => x === normalizarTipo(a.tipo));
         if (!tipo) continue;
         const ok =
           (tipo === 'criar_nota' && tem(a.titulo)) ||
@@ -232,7 +239,14 @@ export function extrairAcoes(texto: string): { acoes: AcaoIA[] | null; textoLimp
       }
     } catch { /* JSON inválido — tenta o próximo candidato */ }
   }
-  return { acoes: null, textoLimpo: bruto };
+  return {
+    acoes: null,
+    // Nunca mostrar o JSON cru para o usuário, mesmo quando a ação é inválida.
+    textoLimpo: bruto
+      .replace((cerca && cerca[0]) || '', '')
+      .replace((solto && solto[0]) || '', '')
+      .trim(),
+  };
 }
 
 // ── Resumo legível (cartão de confirmação) ────────────────────────────────

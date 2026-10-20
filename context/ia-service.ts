@@ -115,6 +115,9 @@ function instrucaoEdicao(idioma: Idioma): string {
  * O app NUNCA aplica sozinho: extrai o bloco, mostra o cartão de confirmação
  * e só executa pelas funções oficiais dos contexts quando o usuário permite.
  */
+const REGRA_SEM_FINGIR =
+  'NUNCA diga que já criou, adicionou, alterou ou apagou algo: o app só executa depois que o usuário tocar em Permitir. Fale no futuro ("vou criar...") e não invente resultados.';
+
 function instrucaoAcoes(idioma: Idioma): string {
   if (idioma === 'en') {
     return 'AGENT ACTIONS: you can EXECUTE app operations — the user always confirms before anything is applied. Whenever the user asks to CREATE, ORGANIZE, SCHEDULE, DELETE or CHANGE anything (note, checklist, task, folder, reminder, pin), reply with 1-2 short sentences saying what you will do and THEN — mandatory — a fenced block: ```json {"acoes":[ ...one or more actions... ]} ```. Action types (use EXACTLY these "tipo"): {"tipo":"criar_nota","titulo":"...","conteudo":"...","pasta":"Folder name (optional)","fixar":true,"lembrete":{"tipo":"data","data":"yyyy-mm-dd","horario":"HH:MM"}} · {"tipo":"editar_nota","alvo":"<note id>","titulo":"...","conteudo":"<complete final content>"} · {"tipo":"criar_lista","titulo":"...","itens":[{"texto":"...","concluido":false}],"pasta":"..."} · {"tipo":"editar_lista","alvo":"<id>","titulo":"...","itens":[...]} · {"tipo":"criar_tarefa","titulo":"...","recorrencia":"Uma vez"|"Diária"|"Segunda"|"Terça"|"Quarta"|"Quinta"|"Sexta"|"Sábado"|"Domingo","horario":"HH:MM"} · {"tipo":"concluir_tarefa","alvo":"<id>","valor":true} · {"tipo":"apagar_tarefa","alvo":"<id>"} · {"tipo":"apagar_nota","alvo":"<note OR checklist id>"} · {"tipo":"fixar_nota","alvo":"<id>","valor":true} · {"tipo":"criar_pasta","nome":"..."} · {"tipo":"mover_para_pasta","alvos":["<id>"],"pasta":"Name"} · {"tipo":"lembrete_nota","alvo":"<id>","lembrete":{"tipo":"data"|"dias"|"semana","data":"yyyy-mm-dd"|"intervaloDias":7|"diasSemana":["Segunda"],"horario":"HH:MM"}} (lembrete null removes). RULES: (1) "conteudo" uses the notes formatting notation (**bold**, *italic*, <u>underline</u>, ~~strikethrough~~, - item, 1. numbered, # title, > quote); (2) organization tags are #hashtags written INSIDE the content; (3) "alvo"/"alvos" MUST be ids from the provided INVENTORY — never invent ids; (4) to EDIT, "conteudo" carries the ENTIRE final note; (5) lembrete requires a horario; for "tomorrow" use {"tipo":"dias","intervaloDias":1}; (6) do NOT propose actions for casual questions — only for operational requests; (7) you may combine several actions in one reply (e.g. note + task + reminder of the same topic). The JSON block is EXEMPT from the length limit.';
@@ -399,25 +402,76 @@ async function chamarProxyIA(
     temperature,
     max_tokens: maxTokens,
   });
-  const res = await fetch(URL_PROXY_IA, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: corpoReq,
-  });
-  const bruto = await res.text().catch(() => '');
-  if (!res.ok) {
-    console.warn(`[IA] proxy falhou (HTTP ${res.status}):`, bruto.slice(0, 200));
-    return { ok: false, status: res.status, texto: '', corpo: bruto };
+  // Duas tentativas: free model às vezes devolve 502/timeout; uma repetição
+  // resolve a maioria dos "erro de conexão" que o usuário via.
+  for (let tentativa = 1; tentativa <= 2; tentativa++) {
+    const controle = new AbortController();
+    const timer = setTimeout(() => controle.abort(), 45000);
+    try {
+      const res = await fetch(URL_PROXY_IA, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: corpoReq,
+        signal: controle.signal,
+      });
+      const bruto = await res.text().catch(() => '');
+      if (!res.ok) {
+        console.warn(`[IA] proxy falhou (HTTP ${res.status}, tentativa ${tentativa}):`, bruto.slice(0, 160));
+        if (tentativa === 2) return { ok: false, status: res.status, texto: '', corpo: bruto };
+        continue;
+      }
+      let data: any = null;
+      try { data = JSON.parse(bruto); } catch {}
+      const conteudo: any = data?.choices?.[0]?.message?.content;
+      const brutoTexto = typeof conteudo === 'string'
+        ? conteudo
+        : Array.isArray(conteudo)
+          ? conteudo.map((p: any) => String(p?.text || '')).join('')
+          : '';
+      const texto = limparRaciocinio(brutoTexto).trim();
+      if (!texto) {
+        // Modelo pequeno vazou o raciocínio em vez da resposta: tenta de novo.
+        if (tentativa === 1) continue;
+        return { ok: false, status: 502, texto: '', corpo: 'resposta_invalida' };
+      }
+      return { ok: true, status: res.status, texto, corpo: '' };
+    } catch (e) {
+      if (tentativa === 2) {
+        console.warn('[IA] proxy sem resposta:', e);
+        return { ok: false, status: 0, texto: '', corpo: 'sem_conexao' };
+      }
+    } finally {
+      clearTimeout(timer);
+    }
   }
-  let data: any = null;
-  try { data = JSON.parse(bruto); } catch {}
-  const conteudo: any = data?.choices?.[0]?.message?.content;
-  const texto = typeof conteudo === 'string'
-    ? conteudo.trim()
-    : Array.isArray(conteudo)
-      ? conteudo.map((p: any) => String(p?.text || '')).join('').trim()
-      : '';
-  return { ok: true, status: res.status, texto, corpo: '' };
+  return { ok: false, status: 0, texto: '', corpo: 'sem_conexao' };
+}
+
+/**
+ * Alguns modelos free pequenos "pensam em voz alta" (Analyze the Request...,
+ * Persona, Constraints, Wait...). Isso nunca deve chegar ao usuário: remove os
+ * parágrafos de raciocínio e, se sobrar só isso, devolve vazio (quem chamou
+ * tenta outro modelo/avisa).
+ */
+function limparRaciocinio(texto: string): string {
+  const t = String(texto || '').trim();
+  if (!t) return '';
+  const marcas = [
+    /\*\*Analyze the Request/i,
+    /User'?s Question:/i,
+    /\*\*Constraints/i,
+    /\*\*Persona/i,
+    /\bLet me (think|analyze|check)/i,
+    /\bWait,?/i,
+    /I should (probably|respond|answer)/i,
+    /^(Okay|Ok|Sure),?\s+(let me|I)/i,
+  ];
+  const temRaciocinio = marcas.some((r) => r.test(t));
+  if (!temRaciocinio) return t;
+  const paragrafos = t.split(/\n{2,}/);
+  const respostas = paragrafos.filter((p) => !marcas.some((r) => r.test(p)));
+  const limpo = respostas.join('\n\n').trim();
+  return limpo.length >= 2 ? limpo : '';
 }
 
 /**
@@ -476,11 +530,12 @@ const chamarOpenRouter = async (
   }
   const data = await res.json().catch(() => null);
   const bruto: any = data?.choices?.[0]?.message?.content;
-  const texto = typeof bruto === 'string'
+  const textoBruto = typeof bruto === 'string'
     ? bruto.trim()
     : Array.isArray(bruto)
       ? bruto.map((p: any) => String(p?.text || '')).join('').trim()
       : '';
+  const texto = limparRaciocinio(textoBruto);
   return { ok: true, status: res.status, texto, corpo: '' };
 };
 
@@ -818,6 +873,7 @@ export async function responderPergunta(
           'Responda de forma curta e objetiva (máx. ~180 palavras).',
           ...(ordemEdicao && notaAberta ? [instrucaoEdicao('pt')] : []),
           instrucaoAcoes('pt'),
+          REGRA_SEM_FINGIR,
         ]
       : idioma === 'en'
         ? [
@@ -832,6 +888,7 @@ export async function responderPergunta(
           'Keep answers short and objective (max ~180 words).',
           ...(ordemEdicao && notaAberta ? [instrucaoEdicao('en')] : []),
           instrucaoAcoes('en'),
+          REGRA_SEM_FINGIR,
         ]
       : [
           'Eres NotaIA, el asistente de IA de la app de notas "Simple Notes".',
@@ -845,6 +902,7 @@ export async function responderPergunta(
           'Responde de forma breve y objetiva (máx. ~180 palabras).',
           ...(ordemEdicao && notaAberta ? [instrucaoEdicao('es')] : []),
           instrucaoAcoes('es'),
+          REGRA_SEM_FINGIR,
         ]
       .join(' ');
 

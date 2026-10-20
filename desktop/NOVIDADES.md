@@ -1,5 +1,5 @@
-**Versão 1.5.14**
+**Versão 1.5.15**
 
-- A IA agora funciona sem configurar nada: nada de colar chave, é só usar
-- Resumos e respostas do assistente prontos de fábrica, no PC e no celular
-- Chave própria continua opcional em Configurações → IA (ilimitado)
+- IA não mostra mais código/JSON na conversa: só o cartão "Permitir" quando é para agir
+- Corrigido o caso em que a IA dizia que tinha alterado, mas nada era aplicado
+- Respostas mais confiáveis (mesmo motor do celular)

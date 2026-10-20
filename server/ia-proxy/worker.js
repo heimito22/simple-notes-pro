@@ -150,7 +150,7 @@ export default {
     // Sem chave, cota diária própria. Usado quando o OpenRouter recusa por
     // limite (429) ou está fora do ar.
     if (env.AI) {
-      const modelosIA = String(env.MODELO_WORKERS_AI || '@cf/meta/llama-3.1-8b-instruct')
+      const modelosIA = String(env.MODELO_WORKERS_AI || '@cf/meta/llama-3.3-70b-instruct-fp8-fast,@cf/meta/llama-3.1-8b-instruct')
         .split(',')
         .map((m) => m.trim())
         .filter(Boolean);
