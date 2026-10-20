@@ -99,7 +99,7 @@
     if(rowPin) rowPin.style.display=config.exigirBiometriaApp?'flex':'none';
     if(pinStatus) pinStatus.textContent=config.pinDesbloqueio?T('PIN definido (4 dígitos) — toque para alterar'):T('Nenhum PIN definido');
     if(btnPin) btnPin.textContent=config.pinDesbloqueio?T('Alterar PIN'):T('Definir PIN');
-    if(chaveInput) chaveInput.value=config.chaveIA||'';
+    if(chaveInput && document.activeElement !== chaveInput) chaveInput.value=config.chaveIA||'';
     // Mostra claramente se a IA em uso é a incluída no app ou a chave do usuário
     var iaTitulo=$('#cfgIAStatusTitulo'), iaTexto=$('#cfgIAStatusTexto');
     var temChave=!!(config.chaveIA||'').trim();
@@ -160,6 +160,23 @@
     var btnToggle=ctx.$('#btnToggleChave'), inpChave=ctx.$('#cfgChaveIA'), btnSalvar=ctx.$('#btnSalvarChave');
     if(btnToggle) btnToggle.addEventListener('click', function(){ if(inpChave) inpChave.type = inpChave.type==='password'?'text':'password'; });
     if(btnSalvar) btnSalvar.addEventListener('click', function(){ var v=(inpChave&&inpChave.value.trim())||''; ctx.salvarConfigPatch({ chaveIA: v }); ctx.toast(v?T('Chave salva'):T('Chave removida')); render(ctx); });
+    // Apagar e sair do campo (ou apertar Enter) já salva — antes a chave voltava
+    // sozinha no próximo re-render porque nada tinha sido persistido.
+    if(inpChave) inpChave.addEventListener('change', function(){
+      var v=inpChave.value.trim();
+      if(v===((ctx.config&&ctx.config.chaveIA)||'')) return;
+      ctx.salvarConfigPatch({ chaveIA: v });
+      ctx.toast(v?T('Chave salva'):T('Chave removida'));
+      render(ctx);
+    });
+    if(inpChave) inpChave.addEventListener('keydown', function(e){ if(e.key==='Enter'){ e.preventDefault(); inpChave.blur(); } });
+    var btnRemover=ctx.$('#btnRemoverChave');
+    if(btnRemover) btnRemover.addEventListener('click', function(){
+      if(inpChave) inpChave.value='';
+      ctx.salvarConfigPatch({ chaveIA: '' });
+      ctx.toast(T('Chave removida'));
+      render(ctx);
+    });
     var btnComo=ctx.$('#btnComoChave'); if(btnComo) btnComo.addEventListener('click', function(e){ e.preventDefault(); ctx.toast('No celular: Ajustes → IA → Como criar a chave (tutorial). No PC: mesma chave do OpenRouter.'); });
     var pinCancelar=ctx.$('#pinCancelar'), pinLimpar=ctx.$('#pinLimpar'), pinOverlay=ctx.$('#pinOverlay');
     if(pinCancelar) pinCancelar.addEventListener('click', function(){ fecharPin(ctx); });

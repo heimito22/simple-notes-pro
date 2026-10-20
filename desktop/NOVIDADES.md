@@ -1,5 +1,5 @@
-**Versão 1.5.17**
+**Versão 1.5.18**
 
-- Segurança: a chave da IA **não é mais sincronizada** com o Drive
-- Antes ela podia aparecer em outra conta que usasse o mesmo backup; agora fica só no aparelho onde foi colada
-- Quem já tinha a chave em outra conta deve apagá-la em Configurações → IA (e trocar a chave no OpenRouter)
+- A chave da IA agora pode ser apagada de verdade: ao sair do campo (ou apertar Enter) o valor é salvo
+- Novo botão **Remover** ao lado de Salvar
+- Antes, apagar o texto não era salvo e a chave voltava sozinha no próximo redesenho da tela
