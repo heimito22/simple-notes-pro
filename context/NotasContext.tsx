@@ -384,8 +384,15 @@ export function NotasProvider({ children }: any) {
       setSyncStatus(s => ({ ...s, estado: 'ocupado' }));
 
       // Token válido após reinício do app (sessão fria): renova em silêncio.
-      await GoogleSignin.signInSilently().catch(() => {});
-      const tokens = await GoogleSignin.getTokens();
+      // Usa o mesmo caminho verificado do pull — se o token não for da conta
+      // ativa, não sobe nada (evita escrever nota de B no Drive de A).
+      const tokenPush = await obterTokenRapido();
+      if (!tokenPush) {
+        setSyncStatus(s => ({ ...s, estado: 'erro' }));
+        console.warn('[Conta] push cancelado: sem token válido para a conta ativa');
+        return;
+      }
+      const tokens = { accessToken: tokenPush };
 
       // Estado MAIS RECENTE (não o da closure deste push): o tick do poll pode
       // chamar este backup a partir de um render antigo e enviaria dado velho.
@@ -506,15 +513,36 @@ export function NotasProvider({ children }: any) {
 
   // Cache do token de acesso: getTokens()/signInSilently são 2 round-trips de
   // rede a CADA pull — com cache, o tick faz 1 request de meta em vez de 3.
-  const tokenCacheRef = useRef<{ token: string; expiraEm: number } | null>(null);
+  // O cache é POR CONTA: sem o dono, após trocar de conta o app continuava
+  // usando o token da conta anterior (Drive de A com a tela em B!).
+  const tokenCacheRef = useRef<{ token: string; expiraEm: number; dono: string } | null>(null);
   const obterTokenRapido = useCallback(async (): Promise<string | null> => {
+    const atual = GoogleSignin.getCurrentUser();
+    const dono = atual?.user?.id || 'local';
     const c = tokenCacheRef.current;
-    if (c && c.expiraEm > Date.now() + 30000) return c.token;
+    if (c && c.dono === dono && c.expiraEm > Date.now() + 30000) return c.token;
     try {
       await GoogleSignin.signInSilently().catch(() => {});
+      // Relê depois do silencioso: na sessão fria o usuário só aparece aqui.
+      const agora = GoogleSignin.getCurrentUser();
+      const donoReal = agora?.user?.id || 'local';
       const tokens = await GoogleSignin.getTokens();
       if (!tokens?.accessToken) return null;
-      tokenCacheRef.current = { token: tokens.accessToken, expiraEm: Date.now() + 55 * 60 * 1000 };
+      // Confere de quem é o token: se o SDK devolver o token da conta anterior,
+      // o app NÃO pode escrever no Drive dela (notas de uma conta na outra).
+      try {
+        const info: any = await fetch(`https://www.googleapis.com/oauth2/v3/tokeninfo?access_token=${encodeURIComponent(tokens.accessToken)}`)
+          .then(r => (r.ok ? r.json() : null))
+          .catch(() => null);
+        const emailToken = String(info?.email || '').toLowerCase();
+        const emailAtual = String(agora?.user?.email || '').toLowerCase();
+        if (emailToken && emailAtual && emailToken !== emailAtual) {
+          console.warn('[Conta] token não é da conta ativa — Drive bloqueado até renovar', emailToken, '≠', emailAtual);
+          tokenCacheRef.current = null;
+          return null;
+        }
+      } catch { /* sem verificação: segue */ }
+      tokenCacheRef.current = { token: tokens.accessToken, expiraEm: Date.now() + 55 * 60 * 1000, dono: donoReal };
       return tokens.accessToken;
     } catch { return null; }
   }, []);
@@ -1021,7 +1049,14 @@ export function NotasProvider({ children }: any) {
     try {
       const user = await GoogleSignin.getCurrentUser();
       if (!user) return false;
-      const tokens = await GoogleSignin.getTokens();
+      // Token VERIFICADO da conta ativa: era aqui que um token velho da conta
+      // anterior apagava o backup da OUTRA conta ("apaguei em uma e sumiu na outra").
+      const tokenConta = await obterTokenRapido();
+      if (!tokenConta) {
+        Alert.alert(tIdioma(idiomaAtual, 'Erro'), tIdioma(idiomaAtual, 'Sessão do Google expirou. Entre de novo para continuar.'));
+        return false;
+      }
+      const tokens = { accessToken: tokenConta };
 
       // PADRÃO DE SINCRONIZAÇÃO CORRETO: nunca DELETAR o arquivo do Drive.
       // Em vez disso, SOBE um backup vazio COM os tombstones. O outro aparelho
@@ -1147,6 +1182,8 @@ export function NotasProvider({ children }: any) {
    * (Chamado ao trocar de conta direto e como rede de segurança no boot.)
    */
   const isolarDadosDeConta = useCallback(async (novoId?: string) => {
+    // Token da conta anterior NÃO pode ser reaproveitado na conta nova.
+    tokenCacheRef.current = null;
     setNotas([]);
     if (typeof setListas === 'function') setListas([]);
     setPastas([]);
@@ -1185,6 +1222,7 @@ export function NotasProvider({ children }: any) {
     try { await fazerBackupCloud(); } catch {}
     if (travarSync) travarSync();
     await GoogleSignin.signOut();
+    tokenCacheRef.current = null; // token da conta que saiu não serve mais
     setNotas([]);
     if (typeof setListas === 'function') setListas([]);
     setPastas([]);
