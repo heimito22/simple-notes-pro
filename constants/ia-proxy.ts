@@ -9,7 +9,7 @@
  * Depois do deploy do Worker, cole aqui a URL (sem barra no fim) e gere um
  * build novo — ex.: 'https://simple-notes-ia.SEUNOME.workers.dev'.
  */
-export const URL_PROXY_IA = '';
+export const URL_PROXY_IA = 'https://simple-notes-ia.heitoruliacchrabeloreis.workers.dev';
 
 /** true quando existe servidor configurado (IA pronta, sem chave do usuário). */
 export const PROXY_IA_ATIVO = URL_PROXY_IA.length > 0;

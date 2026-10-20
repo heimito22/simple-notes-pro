@@ -107,6 +107,7 @@ export default {
 
     let ultimoStatus = 502;
     let ultimoErro = 'sem_resposta';
+    let estourouCota = false;
 
     for (const modelo of modelos) {
       const res = await fetch(OPENROUTER_URL, {
@@ -140,13 +141,48 @@ export default {
 
       ultimoStatus = res.status === 401 || res.status === 402 ? 503 : res.status;
       ultimoErro = await res.text().catch(() => '');
+      if (res.status === 429) estourouCota = true;
       // 401/402 = problema de conta/chave: não adianta tentar outro modelo.
       if (res.status === 401 || res.status === 402) break;
     }
 
+    // ── Plano B GRÁTIS: Workers AI (binding AI no painel da Cloudflare) ──
+    // Sem chave, cota diária própria. Usado quando o OpenRouter recusa por
+    // limite (429) ou está fora do ar.
+    if (env.AI) {
+      const modelosIA = String(env.MODELO_WORKERS_AI || '@cf/meta/llama-3.1-8b-instruct')
+        .split(',')
+        .map((m) => m.trim())
+        .filter(Boolean);
+      for (const modelo of modelosIA) {
+        try {
+          const saida = await env.AI.run(modelo, {
+            messages: messages.map((m) => ({
+              role: String(m?.role || 'user'),
+              content: String(m?.content ?? ''),
+            })),
+            temperature: temperatura,
+            max_tokens: teto,
+          });
+          const texto = typeof saida === 'string'
+            ? saida
+            : String(saida?.response ?? saida?.result?.response ?? '');
+          if (!texto.trim()) continue;
+          estado.porUsuario.set(usuario.sub, usado + 1);
+          estado.total += 1;
+          return json(
+            { choices: [{ message: { role: 'assistant', content: texto } }], via: 'workers-ai' },
+            200,
+          );
+        } catch (e) {
+          ultimoErro = String(e);
+        }
+      }
+    }
+
     return json(
-      { error: { message: 'openrouter_falhou', status: ultimoStatus, detalhe: String(ultimoErro).slice(0, 300) } },
-      ultimoStatus === 429 ? 429 : 502,
+      { error: { message: 'ia_indisponivel', status: ultimoStatus, detalhe: String(ultimoErro).slice(0, 300) } },
+      estourouCota ? 429 : 502,
     );
   },
 };

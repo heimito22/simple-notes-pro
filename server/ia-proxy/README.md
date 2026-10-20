@@ -30,6 +30,15 @@ export const URL_PROXY_IA = 'https://simple-notes-ia.SEUNOME.workers.dev';
 Gere um build novo. Sem chave própria, o app usa esse servidor automaticamente;
 com chave própria em Ajustes → IA, continua ilimitado e direto.
 
+## Plano B grátis: Workers AI (opcional, recomendado)
+Se o OpenRouter bater no limite diário, o Worker cai automaticamente no
+**Workers AI** (cota grátis própria, sem chave):
+
+1. Worker → **Settings** → **Bindings** → **Add** → **Workers AI**.
+2. Nome da variável: `AI` → **Save/Deploy**.
+3. (Opcional) Variable `MODELO_WORKERS_AI` = `@cf/meta/llama-3.1-8b-instruct`
+   (padrão) ou outro modelo de texto do catálogo da Cloudflare.
+
 ## Limites (importante)
 - Cota do Worker: 120 mensagens/dia por conta Google, 4000/dia no total.
 - **OpenRouter:** modelos `:free` têm limite de **50 req/dia** enquanto a conta
