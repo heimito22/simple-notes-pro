@@ -11,10 +11,9 @@ App de notas com IA agente e sync PC↔celular.
 - Site: `C:\Users\Pichau\Downloads\simple-notes-pro-site`
 
 ### Versões
-- Play Store: v1.7.2 (code 27) PUBLICADA em Produção — fix de idioma. Tracks de teste interno/beta ainda ativos → PAUSAR.
-- Desktop: 1.5.13 publicada no GitHub (auto-update + aba Novidades do site).
-- APK de teste: `Documents\Simple-Notes-Pro-1.7.2-v27.apk` (não instala sobre a Play: assinatura diferente).
-- Repo: `origin/main` = `08ef863` (pushado; inclui fix de idioma mobile e PC).
+- Play Store: v1.7.3 (code 28) pronta para subir — IA pronta sem chave. Produção ainda em 1.7.2/27. Tracks de teste interno/beta ativos → PAUSAR.
+- Desktop: 1.5.14 publicada no GitHub (IA pronta + auto-update + aba Novidades).
+- Repo: `origin/main` = último commit do dia (mobile e PC).
 
 ### Idioma (recém-corrigido, não regredir)
 - Idioma é POR APARELHO: não vai no backup do Drive nem é aplicado de prefs remotas.
@@ -24,7 +23,8 @@ App de notas com IA agente e sync PC↔celular.
 
 ### Arquitetura crítica
 - IA agente: protocolo `{"acoes":[...]}` (criar nota/lista/tarefa/pasta, mover, fixar, apagar, lembretes). Cartão "Quero fazer isto — permitir?" antes de executar. Executor: `context/ia-acoes.ts` (mobile) e `desktop/src/lib/ia-acoes.js` — ambos usam funções oficiais dos contexts → sync perfeita.
-- Provider IA: OpenRouter, modelo `openrouter/auto` com `openrouter/free` de reserva; conteúdo sempre como array de partes.
+- IA pronta (sem chave): Worker próprio em `server/ia-proxy/worker.js` (Cloudflare) — `https://simple-notes-ia.heitoruliacchrabeloreis.workers.dev`. Guarda a chave OpenRouter no servidor, valida access token do Google, cota 120/dia por conta + 4000/dia global, fallback grátis no Workers AI (`AI` binding). App usa o proxy quando não há chave (`constants/ia-proxy.ts`); com chave própria vai direto e ilimitado.
+- Provider IA (chave própria): OpenRouter, modelo `openrouter/auto` com `openrouter/free` de reserva; conteúdo sempre como array de partes.
 - Sync: Drive `appDataFolder`, `backup_notas.json` + `anexo_*`. Merge por item com `dataModificacao` + tombstones, pull-first/push depois, marcador pelo `modifiedTime` do servidor. Backup encriptado AES-256 (chave derivada do e-mail).
 - Imagens: tudo em base64 (`File.write` não tem encoding 'binary' no expo-file-system); refs virtuais `file://imagens_notas/` resolvidas no WebView (`converterMarcadores`).
 - Editor PC: lista 28% (max 340px), editor ~67%; `.rich-editable ol{padding-left:36px}`.

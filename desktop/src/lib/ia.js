@@ -13,6 +13,18 @@
     return 'Responda SEMPRE em português do Brasil, de forma curta e útil (máx. 180 palavras).';
   }
   var URL_API='https://openrouter.ai/api/v1/chat/completions';
+  // Proxy do app (mesmo do celular): IA pronta sem chave do usuário.
+  var URL_PROXY='https://simple-notes-ia.heitoruliacchrabeloreis.workers.dev';
+  var PROXY_ATIVO=!!URL_PROXY;
+  var _tokenProxy={token:'', expira:0};
+  async function tokenProxy(){
+    if(_tokenProxy.token && Date.now()<_tokenProxy.expira) return _tokenProxy.token;
+    try{
+      var r=await window.snDesktop.googleTokens();
+      if(r&&r.accessToken){ _tokenProxy={token:r.accessToken, expira:Date.now()+50*60*1000}; return r.accessToken; }
+    }catch(e){}
+    return '';
+  }
   var MAX_NOTAS=8, MAX_CHARS=400, MAX_CHARS_EDICAO=3000;
   // Modelos do OpenRouter — usa IDs reais que existem (igual ao celular quando online)
   var MODEL_PRIMARY='meta-llama/llama-3.2-3b-instruct:free';
@@ -363,18 +375,18 @@
       return {texto:_t('Sou o NotaIA, assistente do Simple Notes 🤖\nAjudo com suas notas, listas, tarefas, pastas, lembretes, backup no Drive, modo escuro e bloqueio por PIN — tudo offline ou com IA online quando há chave configurada. Me diga o que precisa!'), modo:'offline'};
     }
     // FAQ local offline: perguntas sobre recursos do app respondem sem precisar de nota
-    if(!chaveApi){
+    if(!chaveApi && !PROXY_ATIVO){
       var faq=respostaRecursoApp(perguntaLimpa);
       if(faq) return {texto:faq, modo:'offline'};
     }
     if(ehPerguntaSobreNotas(perguntaLimpa) && ctxTexto){
-      if(!chaveApi){
+      if(!chaveApi && !PROXY_ATIVO){
         var linhas=ctxTexto.split('\n').slice(0,6);
         return {texto:'Nas suas notas encontrei:\n\n'+linhas.join('\n')+'\n\n'+(notas.length>linhas.length?('(+ '+(notas.length-linhas.length)+' outras)\n\n'):'')+'Quer que eu resuma, organize em pastas ou transforme em lista? (com a chave grátis respondo como ChatGPT)', modo:'offline'};
       }
     }
 
-    if(!chaveApi){
+    if(!chaveApi && !PROXY_ATIVO){
       if(!ctxTexto && !tarefasTxt){
         var faq2=respostaRecursoApp(perguntaLimpa);
         if(faq2) return {texto:faq2, modo:'offline'};
@@ -407,12 +419,27 @@
     msgs.push({role:'user', content:'Notas do usuário:\n'+ctxTexto+'\n\nTodas as notas e listas (com ids, para possíveis edições):\n'+(ctxComIds||'(vazio)')+ (tarefasTxt?('\n'+tarefasTxt):'') +'\n\nINVENTÁRIO COM IDs (use estes ids para preencher alvo/alvos das ações — também inclui pastas e tarefas):\n'+(montarInventario(pastasInventario, tarefasInventario)||'(vazio)') +'\n\nPergunta: '+perguntaLimpa});
 
     async function tentar(model, teto){
-      var res=await fetch(URL_API, {method:'POST', headers:{'Content-Type':'application/json', Authorization:'Bearer '+chaveApi, 'HTTP-Referer':'https://simple-notes.app','X-Title':'Simple Notes'}, body: JSON.stringify({model:model, messages: msgs, temperature:0.7, max_tokens: teto})});
+      var viaProxy=!chaveApi && PROXY_ATIVO;
+      var url=viaProxy?URL_PROXY:URL_API;
+      var headers={'Content-Type':'application/json'};
+      if(viaProxy){
+        var tk=await tokenProxy();
+        if(!tk) throw new Error('LOGIN');
+        headers.Authorization='Bearer '+tk;
+      } else {
+        headers.Authorization='Bearer '+chaveApi;
+        headers['HTTP-Referer']='https://simple-notes.app';
+        headers['X-Title']='Simple Notes';
+      }
+      var corpo=JSON.stringify(viaProxy
+        ? {messages: msgs, temperature:0.7, max_tokens: teto}
+        : {model:model, messages: msgs, temperature:0.7, max_tokens: teto});
+      var res=await fetch(url, {method:'POST', headers:headers, body: corpo});
       if(!res.ok){
-        var corpo=await res.text().catch(function(){return '';});
+        var corpoResp=await res.text().catch(function(){return '';});
         if(res.status===401) throw new Error('AUTH');
         if(res.status===429) throw new Error('RATE');
-        throw new Error('API '+res.status+': '+corpo.slice(0,120));
+        throw new Error('API '+res.status+': '+corpoResp.slice(0,120));
       }
       var data=await res.json();
       var txt=data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content && data.choices[0].message.content.trim();
@@ -439,6 +466,7 @@
       return {texto: txt, modo:'online', ordemEdicao:ordemEdicao};
     }catch(e){
       console.warn('[IA desktop]',e);
+      if(e.message==='LOGIN') return {texto:_t('Entre com o Google para usar a IA pronta (Configurações → Conta).'), modo:'offline'};
       if(e.message==='AUTH') return {texto:_t('Chave de IA inválida. Verifique em Configurações → IA (OpenRouter).'), modo:'offline'};
       if(e.message==='RATE') return {texto:_t('IA em limite de uso. Aguarde um minuto e tente de novo.'), modo:'offline'};
       // fallback offline: se for FAQ, responde FAQ mesmo sem internet

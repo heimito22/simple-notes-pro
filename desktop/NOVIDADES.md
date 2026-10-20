@@ -1,6 +1,5 @@
-**Versão 1.5.13**
+**Versão 1.5.14**
 
-- O app agora abre no idioma do Windows (português, inglês ou espanhol)
-- Novo modo "Automático" em Ajustes → Idioma: volte a seguir o PC quando quiser
-- Sua escolha de idioma não é mais sobrescrita pela sincronização com o celular
-- Ajustes menores de estabilidade
+- A IA agora funciona sem configurar nada: nada de colar chave, é só usar
+- Resumos e respostas do assistente prontos de fábrica, no PC e no celular
+- Chave própria continua opcional em Configurações → IA (ilimitado)
