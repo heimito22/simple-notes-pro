@@ -876,7 +876,39 @@ function iaAppend(papel, texto, isErro){
   div.className='ia-msg '+(papel==='usuario'?'user':'ia')+(isErro?' erro':'');
   div.textContent=texto;
   hist.appendChild(div);
-  hist.scrollTop=hist.scrollHeight;
+  hist.scrollTo({ top: hist.scrollHeight, behavior: 'smooth' });
+}
+
+/**
+ * Bolha "Pensando" com órbita pulsante e frases que rodam enquanto a IA
+ * trabalha (percepção de progresso; some sozinha ao chegar a resposta).
+ */
+var _iaPensandoTimer=null;
+function iaPensando(){
+  var hist=$('#iaHistorico'); if(!hist) return null;
+  var antigo=document.getElementById('iaLoading'); if(antigo) antigo.remove();
+  var el=document.createElement('div');
+  el.className='ia-msg ia ia-pensando';
+  el.id='iaLoading';
+  el.innerHTML='<span class="ia-orb">✦</span><span class="ia-pensando-txt"></span><span class="ia-dots"><i></i><i></i><i></i></span>';
+  hist.appendChild(el);
+  var frases=[T('Pensando'), T('Lendo suas notas…'), T('Organizando as ideias…'), T('Quase lá…')];
+  var txt=el.querySelector('.ia-pensando-txt');
+  if(txt) txt.textContent=frases[0];
+  var i=0;
+  clearInterval(_iaPensandoTimer);
+  _iaPensandoTimer=setInterval(function(){
+    if(!document.body.contains(el)){ clearInterval(_iaPensandoTimer); _iaPensandoTimer=null; return; }
+    i=(i+1)%frases.length;
+    if(txt) txt.textContent=frases[i];
+  }, 3200);
+  hist.scrollTo({ top: hist.scrollHeight, behavior: 'smooth' });
+  return {
+    parar: function(){
+      clearInterval(_iaPensandoTimer); _iaPensandoTimer=null;
+      if(el && el.parentNode) el.remove();
+    }
+  };
 }
 async function iaEnviar(){
   var inp=$('#iaInput'); if(!inp) return;
@@ -884,8 +916,7 @@ async function iaEnviar(){
   inp.value='';
   iaAppend('usuario', pergunta);
   iaHistorico.push({papel:'usuario', texto: pergunta});
-  var loading=document.createElement('div'); loading.className='ia-msg ia'; loading.textContent=T('Pensando…'); loading.id='iaLoading';
-  var hist=$('#iaHistorico'); if(hist) { hist.appendChild(loading); hist.scrollTop=hist.scrollHeight; }
+  var pensando=iaPensando();
   var chave=(config&&config.chaveIA)||store.chaveIA||'';
   try{
     var iaLib=window.iaDesktop;
@@ -895,7 +926,7 @@ async function iaEnviar(){
     // Inventário do agente: pastas e tarefas com ids p/ alvo/alvos das ações.
     if(iaLib.definirInventario) iaLib.definirInventario(store.pastas||[], store.tarefas||[]);
     var res=await iaLib.perguntar(pergunta, store.notas||[], store.tarefas||[], chave, iaHistorico);
-    var el=document.getElementById('iaLoading'); if(el) el.remove();
+    if(pensando) pensando.parar();
     // 1º o protocolo de AÇÕES do agente (criar nota/lista/tarefa/pasta, mover,
     // fixar, agendar); sem bloco de ações, cai no de edição tradicional.
     var acoesLib=window.snIaAcoes;
@@ -920,7 +951,7 @@ async function iaEnviar(){
     // nota aberta (nunca aplica sozinho — o usuário decide).
     else if(res.ordemEdicao) mostrarSugestaoEdicao(extra.textoLimpo||res.texto);
   }catch(e){
-    var el2=document.getElementById('iaLoading'); if(el2) el2.remove();
+    if(pensando) pensando.parar();
     iaAppend('ia', T('Erro: ')+String(e.message||e).slice(0,200), true);
   }
 }

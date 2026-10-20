@@ -7,6 +7,7 @@
 <link rel="stylesheet" href="styles.css">
 <link rel="stylesheet" href="polimento.css">
 <link rel="stylesheet" href="beleza.css">
+<link rel="stylesheet" href="refino.css">
 </head>
 <body>
 <div class="app">
@@ -118,8 +119,8 @@
     <section class="main" id="painelIA" style="display:none">
       <div class="main-head"><h1>Assistente IA</h1><span class="muted" id="iaSub">Converse sobre suas notas</span></div>
       <div class="ia-wrap">
-        <div class="ia-historico" id="iaHistorico"><div class="ia-msg ia" style="align-self:center;max-width:92%;text-align:center;color:var(--tx2)">Olá! Pergunte qualquer coisa sobre suas notas. Ex: "resuma minha nota de receita" ou "o que tenho pendente?"<br><small>Precisa da chave gratuita em Configurações → IA (OpenRouter) para respostas como ChatGPT. Sem chave, respondo buscando nas suas notas.</small></div></div>
-        <div class="ia-dica" id="iaDica">Dica: a IA usa suas notas e tarefas como contexto. Sem internet, faz busca local.</div>
+        <div class="ia-historico" id="iaHistorico"><div class="ia-msg ia" style="align-self:center;max-width:92%;text-align:center;color:var(--tx2)">Olá! Pergunte qualquer coisa sobre suas notas. Ex: "resuma minha nota de receita" ou "o que tenho pendente?"<br><small>A IA já vem pronta para usar. Se quiser respostas ilimitadas, use sua chave em Configurações → IA.</small></div></div>
+        <div class="ia-dica" id="iaDica">A IA usa suas notas e tarefas como contexto. Sem internet, faz busca local.</div>
         <div class="ia-input-row"><input id="iaInput" type="text" placeholder="Pergunte sobre suas notas…" data-i18n-ph="Pergunte sobre suas notas…"><button class="btn prim" id="btnIaEnviar" data-i18n="Enviar">Enviar</button></div>
       </div>
     </section>
@@ -376,6 +377,7 @@
 <script src="tarefas.js"></script>
 <script src="config.js"></script>
 <script src="app.js"></script>
+<script src="refino.js"></script>
 <!-- ====== BANNER DE ATUALIZAÇÃO ====== -->
 <!-- no-drag: a titlebar (40px, app-region:drag) engolia os cliques da faixa
      superior do banner — o botão "Reiniciar agora" só respondia na parte de
