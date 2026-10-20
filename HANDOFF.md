@@ -11,11 +11,10 @@ App de notas com IA agente e sync PC↔celular.
 - Site: `C:\Users\Pichau\Downloads\simple-notes-pro-site`
 
 ### Versões
-- Play Store: v1.7.1 (code 26) em Produção. Tracks de teste interno/beta ainda ativos → PAUSAR.
-- Pronto para subir: `Documents\Simple-Notes-Pro-1.7.2-v27.aab` (code 27) — fix de idioma.
+- Play Store: v1.7.2 (code 27) PUBLICADA em Produção — fix de idioma. Tracks de teste interno/beta ainda ativos → PAUSAR.
+- Desktop: 1.5.13 publicada no GitHub (auto-update + aba Novidades do site).
 - APK de teste: `Documents\Simple-Notes-Pro-1.7.2-v27.apk` (não instala sobre a Play: assinatura diferente).
-- Desktop: 1.5.12 no GitHub Releases (auto-update NSIS perMachine). 1.5.13 só quando acumular mudanças.
-- Último commit: `a87be04` (local; push pendente `git push origin master:main`).
+- Repo: `origin/main` = `08ef863` (pushado; inclui fix de idioma mobile e PC).
 
 ### Idioma (recém-corrigido, não regredir)
 - Idioma é POR APARELHO: não vai no backup do Drive nem é aplicado de prefs remotas.
@@ -66,8 +65,6 @@ REGRA: editar arquivos só com a IDE do GameMaker FECHADA.
 - Play: versionCode nunca se repete, mesmo descartando rascunho.
 
 ## PENDÊNCIAS
-1. Play Console: subir v27 (AAB) em Produção + pausar tracks de teste interno/fechado.
-2. Push do commit `a87be04`.
-3. Postar SHORT + LONGO (escolher música em alta no YouTube na hora).
-4. Focas: conferir tiles do Room7 → commitar/descartar.
-5. Testar o APK v27 no celular: deve abrir em PT e Ajustes→Idioma mostrar "Automático".
+1. Play Console: pausar tracks de teste interno/fechado (só Produção ativa).
+2. Postar SHORT + LONGO (escolher música em alta no YouTube na hora).
+3. Focas: conferir tiles do Room7 → commitar/descartar.

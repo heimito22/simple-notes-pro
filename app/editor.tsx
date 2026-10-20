@@ -28,6 +28,7 @@ import { DIAS_SEMANA, resumoLembrete, type LembreteNota, type TipoLembrete } fro
 import { idiomaAtual, tIdioma } from '../context/idiomas';
 import { useMonetizacao } from '../context/monetizacao';
 import { appColors } from '../constants/theme';
+import { PROXY_IA_ATIVO } from '../constants/ia-proxy';
 import RichTextEditor, { FormatoAtivo, RichTextEditorHandle } from '../components/rich-text-editor';
 import { PALETA_TAGS, corDaTag, tagsDeItens } from '../context/tags';
 import { imeHeightAtual, observarIme } from '../modules/minhasnotas-ime';
@@ -373,7 +374,7 @@ export default function EditorScreen() {
         };
     }, []);
     // A IA de verdade só funciona com chave configurada
-    const temChaveIA = !!config?.chaveIA;
+    const temChaveIA = !!config?.chaveIA || PROXY_IA_ATIVO;
     // Gravador gerenciado pelo hook (liberado automaticamente ao desmontar o editor)
     const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
     const audiosRef = useRef<AudioAttachment[]>([]);

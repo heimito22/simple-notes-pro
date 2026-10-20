@@ -25,6 +25,7 @@ import { useTheme } from '../context/ThemeContext';
 import { responderPergunta, type MensagemChat } from '../context/ia-service';
 import { extrairAcoes, resumoAcao, executarAcoes, type AcaoIA, type DepsAcoes } from '../context/ia-acoes';
 import { appColors } from '../constants/theme';
+import { PROXY_IA_ATIVO } from '../constants/ia-proxy';
 import { imeHeightAtual, observarIme } from '../modules/minhasnotas-ime';
 
 // ── Bolha do chat (mesma linguagem visual do painel do editor) ─────────────
@@ -201,7 +202,7 @@ export default function TelaIA() {
         }
     };
 
-    const semChave = !(config?.chaveIA);
+    const semChave = !(config?.chaveIA) && !PROXY_IA_ATIVO;
 
     return (
         <View style={[styles.container, { backgroundColor: tema.fundo, paddingTop: insets.top }]}>

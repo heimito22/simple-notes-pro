@@ -15,6 +15,8 @@
 
 import { buscarResposta, limparTexto } from './ia-notas';
 import { tIdioma, type Idioma } from './idiomas';
+import { URL_PROXY_IA, PROXY_IA_ATIVO } from '../constants/ia-proxy';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
 
 // Nome do idioma para os prompts do modelo (o modelo entende o nome nativo).
 const NOME_IDIOMA: Record<Idioma, string> = {
@@ -365,6 +367,59 @@ export function conteudoAplicadoDaProposta(conteudo: string, titulo: string, tit
 
 const URL_API = 'https://openrouter.ai/api/v1/chat/completions';
 
+// ── Proxy da IA (sem chave do usuário) ───────────────────────────────────────
+// O accessToken do Google vale ~1h; cacheia para não pedir a cada mensagem.
+let tokenGoogleCache: { token: string; expira: number } | null = null;
+
+async function obterTokenGoogle(): Promise<string | null> {
+  if (tokenGoogleCache && Date.now() < tokenGoogleCache.expira) return tokenGoogleCache.token;
+  try {
+    await GoogleSignin.signInSilently().catch(() => {});
+    const tokens = await GoogleSignin.getTokens();
+    if (!tokens?.accessToken) return null;
+    tokenGoogleCache = { token: tokens.accessToken, expira: Date.now() + 50 * 60 * 1000 };
+    return tokens.accessToken;
+  } catch {
+    return null;
+  }
+}
+
+/** Chama o Worker do app: mesma resposta do OpenRouter, sem expor a chave. */
+async function chamarProxyIA(
+  messages: any[],
+  maxTokens: number,
+  temperature: number,
+): Promise<{ ok: boolean; status: number; texto: string; corpo: string }> {
+  const token = await obterTokenGoogle();
+  if (!token) {
+    return { ok: false, status: 401, texto: '', corpo: 'login_necessario' };
+  }
+  const corpoReq = JSON.stringify({
+    messages: messages.map((m: any) => ({ role: m.role, content: String(m.content ?? '') })),
+    temperature,
+    max_tokens: maxTokens,
+  });
+  const res = await fetch(URL_PROXY_IA, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: corpoReq,
+  });
+  const bruto = await res.text().catch(() => '');
+  if (!res.ok) {
+    console.warn(`[IA] proxy falhou (HTTP ${res.status}):`, bruto.slice(0, 200));
+    return { ok: false, status: res.status, texto: '', corpo: bruto };
+  }
+  let data: any = null;
+  try { data = JSON.parse(bruto); } catch {}
+  const conteudo: any = data?.choices?.[0]?.message?.content;
+  const texto = typeof conteudo === 'string'
+    ? conteudo.trim()
+    : Array.isArray(conteudo)
+      ? conteudo.map((p: any) => String(p?.text || '')).join('').trim()
+      : '';
+  return { ok: true, status: res.status, texto, corpo: '' };
+}
+
 /**
  * Chamada à API do OpenRouter — O formato canônico do app.
  *
@@ -387,6 +442,10 @@ const chamarOpenRouter = async (
   temperature: number,
   fallback: string | null = null,
 ): Promise<{ ok: boolean; status: number; texto: string; corpo: string }> => {
+  // Sem chave própria: usa o servidor do app (IA pronta para leigos).
+  if (!chaveApi && PROXY_IA_ATIVO) {
+    return chamarProxyIA(messages, maxTokens, temperature);
+  }
   const corpoReq = JSON.stringify({
     model,
     messages: messages.map((m: any) => ({
@@ -603,7 +662,7 @@ export async function resumirNotaComIA(nota: any, chaveApi: string, idioma: Idio
   if (!nota) {
     return { texto: tIdioma(idioma, 'Abra uma nota para eu resumir. ✍️'), modo: 'fora' };
   }
-  if (!chaveApi) {
+  if (!chaveApi && !PROXY_IA_ATIVO) {
     return {
       texto: tIdioma(idioma, 'Para resumir com IA, configure sua chave gratuita em Ajustes → IA. 🔑'),
       modo: 'offline',
@@ -677,7 +736,7 @@ export async function responderPergunta(
     // Sem notas nem tarefas: perguntas sobre o próprio app ainda são respondidas usando a
     // lista REAL de recursos — nada de invenção. Pedido OPERACIONAL com chave
     // segue em frente — a IA pode CRIAR a primeira nota/tarefa/pasta.
-    if (!chaveApi) {
+    if (!chaveApi && !PROXY_IA_ATIVO) {
       const recurso = respostaRecursoApp(pergunta, idioma);
       if (recurso) return { texto: recurso, modo: 'offline' };
     }
@@ -689,8 +748,8 @@ export async function responderPergunta(
     }
   }
 
-  // --- Modo offline: sem chave, usa a busca local (instantânea) ---
-  if (!chaveApi) {
+  // --- Modo offline: sem chave E sem servidor, usa a busca local (instantânea) ---
+  if (!chaveApi && !PROXY_IA_ATIVO) {
     const contexto = montarContexto(todasNotas, todasTarefas, pergunta, false, idioma);
     if (!contexto) {
       const recurso = respostaRecursoApp(pergunta, idioma);
