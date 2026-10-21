@@ -1,5 +1,4 @@
-**Versão 1.5.32**
+**Versão 1.5.33**
 
-- Corrige o desbloqueio da chave ao **trocar de conta**: um código da conta A não pode mais ser salvo no cofre da conta B
-- O envelope pendente fica amarrado à conta que o baixou; se a conta mudar, ele é descartado
-- Mantém todo o backup v2 da 1.5.31 (chave aleatória, código de recuperação, AES-256 + HMAC, fail-closed, migração e anti-downgrade)
+- Antes de migrar o backup antigo (v1) para o novo (v2), o PC guarda uma **cópia local** em `backup_v1_<data>.json` na pasta de dados do app — dá para voltar atrás se algo der errado
+- Mantém as correções da 1.5.32: desbloqueio da chave amarrado à conta (troca de conta não mistura cofres) e todo o backup v2 (chave aleatória, código de recuperação, AES-256 + HMAC, fail-closed e anti-downgrade)

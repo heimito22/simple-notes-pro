@@ -12,7 +12,7 @@ App de notas com IA agente e sync PC↔celular.
 
 ### Versões
 - Play Store: v1.7.13 (code 38) pronta para subir — backup v2 com DEK aleatória no SecureStore, código de recuperação (PBKDF2 + AES-256-CTR/HMAC), fail-closed, migração v1→v2 e anti-downgrade; tudo do 1.7.11 (correção de tag, parser tolerante, cores, concorrência, etc.). Produção em 1.7.3/28. AAB/APK na Área de Trabalho.
-- Desktop: 1.5.32 publicada — mesmo backup v2 (DEK no safeStorage/DPAPI, código de recuperação), fail-closed, migração e anti-downgrade; mantém as correções de tag/IA da 1.5.29.
+- Desktop: 1.5.33 publicada — mesmo backup v2 (DEK no safeStorage/DPAPI, código de recuperação), fail-closed, migração e anti-downgrade; mantém as correções de tag/IA da 1.5.29.
 - Desktop anterior: 1.5.28 (IA só propõe ações e não diz que criou/falhou antes da confirmação).
 - Desktop anterior: 1.5.27 (bloqueio de envio concorrente, reparo de JSON e [c=#HEX]).
 - Desktop anterior: 1.5.26 (executa todos os blocos, apaga pasta, herda pasta nova mesmo com campo vazio, aceita [color=] e \n literal).

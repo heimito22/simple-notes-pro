@@ -358,19 +358,32 @@ function chaveLegadoAtual(){
 }
 function aleatorio(n){ return require('crypto').randomBytes(n).toString('hex'); }
 
+/** Guarda uma cópia local do backup v1 antes da migração para v2. */
+function salvarCopiaV1(raw){
+  try{
+    if(!raw) return;
+    const nome='backup_v1_'+new Date().toISOString().replace(/[:.]/g,'-')+'.json';
+    const destino=path.join(app.getPath('userData'), nome);
+    fs.writeFileSync(destino, JSON.stringify(raw));
+    console.log('[sync] cópia do backup v1 salva em', destino);
+  }catch(e){ console.warn('[sync] falha ao salvar cópia v1:', e&&e.message); }
+}
+
 ipcMain.handle('store:sync:enviar',async(_e,d)=>{
   try{
     const email=emailAtual();
     if(!email) return {ok:false, erro:'Conta não logada'};
     const token=await deps().googleAuth.tokenDeAcesso();
-    return await BackupSync.enviar({email, store:deps().store, token, dados:d, chaveBackup:ChaveBackup});
+    return await BackupSync.enviar({email, store:deps().store, token, dados:d, chaveBackup:ChaveBackup, aoMigrar:salvarCopiaV1});
   }catch(e){ return {ok:false,erro:String(e.message||e).slice(0,200)}; }
 });
 
 ipcMain.handle('store:sync:baixar',async()=>{
   try{
     const token=await deps().googleAuth.tokenDeAcesso();
-    return await BackupSync.baixar({email:emailAtual(), store:deps().store, token, chaveBackup:ChaveBackup});
+    const r = await BackupSync.baixar({email:emailAtual(), store:deps().store, token, chaveBackup:ChaveBackup});
+    if(r && r.migrarV2 && r.raw) salvarCopiaV1(r.raw);
+    return r;
   }catch(e){ return {ok:false, erro:String(e.message||e).slice(0,200)}; }
 });
 

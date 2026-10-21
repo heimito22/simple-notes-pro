@@ -40,6 +40,10 @@ async function enviar(p) {
       ultimoEmail = email;
       return { ok: false, precisaCodigo: true };
     }
+    // Vai migrar v1/claro para v2: guarda uma cópia antes de sobrescrever.
+    if (atual && typeof p.aoMigrar === 'function') {
+      try { p.aoMigrar(atual); } catch (e) {}
+    }
     ks = chaveBackup.criar(email);
     if (!ks) return { ok: false, erro: 'Cofre do Windows indisponível — backup NÃO enviado' };
     codigoNovo = ks.codigo;
@@ -98,7 +102,7 @@ async function baixar(p) {
   }
 
   try { await store.hidratarNotasComAnexos(token, dados); } catch (e) {}
-  return { ok: true, dados, migrarV2 };
+  return { ok: true, dados, migrarV2, raw: migrarV2 ? r : undefined };
 }
 
 /** Desbloqueia o backup v2 baixado com o código de recuperação. */
