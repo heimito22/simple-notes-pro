@@ -19,7 +19,7 @@ import { conteudoAplicadoDaProposta, extrairMidias } from './ia-service';
 // ── Tipos ────────────────────────────────────────────────────────────────
 
 export type TipoAcao =
-  | 'criar_nota' | 'editar_nota' | 'criar_lista' | 'editar_lista'
+  | 'criar_nota' | 'editar_nota' | 'adicionar_tag' | 'criar_lista' | 'editar_lista'
   | 'apagar_nota' | 'fixar_nota' | 'criar_tarefa' | 'concluir_tarefa'
   | 'apagar_tarefa' | 'criar_pasta' | 'apagar_pasta' | 'mover_para_pasta' | 'lembrete_nota';
 
@@ -35,6 +35,10 @@ export interface AcaoIA {
   itens?: { texto: string; concluido?: boolean }[];
   /** Id do alvo (editar/apagar/fixar/lembrete/concluir) — vem do contexto da IA. */
   alvo?: string;
+  /** Tag/hashtag a adicionar na nota (sem #). */
+  tag?: string;
+  /** Várias tags de uma vez. */
+  tags?: string[];
   /** Para mover: ids dos itens. */
   alvos?: string[];
   /** Nome da pasta de destino (null/vazio = lista principal). */
@@ -178,7 +182,7 @@ function resolverPastaId(nome: string | null | undefined, deps: DepsAcoes, resul
 // ── Extração do bloco de ações ────────────────────────────────────────────
 
 const TIPOS_VALIDOS: TipoAcao[] = [
-  'criar_nota', 'editar_nota', 'criar_lista', 'editar_lista',
+  'criar_nota', 'editar_nota', 'adicionar_tag', 'criar_lista', 'editar_lista',
   'apagar_nota', 'fixar_nota', 'criar_tarefa', 'concluir_tarefa',
   'apagar_tarefa', 'criar_pasta', 'apagar_pasta', 'mover_para_pasta', 'lembrete_nota',
 ];
@@ -189,6 +193,15 @@ const MAX_ACOES = 10;
 const tem = (v: any) => typeof v === 'string' && v.trim().length > 0;
 /** Compara nomes de pasta sem acento e sem caixa ("Exercícios" = "exercicios"). */
 const semAcento = (s: any) => String(s ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+/** Texto que é FALA da IA ("Vou adicionar..."), não conteúdo de nota. */
+function pareceFalaDaIA(v: any): boolean {
+  const t = String(v || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!t) return false;
+  return /^(vou|irei|posso|claro|pronto|feito|desculpe|não consegui|nao consegui)\b/i.test(t) ||
+    /adicion(ar|ei|ando)\s+(a\s+)?(tag|hashtag)/i.test(t) ||
+    /^(a|o)\s+nota\s+["“]/i.test(t) ||
+    /\b(nota|lista)\s+(foi|esta|está)\s+(atualizada|criada|apagada)\b/i.test(t);
+}
 
 /** Extrai todos os objetos/arrays JSON de nível superior, respeitando strings. */
 function blocosJson(texto: string): string[] {
@@ -292,6 +305,7 @@ export function extrairAcoes(texto: string): { acoes: AcaoIA[] | null; textoLimp
         const ok =
           (tipo === 'criar_nota' && tem(a.titulo)) ||
           (tipo === 'editar_nota' && tem(a.alvo)) ||
+          (tipo === 'adicionar_tag' && tem(a.alvo) && (tem(a.tag) || (Array.isArray(a.tags) && a.tags.length > 0))) ||
           (tipo === 'criar_lista' && tem(a.titulo)) ||
           (tipo === 'editar_lista' && tem(a.alvo)) ||
           (tipo === 'apagar_nota' && tem(a.alvo)) ||
@@ -350,6 +364,7 @@ export function resumoAcao(a: AcaoIA, deps?: Partial<DepsAcoes>): string {
       return s;
     }
     case 'editar_nota': return `✏️ Editar nota "${nome(a.alvo)}"`;
+    case 'adicionar_tag': return `🏷 Adicionar tag #${a.tag || (a.tags || []).join(' #')} — "${nome(a.alvo)}"`;
     case 'criar_lista': return `📋 Criar lista "${a.titulo}"${(a.itens?.length ?? 0) > 0 ? ` com ${a.itens!.length} itens` : ''}${a.pasta ? ` na pasta "${a.pasta}"` : ''}`;
     case 'editar_lista': return `✏️ Editar lista "${nome(a.alvo)}"`;
     case 'apagar_nota': return `🗑 Apagar "${nome(a.alvo)}"`;
@@ -413,6 +428,10 @@ export async function executarAcoes(acoes: AcaoIA[], deps: DepsAcoes): Promise<s
         case 'editar_nota': {
           const nota = deps.notas.find((n: any) => n?.id === a.alvo);
           if (!nota) { resultados.push(`⚠️ ${t('Nota não encontrada')} (${a.alvo})`); break; }
+          if (tem(a.conteudo) && pareceFalaDaIA(a.conteudo)) {
+            resultados.push(`⚠️ ${t('A IA não devolveu a nota completa. Peça de novo — ex.: “adicione a tag #pai mantendo o texto da nota”.')}`);
+            break;
+          }
           const novoTitulo = tem(a.titulo) ? String(a.titulo).trim() : nota.titulo;
           // Mídia da nota ATUAL vira marca; o conteúdo da IA volta com ela.
           const prep = extrairMidias(String(nota.conteudo || ''));
@@ -426,6 +445,29 @@ export async function executarAcoes(acoes: AcaoIA[], deps: DepsAcoes): Promise<s
           }
           notaParaAbrir = a.alvo!;
           resultados.push(`✅ ${t('Nota atualizada')}: "${novoTitulo}"`);
+          break;
+        }
+
+        case 'adicionar_tag': {
+          const nota = deps.notas.find((n: any) => n?.id === a.alvo);
+          if (!nota) { resultados.push(`⚠️ ${t('Nota não encontrada')} (${a.alvo})`); break; }
+          const tags = (Array.isArray(a.tags) ? a.tags : [a.tag])
+            .map((v: any) => String(v || '').replace(/^#+/, '').replace(/[<>"'&]/g, '').trim())
+            .filter(Boolean);
+          const faltando = tags.filter(tag => !new RegExp('#' + tag + '\\b', 'i').test(String(nota.conteudo || '')));
+          if (!faltando.length) {
+            notaParaAbrir = nota.id;
+            resultados.push(`ℹ️ ${t('A nota já tem essa tag')}: #${tags.join(' #')}`);
+            break;
+          }
+          const novoConteudo = String(nota.conteudo || '') + faltando.map(tag => `<p>#${tag}</p>`).join('');
+          if (deps.notaAbertaId && a.alvo === deps.notaAbertaId && deps.aplicarNaNotaAberta) {
+            deps.aplicarNaNotaAberta(nota.titulo, novoConteudo);
+          } else {
+            deps.salvarNota(nota.titulo, novoConteudo, nota.id, !!nota.protegida, nota.pastaId ?? undefined);
+          }
+          notaParaAbrir = nota.id;
+          resultados.push(`🏷 ${t('Tag adicionada')}: #${faltando.join(' #')} — "${nota.titulo}"`);
           break;
         }
 

@@ -11,11 +11,20 @@
   function _t(extra, s){ return (extra && typeof extra.T === 'function') ? extra.T(s) : s; }
   var tem = function(v){ return typeof v === 'string' && v.trim().length > 0; };
 
-  var TIPOS_VALIDOS = ['criar_nota','editar_nota','criar_lista','editar_lista','apagar_nota','fixar_nota','criar_tarefa','concluir_tarefa','apagar_tarefa','criar_pasta','apagar_pasta','mover_para_pasta','lembrete_nota'];
+  var TIPOS_VALIDOS = ['criar_nota','editar_nota','adicionar_tag','criar_lista','editar_lista','apagar_nota','fixar_nota','criar_tarefa','concluir_tarefa','apagar_tarefa','criar_pasta','apagar_pasta','mover_para_pasta','lembrete_nota'];
   var MAX_ACOES = 10;
   var DIAS_VALIDOS = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
 
   function semAcento(s){ return String(s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase(); }
+  /** Texto que é FALA da IA ("Vou adicionar..."), não conteúdo de nota. */
+  function pareceFalaDaIA(v){
+    var t=String(v||'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
+    if(!t) return false;
+    return /^(vou|irei|posso|claro|pronto|feito|desculpe|não consegui|nao consegui)\b/i.test(t) ||
+      /adicion(ar|ei|ando)\s+(a\s+)?(tag|hashtag)/i.test(t) ||
+      /^(a|o)\s+nota\s+["“]/i.test(t) ||
+      /\b(nota|lista)\s+(foi|esta|está)\s+(atualizada|criada|apagada)\b/i.test(t);
+  }
   function normRecorrencia(v){
     var s = semAcento(v||'').trim();
     if(!s) return 'Uma vez';
@@ -150,6 +159,7 @@
           var ok =
             (a.tipo==='criar_nota' && tem(a.titulo)) ||
             (a.tipo==='editar_nota' && tem(a.alvo)) ||
+            (a.tipo==='adicionar_tag' && tem(a.alvo) && (tem(a.tag) || (Array.isArray(a.tags) && a.tags.length>0))) ||
             (a.tipo==='criar_lista' && tem(a.titulo)) ||
             (a.tipo==='editar_lista' && tem(a.alvo)) ||
             (a.tipo==='apagar_nota' && tem(a.alvo)) ||
@@ -205,6 +215,7 @@
     switch(a.tipo){
       case 'criar_nota': { var s='📝 '+_t2('Criar nota')+' "'+a.titulo+'"'; if(a.pasta) s+=' '+_t2('na pasta')+' "'+a.pasta+'"'; if(a.lembrete) s+=' 🔔'; if(a.fixar) s+=' 📌'; return s; }
       case 'editar_nota': return '✏️ '+_t2('Editar nota')+' "'+nome(a.alvo)+'"';
+    case 'adicionar_tag': return '🏷 '+_t2('Adicionar tag')+' #'+(a.tag || (a.tags||[]).join(' #'))+' — "'+nome(a.alvo)+'"';
       case 'criar_lista': return '📋 '+_t2('Criar lista')+' "'+a.titulo+'"'+((a.itens&&a.itens.length)?' ('+a.itens.length+' '+_t2('itens')+')':'')+(a.pasta?' '+_t2('na pasta')+' "'+a.pasta+'"':'');
       case 'editar_lista': return '✏️ '+_t2('Editar lista')+' "'+nome(a.alvo)+'"';
       case 'apagar_nota': return '🗑 '+_t2('Apagar')+' "'+nome(a.alvo)+'"';
@@ -280,11 +291,34 @@
         } else if(a.tipo==='editar_nota'){
           var nota = encontrar(store.notas, a.alvo);
           if(!nota){ resultados.push('⚠️ '+T('Nota não encontrada')+' ('+a.alvo+')'); continue; }
+          if(tem(a.conteudo) && pareceFalaDaIA(a.conteudo)){
+            resultados.push('⚠️ '+T('A IA não devolveu a nota completa. Peça de novo — ex.: “adicione a tag #pai mantendo o texto da nota”.'));
+            continue;
+          }
           var novoTitulo = tem(a.titulo) ? String(a.titulo).trim() : nota.titulo;
           if(tem(a.conteudo)) nota.conteudo = conteudoFinal(a.conteudo, novoTitulo, nota.id, nota.titulo);
           nota.titulo = novoTitulo;
           notaParaAbrir = nota.id;
           resultados.push('✅ '+T('Nota atualizada')+': "'+novoTitulo+'"');
+
+        } else if(a.tipo==='adicionar_tag'){
+          var notaTag = encontrar(store.notas, a.alvo);
+          if(!notaTag){ resultados.push('⚠️ '+T('Nota não encontrada')+' ('+a.alvo+')'); continue; }
+          var tagsNovas = (Array.isArray(a.tags)?a.tags:[a.tag]).map(function(v){
+            return String(v||'').replace(/^#+/,'').replace(/[<>"'&]/g,'').trim();
+          }).filter(Boolean);
+          var tagsFaltando = tagsNovas.filter(function(tag){
+            return !new RegExp('#'+tag+'\\b','i').test(String(notaTag.conteudo||''));
+          });
+          if(!tagsFaltando.length){
+            notaParaAbrir = notaTag.id;
+            resultados.push('ℹ️ '+T('A nota já tem essa tag')+': #'+tagsNovas.join(' #'));
+            continue;
+          }
+          notaTag.conteudo = String(notaTag.conteudo||'') + tagsFaltando.map(function(tag){ return '<p>#'+tag+'</p>'; }).join('');
+          notaTag.data = ctx.hoje();
+          notaParaAbrir = notaTag.id;
+          resultados.push('🏷 '+T('Tag adicionada')+': #'+tagsFaltando.join(' #')+' — "'+notaTag.titulo+'"');
 
         } else if(a.tipo==='criar_lista'){
           var itens = (Array.isArray(a.itens)?a.itens:[]).filter(function(it){ return it && tem(it.texto); })

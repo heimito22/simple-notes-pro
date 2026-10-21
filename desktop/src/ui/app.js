@@ -1189,6 +1189,18 @@ function mostrarSugestaoEdicao(texto){
   var alvo=null, notas=store.notas||[];
   for(var i=0;i<notas.length;i++){ if(notas[i].id===e.id){ alvo=notas[i]; break; } }
   if(!alvo) return;
+  // Segurança: nunca aplicar uma FRASE DA IA como se fosse a nota inteira.
+  // Foi assim que "Vou adicionar a tag **pai**..." apagou o texto original.
+  var textoLimpo=String(texto||'').trim();
+  var atualTxt=String(alvo.conteudo||'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
+  var novoTxt=textoLimpo.replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
+  var pareceFala=/^(vou|irei|posso|claro|pronto|feito|desculpe|não consegui|nao consegui)\b/i.test(textoLimpo) ||
+    /adicion(ar|ei|ando)\s+(a\s+)?(tag|hashtag)/i.test(textoLimpo) ||
+    /^(a|o)\s+nota\s+["“]/i.test(textoLimpo);
+  if(pareceFala || (atualTxt.length>200 && novoTxt.length<80)){
+    iaAppend('ia', T('A IA não devolveu a nota completa. Peça de novo — ex.: “adicione a tag #pai mantendo o texto da nota”.'), true);
+    return;
+  }
   var card=document.createElement('div');
   card.className='ia-proposta';
   card.innerHTML=
@@ -1202,7 +1214,10 @@ function mostrarSugestaoEdicao(texto){
   card.querySelector('[data-act="ok"]').addEventListener('click', function(){
     var item=alvoAtual(alvo.id) || alvo;   // pull no meio do caminho troca o objeto
     var foto=fotoParaDesfazer(item,false);
-    item.conteudo=textoParaHtml(texto); item.data=hoje();
+    item.conteudo=(window.iaDesktop && window.iaDesktop.conteudoAplicado)
+      ? window.iaDesktop.conteudoAplicado(texto, item.titulo, item.id, foto.titulo)
+      : textoParaHtml(texto);
+    item.data=hoje();
     salvarEAgora();   // a edição da IA vai para a nuvem na hora
     try{ if(window.snNotas) window.snNotas.render(ctx); }catch(err){}
     recarregarEditorSeAberto(item.id);

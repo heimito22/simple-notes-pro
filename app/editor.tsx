@@ -707,7 +707,21 @@ export default function EditorScreen() {
                 // Sem bloco JSON, mas foi claramente uma ordem de edição: oferece
                 // aplicar o texto que a IA escreveu (nunca aplica sozinho).
                 else if (proposta) { setSugestaoIA(null); setMidiasProposta(midiasDaNotaAberta()); setPropostaIA(proposta); }
-                else if (resposta.ordemEdicao) setSugestaoIA(textoLimpo || resposta.texto);
+                else if (resposta.ordemEdicao) {
+                    // Segurança: nunca oferecer uma FRASE DA IA como nota inteira.
+                    const bruto = (textoLimpo || extraidas.textoLimpo || '').trim();
+                    const pareceFala = /^(vou|irei|posso|claro|pronto|feito|desculpe|não consegui|nao consegui)\b/i.test(bruto) ||
+                        /adicion(ar|ei|ando)\s+(a\s+)?(tag|hashtag)/i.test(bruto) ||
+                        /^(a|o)\s+nota\s+["“]/i.test(bruto);
+                    const atual = String(conteudoRef.current || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+                    const novo = bruto.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+                    if (pareceFala || (atual.length > 200 && novo.length < 80)) {
+                        setSugestaoIA(null);
+                        setMensagensIA(prev => [...prev, { papel: 'ia', texto: t('A IA não devolveu a nota completa. Peça de novo — ex.: “adicione a tag #pai mantendo o texto da nota”.'), erro: true }]);
+                    } else {
+                        setSugestaoIA(bruto);
+                    }
+                }
         } catch (e) {
             setMensagensIA(prev => [...prev, { papel: 'ia', texto: t('Desculpe, não consegui responder agora. Tente de novo.'), erro: true }]);
         } finally {
