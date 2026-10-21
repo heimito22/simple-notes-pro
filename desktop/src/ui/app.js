@@ -435,6 +435,8 @@ async function doLoginToggle(){
     // próxima conta conectada). Os dados dela estão salvos no Drive dela.
     try{ await syncEnviar(); }catch(e){} // última chance de subir mudanças
     await S.googleSair();
+    fecharModalChave(null);
+    _ultimoCodigoMostrado='';
     store.notas=[]; store.listas=[]; store.pastas=[]; store.tarefas=[];
     store.conta='local';
     try{ if(window.Tombstones) window.Tombstones.limpar(); }catch(e){}
@@ -612,7 +614,7 @@ async function reconciliarComNuvem(dados, metaIso){
 // ── CHAVE DE SEGURANÇA DO BACKUP (v2) ──
 // A DEK é aleatória e vive no cofre do Windows; o código de recuperação abre o
 // backup em outro aparelho. Estas funções só mostram/pedem o código.
-var _chaveResolver=null, _codigoNovoMostrado=false;
+var _chaveResolver=null, _ultimoCodigoMostrado='';
 function abrirModalChave(opts){
   var ov=$('#modalChave'); if(!ov) return;
   opts=opts||{};
@@ -740,7 +742,7 @@ async function syncEnviar(){
       return;
     }
     if(r && r.ok){
-      if(r.codigoNovo && !_codigoNovoMostrado){ _codigoNovoMostrado=true; mostrarCodigoSeguranca(r.codigoNovo); }
+      if(r.codigoNovo && r.codigoNovo!==_ultimoCodigoMostrado){ _ultimoCodigoMostrado=r.codigoNovo; mostrarCodigoSeguranca(r.codigoNovo); }
       try{ await S.storeSalvar({ ultimaSincronizacao: agoraIso }); store.ultimaSincronizacao=agoraIso; }catch(e){}
       marcarMetaDrive(r.modifiedTime);   // a nuvem agora é ESTE envio: não puxar de volta
       ultimoPushAt=Date.now();

@@ -14,10 +14,11 @@ const crypto = require('crypto');
 const Cripto = require('./cripto.js');
 
 let ultimoEnvelope = null;
+let ultimoEmail = null;
 
 function aleatorio(n) { return crypto.randomBytes(n).toString('hex'); }
 
-function reset() { ultimoEnvelope = null; }
+function reset() { ultimoEnvelope = null; ultimoEmail = null; }
 
 /**
  * Envia o backup. Retorna {ok, modifiedTime, codigoNovo?, precisaCodigo?, erro?}.
@@ -36,6 +37,7 @@ async function enviar(p) {
     const atual = await store.buscarBackupDrive(token).catch(() => null);
     if (atual && Cripto.ehV2(atual)) {
       ultimoEnvelope = atual;
+      ultimoEmail = email;
       return { ok: false, precisaCodigo: true };
     }
     ks = chaveBackup.criar(email);
@@ -74,11 +76,13 @@ async function baixar(p) {
   if (Cripto.ehV2(r)) {
     if (!ks) {
       ultimoEnvelope = r;
+      ultimoEmail = email;
       return { ok: false, precisaCodigo: true };
     }
     dados = Cripto.lerEnvelopeV2(r, ks.chave);
     if (!dados) return { ok: false, erro: 'Falha ao verificar o backup (adulterado ou chave errada)' };
     ultimoEnvelope = null;
+    ultimoEmail = null;
   } else {
     // Backup antigo (v1 CBC) ou em claro. Se este aparelho já tem chave v2,
     // RECUSA: aceitar seria permitir um downgrade silencioso.
@@ -101,9 +105,16 @@ async function baixar(p) {
 async function definirCodigo(p) {
   const { email, codigo, chaveBackup } = p;
   if (!email || !ultimoEnvelope) return { ok: false, erro: 'Nenhum backup para desbloquear' };
+  if (ultimoEmail && email !== ultimoEmail) {
+    // Conta trocou no meio do caminho: o envelope é de outra conta.
+    ultimoEnvelope = null;
+    ultimoEmail = null;
+    return { ok: false, erro: 'A conta mudou — sincronize de novo.' };
+  }
   const ks = chaveBackup.definirComCodigo(email, ultimoEnvelope, codigo);
   if (!ks) return { ok: false, erro: 'Código incorreto' };
   ultimoEnvelope = null;
+  ultimoEmail = null;
   return { ok: true };
 }
 

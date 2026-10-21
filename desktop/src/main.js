@@ -391,7 +391,7 @@ ipcMain.handle('store:anexos:hidratar',async()=>{ try{
   return {ok:true, total};
 }catch(e){ return {ok:false, erro:String(e.message||e).slice(0,200)}; }});
 ipcMain.handle('google:entrar',()=>deps().googleAuth.entrarComGoogle());
-ipcMain.handle('google:sair',async()=>{deps().googleAuth.apagarSessao(); return true;});
+ipcMain.handle('google:sair',async()=>{deps().googleAuth.apagarSessao(); BackupSync.reset(); return true;});
 ipcMain.handle('google:usuario',()=>{ const s=deps().googleAuth.carregarSessao(); return s && s.user ? s.user : null; });
 ipcMain.handle('google:tokens',async()=>{ try{return {accessToken:await deps().googleAuth.tokenDeAcesso()};}catch{return null;}});
 ipcMain.handle('google:temSecret',()=>{ try{ const hit = deps().googleAuth.obterInfo(); return !!hit.temSecret; }catch{ return false; }});

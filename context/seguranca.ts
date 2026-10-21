@@ -1,12 +1,13 @@
 /**
- * SEGURANÇA NATIVA (CELULAR) — rate limiting do PIN + biometria + expo-secure-store.
+ * SEGURANÇA NATIVA (CELULAR) — rate limiting do PIN + controle de captura de tela.
+ *
+ * A chave de criptografia do backup NÃO fica aqui: vive em `context/cripto-local.ts`
+ * (expo-secure-store + expo-crypto), uma por conta Google.
  *
  * 1. Rate limiting exponencial no PIN (igual PC)
- * 2. Chave de criptografia no Keychain (expo-secure-store)
- * 3. Controle de captura de tela (Android FLAG_SECURE)
+ * 2. Controle de captura de tela (Android FLAG_SECURE)
  */
 
-import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
 // ── RATE LIMITING DO PIN (anti brute-force) ──
@@ -30,32 +31,6 @@ export function pinRegistroErro(): number {
 export function pinResetTentativas(): void {
   pinTentativas = 0;
   pinBloqueadoAte = 0;
-}
-
-// ── CHAVE DE CRIPTOGRAFIA NO KEYCHAIN ──
-const CHAVE_KEYCHAIN = 'sn_pro_master_key';
-
-/** Gera e armazena uma chave AES-256 no Keychain (nunca sai do device). */
-export async function obterChaveMestra(): Promise<string | null> {
-  try {
-    const salva = await SecureStore.getItemAsync(CHAVE_KEYCHAIN);
-    if (salva) return salva;
-    // Gera chave nova (hex de 256 bits)
-    const nova = Array.from({length: 32}, () => Math.floor(Math.random()*256).toString(16).padStart(2,'0')).join('');
-    await SecureStore.setItemAsync(CHAVE_KEYCHAIN, nova, {
-      keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
-    });
-    return nova;
-  } catch (e) {
-    return null;
-  }
-}
-
-/** Remove a chave mestra (logout / apagar tudo). */
-export async function limparChaveMestra(): Promise<void> {
-  try {
-    await SecureStore.deleteItemAsync(CHAVE_KEYCHAIN);
-  } catch {}
 }
 
 // ── CAPTURA DE TELA (Android) ──

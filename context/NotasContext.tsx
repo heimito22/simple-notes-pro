@@ -67,11 +67,22 @@ export function NotasProvider({ children }: any) {
   const [codigoNovo, setCodigoNovo] = useState<string | null>(null);
   const [erroCripto, setErroCripto] = useState<string | null>(null);
   const envelopePendenteRef = useRef<any>(null);
+  const envelopeEmailRef = useRef<string | null>(null);
   const erroCriptoRef = useRef<string | null>(null);
   const codigoIgnoradoRef = useRef(false);
   const marcarErroCripto = useCallback((msg: string | null) => {
     erroCriptoRef.current = msg;
     setErroCripto(msg);
+  }, []);
+  /** Limpa todo o estado do desbloqueio — obrigatório ao trocar de conta. */
+  const limparEstadoCripto = useCallback(() => {
+    envelopePendenteRef.current = null;
+    envelopeEmailRef.current = null;
+    codigoIgnoradoRef.current = false;
+    erroCriptoRef.current = null;
+    setCodigoPendente(false);
+    setCodigoNovo(null);
+    setErroCripto(null);
   }, []);
   // Só passa a salvar localmente depois que os dados foram carregados do storage
   const [dadosCarregados, setDadosCarregados] = useState<boolean>(false);
@@ -292,6 +303,9 @@ export function NotasProvider({ children }: any) {
     checkUserChange();
   }, [currentUserId, carregarTudo]);
 
+  // Troca de conta: nenhum código/envelope da conta anterior pode sobreviver.
+  useEffect(() => { limparEstadoCripto(); }, [currentUserId, limparEstadoCripto]);
+
   // 2. SALVAMENTO LOCAL SEMPRE ATIVO (+ carimbo do que mudou de verdade)
   useEffect(() => {
     if (!dadosCarregados) return;
@@ -488,6 +502,7 @@ export function NotasProvider({ children }: any) {
         }
         if (Cripto.ehV2(remoto)) {
           envelopePendenteRef.current = remoto;
+          envelopeEmailRef.current = emailConta || null;
           if (!codigoIgnoradoRef.current) setCodigoPendente(true);
           setSyncStatus(s => ({ ...s, estado: 'erro' }));
           return;
@@ -635,6 +650,7 @@ export function NotasProvider({ children }: any) {
       if (!ks) {
         // Backup de outro aparelho: pede o código, NÃO aplica nem sobrescreve.
         envelopePendenteRef.current = bruto;
+        envelopeEmailRef.current = email || null;
         if (!codigoIgnoradoRef.current) setCodigoPendente(true);
         return null;
       }
@@ -1026,9 +1042,17 @@ export function NotasProvider({ children }: any) {
       const u = await GoogleSignin.getCurrentUser();
       email = u?.user?.email;
     } catch {}
+    // O envelope é de uma conta específica: se a conta mudou, descarta.
+    if (envelopeEmailRef.current && email !== envelopeEmailRef.current) {
+      envelopePendenteRef.current = null;
+      envelopeEmailRef.current = null;
+      setCodigoPendente(false);
+      return false;
+    }
     const ks = await ChaveBackup.definirComCodigo(env, codigo, email);
     if (!ks) return false;
     envelopePendenteRef.current = null;
+    envelopeEmailRef.current = null;
     codigoIgnoradoRef.current = false;
     setCodigoPendente(false);
     marcarErroCripto(null);
@@ -1333,6 +1357,8 @@ export function NotasProvider({ children }: any) {
    * (Chamado ao trocar de conta direto e como rede de segurança no boot.)
    */
   const isolarDadosDeConta = useCallback(async (novoId?: string) => {
+    // Nada do desbloqueio da conta anterior pode sobreviver à troca.
+    limparEstadoCripto();
     // Token da conta anterior NÃO pode ser reaproveitado na conta nova.
     tokenCacheRef.current = null;
     setNotas([]);
@@ -1365,7 +1391,7 @@ export function NotasProvider({ children }: any) {
     await new Promise(r => setTimeout(r, 60));
     suprimirPushRef.current = false;
     console.log('[Isolamento] dados da conta anterior removidos do aparelho.');
-  }, [setListas, tarefasContext]);
+  }, [setListas, tarefasContext, limparEstadoCripto]);
 
   const logout = async () => {
     // Última chance de subir o que mudou antes de sair (se online) -
