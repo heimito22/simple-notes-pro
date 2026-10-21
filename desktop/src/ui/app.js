@@ -1055,6 +1055,15 @@ function mostrarCartaoAcoes(acoes){
       var fim=document.createElement('div'); fim.className='ia-msg ia'; fim.textContent=resultados.join('\n')||T('✅ Pronto!');
       hist.appendChild(fim); hist.scrollTop=hist.scrollHeight;
       toast(T('Ações da IA aplicadas — sincronizando'));
+      // Abre no editor a nota/lista criada ou alterada, para o usuário ver o
+      // resultado em vez de achar que a IA "só falou" e não fez nada.
+      var abrirId = resultados.notaId || resultados.listaId;
+      var abrirTipo = resultados.notaId ? 'nota' : 'lista';
+      if(abrirId && window.snNotas){
+        setTimeout(function(){
+          try{ window.snNotas.abrir(ctx, abrirTipo, abrirId); }catch(e){}
+        }, 220);
+      }
     }catch(e){
       btnOk.disabled=false; btnOk.textContent=T('Permitir tudo');
       iaAppend('ia', T('Erro: ')+String(e.message||e).slice(0,200), true);

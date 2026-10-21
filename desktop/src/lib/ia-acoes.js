@@ -58,23 +58,64 @@
     return out;
   }
 
+  /** Extrai todos os objetos/arrays JSON de nível superior, respeitando strings. */
+  function blocosJson(texto){
+    var s = String(texto||'');
+    var out = [], inicio = -1, prof = 0, emString = false, escape = false;
+    for(var i=0;i<s.length;i++){
+      var ch = s.charAt(i);
+      if(emString){
+        if(escape) escape = false;
+        else if(ch === '\\') escape = true;
+        else if(ch === '"') emString = false;
+        continue;
+      }
+      if(ch === '"'){ emString = true; continue; }
+      if(ch === '{' || ch === '['){
+        if(prof === 0) inicio = i;
+        prof++;
+      } else if(ch === '}' || ch === ']'){
+        if(prof > 0){
+          prof--;
+          if(prof === 0 && inicio >= 0){ out.push(s.slice(inicio, i+1)); inicio = -1; }
+        }
+      }
+    }
+    return out;
+  }
+
+  /** Aceita {"acoes":[...]}, {"tipo":...}, {"acao":{...}} ou um array solto. */
+  function listaDeAcoes(obj){
+    if(Array.isArray(obj)) return obj;
+    if(obj && Array.isArray(obj.acoes)) return obj.acoes;
+    if(obj && Array.isArray(obj.actions)) return obj.actions;
+    if(obj && obj.acao && typeof obj.acao === 'object') return [obj.acao];
+    if(obj && obj.action && typeof obj.action === 'object') return [obj.action];
+    if(obj && typeof obj.tipo === 'string') return [obj];
+    return null;
+  }
+
+  function normalizarTipo(v){
+    return String(v||'').replace(/([a-z])([A-Z])/g,'$1_$2').toLowerCase().replace(/[\s-]+/g,'_');
+  }
+
   /** Extrai e valida o bloco {"acoes":[...]} — acoes null se não veio. */
   function extrairAcoes(texto){
     var bruto = String(texto||'');
-    var cerca = bruto.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/i);
-    var solto = bruto.match(/\{[\s\S]*?"acoes"[\s\S]*\}/);
-    var candidatos = []; if(cerca) candidatos.push(cerca[1]); if(solto) candidatos.push(solto[0]);
-    for(var c=0;c<candidatos.length;c++){
+    var blocos = blocosJson(bruto);
+    var validas = [], usados = [], vistas = {};
+    for(var c=0;c<blocos.length;c++){
+      var cand = blocos[c];
       try{
-        var obj = JSON.parse(candidatos[c]);
-        var lista = obj && Array.isArray(obj.acoes) ? obj.acoes : null;
+        var obj = JSON.parse(cand);
+        var lista = listaDeAcoes(obj);
         if(!lista || !lista.length) continue;
-        var validas = [];
+        var achou = false;
         for(var i=0;i<lista.length;i++){
           var a = lista[i];
           if(!a || typeof a!=='object') continue;
           // Modelo free pode mandar camelCase ("editarLista") — normaliza.
-          a.tipo = String(a.tipo||'').replace(/([a-z])([A-Z])/g,'$1_$2').toLowerCase().replace(/[\s-]+/g,'_');
+          a.tipo = normalizarTipo(a.tipo);
           if(TIPOS_VALIDOS.indexOf(a.tipo)===-1) continue;
           var ok =
             (a.tipo==='criar_nota' && tem(a.titulo)) ||
@@ -89,15 +130,33 @@
             (a.tipo==='criar_pasta' && tem(a.nome)) ||
             (a.tipo==='mover_para_pasta' && Array.isArray(a.alvos) && a.alvos.length>0) ||
             (a.tipo==='lembrete_nota' && tem(a.alvo));
-          if(ok) validas.push(a);
+          if(ok){
+            var chave = JSON.stringify(a);
+            if(!vistas[chave]){ vistas[chave]=1; validas.push(a); }
+            achou = true;
+          }
         }
-        if(validas.length){
-          var limpo = bruto.replace((cerca&&cerca[0])||(solto&&solto[0])||'','').trim();
-          return { acoes: validas.slice(0,MAX_ACOES), textoLimpo: limpo };
-        }
-      }catch(e){ /* JSON inválido — próximo candidato */ }
+        if(achou) usados.push(cand);
+      }catch(e){ /* JSON inválido — próximo bloco */ }
     }
-    return { acoes: null, textoLimpo: bruto.replace((cerca&&cerca[0])||'','').replace((solto&&solto[0])||'','').trim() };
+    if(validas.length){
+      var limpo = bruto;
+      for(var u=0;u<usados.length;u++) limpo = limpo.split(usados[u]).join('');
+      // Remove cercas que ficaram vazias (```json ... ```).
+      limpo = limpo.replace(/```(?:json)?\s*```/gi,'').replace(/```(?:json)?/gi,'').trim();
+      return { acoes: validas.slice(0,MAX_ACOES), textoLimpo: limpo };
+    }
+    // Mesmo inválido, nunca mostrar o JSON cru para o usuário.
+    var limpoFalha = bruto;
+    for(var b=0;b<blocos.length;b++){
+      try{
+        var o = JSON.parse(blocos[b]);
+        var l = listaDeAcoes(o);
+        if(l && l.length) limpoFalha = limpoFalha.split(blocos[b]).join('');
+      }catch(e){}
+    }
+    limpoFalha = limpoFalha.replace(/```(?:json)?\s*```/gi,'').replace(/```(?:json)?/gi,'').trim();
+    return { acoes: null, textoLimpo: limpoFalha };
   }
 
   function tituloDoId(store, id){
@@ -155,6 +214,7 @@
    */
   async function executar(acoes, ctx, extra){
     var resultados = [];
+    var ultimaNotaId = null, ultimaListaId = null;
     var store = ctx.store;
     var iaLib = (typeof root!=='undefined' && root.iaDesktop) || (typeof window!=='undefined' && window.iaDesktop) || null;
     function T(s){ return _t(extra, s); }
@@ -173,6 +233,7 @@
           var id = ctx.uid();
           var pastaId = a.pasta ? resolverPastaId(ctx, a.pasta, resultados, extra) : undefined;
           store.notas.unshift({ id: id, titulo: titulo, conteudo: conteudoFinal(a.conteudo, titulo, id, undefined), data: ctx.hoje(), fixada: !!a.fixar, pastaId: pastaId||undefined });
+          ultimaNotaId = id;
           if(a.lembrete) await lembreteComoTarefa(ctx, extra, '🔔 '+titulo, a.lembrete, store, resultados);
           resultados.push('✅ '+T('Nota criada')+': "'+titulo+'"'+(a.lembrete?' 🔔':''));
 
@@ -182,6 +243,7 @@
           var novoTitulo = tem(a.titulo) ? String(a.titulo).trim() : nota.titulo;
           if(tem(a.conteudo)) nota.conteudo = conteudoFinal(a.conteudo, novoTitulo, nota.id, nota.titulo);
           nota.titulo = novoTitulo;
+          ultimaNotaId = nota.id;
           resultados.push('✅ '+T('Nota atualizada')+': "'+novoTitulo+'"');
 
         } else if(a.tipo==='criar_lista'){
@@ -190,6 +252,7 @@
           var lId = ctx.uid();
           var lPasta = a.pasta ? resolverPastaId(ctx, a.pasta, resultados, extra) : undefined;
           (store.listas||(store.listas=[])).unshift({ id: lId, titulo: String(a.titulo||'').trim()||T('Nova lista'), itens: itens, data: ctx.hoje(), fixada: false, pastaId: lPasta||undefined });
+          ultimaListaId = lId;
           resultados.push('✅ '+T('Lista criada')+': "'+a.titulo+'" ('+itens.length+' '+T('itens')+')');
 
         } else if(a.tipo==='editar_lista'){
@@ -198,6 +261,7 @@
           if(tem(a.titulo)) lista.titulo = String(a.titulo).trim();
           if(Array.isArray(a.itens)) lista.itens = a.itens.filter(function(it){ return it && tem(it.texto); })
             .map(function(it){ return { id: ctx.uid(), texto: String(it.texto).trim(), concluido: !!it.concluido }; });
+          ultimaListaId = lista.id;
           resultados.push('✅ '+T('Lista atualizada')+': "'+lista.titulo+'"');
 
         } else if(a.tipo==='apagar_nota'){
@@ -273,6 +337,7 @@
     try{ if(extra && extra.salvarEAgora) extra.salvarEAgora(); }catch(e){}
     try{ if(extra && extra.renderNotas) extra.renderNotas(); }catch(e){}
     try{ if(extra && extra.renderTarefas) extra.renderTarefas(); }catch(e){}
+    try{ resultados.notaId = ultimaNotaId; resultados.listaId = ultimaListaId; }catch(e){}
     return resultados;
   }
 

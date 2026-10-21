@@ -20,6 +20,12 @@ const TOKENINFO_URL = 'https://www.googleapis.com/oauth2/v3/tokeninfo';
 const LIMITE_USUARIO_DIA = 120;
 const LIMITE_GLOBAL_DIA = 4000;
 
+// Modelos rápidos e confiáveis. NÃO use 'openrouter/free' sozinho: ele sorteia
+// modelos (inclusive de código/segurança) que devolvem resposta vazia e fazem
+// o app repetir a chamada várias vezes.
+const MODELOS_PADRAO = 'google/gemma-4-26b-a4b-it:free,google/gemma-4-31b-it:free,openrouter/free';
+const TIMEOUT_MODELO_MS = 25000;
+
 const estado = { dia: '', porUsuario: new Map(), total: 0 };
 
 function hojeUTC() {
@@ -48,6 +54,30 @@ function json(corpo, status) {
     status,
     headers: { 'Content-Type': 'application/json', ...cors() },
   });
+}
+
+/** Texto útil da resposta do OpenRouter (string ou partes). */
+function conteudoDaResposta(dados) {
+  const conteudo = dados?.choices?.[0]?.message?.content;
+  if (typeof conteudo === 'string') return conteudo.trim();
+  if (Array.isArray(conteudo)) {
+    return conteudo.map((p) => String(p?.text || '')).join('').trim();
+  }
+  return '';
+}
+
+/** Lista de modelos do OpenRouter, com o padrão bom quando MODELS está vazio. */
+function modelosOpenRouter(env) {
+  const envModels = String(env.MODELS || '').trim();
+  const lista = envModels && envModels !== 'openrouter/free' ? envModels : MODELOS_PADRAO;
+  return lista.split(',').map((m) => m.trim()).filter(Boolean);
+}
+
+function modelosWorkersAI(env) {
+  return String(env.MODELO_WORKERS_AI || '@cf/meta/llama-3.3-70b-instruct-fp8-fast,@cf/meta/llama-3.1-8b-instruct')
+    .split(',')
+    .map((m) => m.trim())
+    .filter(Boolean);
 }
 
 async function usuarioDoToken(accessToken, clientIdEsperado) {
@@ -97,7 +127,11 @@ export default {
     if (!chave) return json({ error: { message: 'servidor_sem_chave' } }, 500);
 
     // Modelos: lista separada por vírgula em MODELS (o 1º é o padrão).
-    const modelos = String(env.MODELS || 'openrouter/free')
+    // 'openrouter/free' sozinho é uma roleta: ignora esse valor e usa a lista
+    // boa por padrão. Uma lista personalizada em MODELS continua valendo.
+    const modelosEnv = String(env.MODELS || '').trim();
+    const listaModelos = modelosEnv && modelosEnv !== 'openrouter/free' ? modelosEnv : MODELOS_PADRAO;
+    const modelos = listaModelos
       .split(',')
       .map((m) => m.trim())
       .filter(Boolean);
@@ -110,30 +144,52 @@ export default {
     let estourouCota = false;
 
     for (const modelo of modelos) {
-      const res = await fetch(OPENROUTER_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${chave}`,
-          'HTTP-Referer': 'https://simple-note-web.vercel.app',
-          'X-Title': 'Simple Notes',
-        },
-        body: JSON.stringify({
-          model: modelo,
-          messages: messages.map((m) => ({
-            role: String(m?.role || 'user'),
-            content: [{ type: 'text', text: String(m?.content ?? '') }],
-          })),
-          temperature: temperatura,
-          max_tokens: teto,
-        }),
-      });
+      let res;
+      const controle = new AbortController();
+      const timer = setTimeout(() => controle.abort(), TIMEOUT_MODELO_MS);
+      try {
+        res = await fetch(OPENROUTER_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${chave}`,
+            'HTTP-Referer': 'https://simple-note-web.vercel.app',
+            'X-Title': 'Simple Notes',
+          },
+          body: JSON.stringify({
+            model: modelo,
+            messages: messages.map((m) => ({
+              role: String(m?.role || 'user'),
+              content: [{ type: 'text', text: String(m?.content ?? '') }],
+            })),
+            temperature: temperatura,
+            max_tokens: teto,
+          }),
+          signal: controle.signal,
+        });
+      } catch (e) {
+        ultimoStatus = 0;
+        ultimoErro = `modelo ${modelo} falhou: ${String(e)}`;
+        continue;
+      } finally {
+        clearTimeout(timer);
+      }
 
       if (res.ok) {
+        const bruto = await res.text();
+        let dados = null;
+        try { dados = JSON.parse(bruto); } catch {}
+        const texto = conteudoDaResposta(dados);
+        if (!texto) {
+          // Alguns modelos "free" devolvem 200 com conteúdo vazio (ou só
+          // raciocínio). Isso não é sucesso: tenta o próximo da lista.
+          ultimoStatus = 502;
+          ultimoErro = `modelo ${modelo} respondeu vazio`;
+          continue;
+        }
         estado.porUsuario.set(usuario.sub, usado + 1);
         estado.total += 1;
-        const dados = await res.text();
-        return new Response(dados, {
+        return new Response(bruto, {
           status: 200,
           headers: { 'Content-Type': 'application/json', ...cors() },
         });

@@ -15,7 +15,7 @@ No Worker → **Settings** → **Variables and Secrets**:
 |---|---|---|
 | `OPENROUTER_KEY` | Secret | sua chave `sk-or-v1-...` |
 | `GOOGLE_CLIENT_ID` | Text (opcional) | o client ID do app (recomendado) |
-| `MODELS` | Text (opcional) | `openrouter/free` (padrão) |
+| `MODELS` | Text (opcional) | `google/gemma-4-26b-a4b-it:free,google/gemma-4-31b-it:free,openrouter/free` |
 
 Se `GOOGLE_CLIENT_ID` for definido, só tokens emitidos para o app entram.
 

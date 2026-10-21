@@ -188,32 +188,70 @@ const MAX_ACOES = 10;
 /** Campo obrigatório presente? (string não vazia) */
 const tem = (v: any) => typeof v === 'string' && v.trim().length > 0;
 
+/** Extrai todos os objetos/arrays JSON de nível superior, respeitando strings. */
+function blocosJson(texto: string): string[] {
+  const s = String(texto || '');
+  const out: string[] = [];
+  let inicio = -1, prof = 0, emString = false, escape = false;
+  for (let i = 0; i < s.length; i++) {
+    const ch = s.charAt(i);
+    if (emString) {
+      if (escape) escape = false;
+      else if (ch === '\\') escape = true;
+      else if (ch === '"') emString = false;
+      continue;
+    }
+    if (ch === '"') { emString = true; continue; }
+    if (ch === '{' || ch === '[') {
+      if (prof === 0) inicio = i;
+      prof++;
+    } else if (ch === '}' || ch === ']') {
+      if (prof > 0) {
+        prof--;
+        if (prof === 0 && inicio >= 0) { out.push(s.slice(inicio, i + 1)); inicio = -1; }
+      }
+    }
+  }
+  return out;
+}
+
+/** Aceita {"acoes":[...]}, {"tipo":...}, {"acao":{...}} ou um array solto. */
+function listaDeAcoes(obj: any): any[] | null {
+  if (Array.isArray(obj)) return obj;
+  if (obj && Array.isArray(obj.acoes)) return obj.acoes;
+  if (obj && Array.isArray(obj.actions)) return obj.actions;
+  if (obj && obj.acao && typeof obj.acao === 'object') return [obj.acao];
+  if (obj && obj.action && typeof obj.action === 'object') return [obj.action];
+  if (obj && typeof obj.tipo === 'string') return [obj];
+  return null;
+}
+
 /**
  * Procura o bloco ```json {"acoes":[…]} ``` na resposta (ou JSON solto).
- * Valida tipo + campos mínimos; descarta ações inválidas silenciosamente
- * (a IA pode errar — cada ação é independente).
+ * Também aceita um objeto de ação sozinho — modelos free às vezes esquecem o
+ * envelope "acoes" e, sem isso, o app mostrava o JSON cru e não executava nada.
  */
 export function extrairAcoes(texto: string): { acoes: AcaoIA[] | null; textoLimpo: string } {
   const bruto = String(texto || '');
-  const cerca = bruto.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/i);
-  const solto = bruto.match(/\{[\s\S]*?"acoes"[\s\S]*\}/);
-  const candidatos: string[] = [];
-  if (cerca) candidatos.push(cerca[1]);
-  if (solto) candidatos.push(solto[0]);
+  const blocos = blocosJson(bruto);
+  const validas: AcaoIA[] = [];
+  const usados: string[] = [];
+  const vistas = new Set<string>();
 
-  for (const cand of candidatos) {
+  // Modelo free às vezes manda o tipo em camelCase ("editarLista"):
+  // normaliza antes de validar, senão a ação era descartada em silêncio.
+  const normalizarTipo = (v: any) =>
+    String(v || '')
+      .replace(/([a-z])([A-Z])/g, '$1_$2')
+      .toLowerCase()
+      .replace(/[\s-]+/g, '_');
+
+  for (const cand of blocos) {
     try {
       const obj = JSON.parse(cand);
-      const lista = obj && Array.isArray(obj.acoes) ? obj.acoes : null;
+      const lista = listaDeAcoes(obj);
       if (!lista || !lista.length) continue;
-      const validas: AcaoIA[] = [];
-      // Modelo free às vezes manda o tipo em camelCase ("editarLista"):
-      // normaliza antes de validar, senão a ação era descartada em silêncio.
-      const normalizarTipo = (v: any) =>
-        String(v || '')
-          .replace(/([a-z])([A-Z])/g, '$1_$2')
-          .toLowerCase()
-          .replace(/[\s-]+/g, '_');
+      let achou = false;
       for (const a of lista) {
         if (!a || typeof a !== 'object') continue;
         const tipo = TIPOS_VALIDOS.find(x => x === normalizarTipo(a.tipo));
@@ -231,22 +269,34 @@ export function extrairAcoes(texto: string): { acoes: AcaoIA[] | null; textoLimp
           (tipo === 'criar_pasta' && tem(a.nome)) ||
           (tipo === 'mover_para_pasta' && Array.isArray(a.alvos) && a.alvos.length > 0) ||
           (tipo === 'lembrete_nota' && tem(a.alvo));
-        if (ok) validas.push({ ...a, tipo });
+        if (ok) {
+          const chave = JSON.stringify(a);
+          if (!vistas.has(chave)) { vistas.add(chave); validas.push({ ...a, tipo }); }
+          achou = true;
+        }
       }
-      if (validas.length) {
-        const limpo = bruto.replace((cerca && cerca[0]) || (solto && solto[0]) || '', '').trim();
-        return { acoes: validas.slice(0, MAX_ACOES), textoLimpo: limpo };
-      }
-    } catch { /* JSON inválido — tenta o próximo candidato */ }
+      if (achou) usados.push(cand);
+    } catch { /* JSON inválido — tenta o próximo bloco */ }
   }
-  return {
-    acoes: null,
-    // Nunca mostrar o JSON cru para o usuário, mesmo quando a ação é inválida.
-    textoLimpo: bruto
-      .replace((cerca && cerca[0]) || '', '')
-      .replace((solto && solto[0]) || '', '')
-      .trim(),
-  };
+
+  if (validas.length) {
+    let limpo = bruto;
+    for (const usado of usados) limpo = limpo.split(usado).join('');
+    limpo = limpo.replace(/```(?:json)?\s*```/gi, '').replace(/```(?:json)?/gi, '').trim();
+    return { acoes: validas.slice(0, MAX_ACOES), textoLimpo: limpo };
+  }
+
+  // Nunca mostrar o JSON cru para o usuário, mesmo quando a ação é inválida.
+  let limpoFalha = bruto;
+  for (const cand of blocos) {
+    try {
+      const o = JSON.parse(cand);
+      const l = listaDeAcoes(o);
+      if (l && l.length) limpoFalha = limpoFalha.split(cand).join('');
+    } catch { /* ignora */ }
+  }
+  limpoFalha = limpoFalha.replace(/```(?:json)?\s*```/gi, '').replace(/```(?:json)?/gi, '').trim();
+  return { acoes: null, textoLimpo: limpoFalha };
 }
 
 // ── Resumo legível (cartão de confirmação) ────────────────────────────────

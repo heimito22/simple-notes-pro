@@ -1,7 +1,6 @@
-**Versão 1.5.23**
+**Versão 1.5.24**
 
-- O chat da IA agora mostra **negrito**, títulos, listas e citações de verdade, sem asteriscos
-- Peça cores e a IA destaca trechos com a paleta: laranja, verde, azul, roxo e mais
-- Nova paleta "A" no editor de notas para colorir o texto e remover a cor depois
-- Cores continuam salvas quando a IA edita a nota
-- Atalhos editáveis seguem em Ctrl+/ (Ctrl+W fecha o editor e Ctrl+Alt+L bloqueia)
+- Corrigido: às vezes a IA respondia com o JSON cru no chat e a ação não era executada
+- O app agora entende ação solta, lista de ações e blocos com objetos aninhados, e mostra o cartão de confirmação
+- Depois de permitir, a nota ou lista criada/alterada abre direto no editor para você conferir o resultado
+- O assistente reforça o formato correto e nunca finge que executou sem a sua permissão
