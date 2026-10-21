@@ -986,6 +986,16 @@ function iaPensando(){
     }
   };
 }
+/** Com ações propostas, a IA ainda não executou nada: tira falas falsas de sucesso/erro. */
+function falaSeguraComAcoes(texto){
+  var s=String(texto||'').trim();
+  if(!s) return T('Tudo pronto — toque em Permitir para eu fazer.');
+  if(/(não consegui|nao consegui|não há recursos|nao ha recursos|sem recursos|indisponível|indisponivel|não foi possível|nao foi possivel|não tenho (acesso|recursos)|sistema.*(indispon|falh|erro)|\b(criei|apaguei|atualizei|movi|fixei)\b|nota criada|pasta criada|lista criada)/i.test(s)){
+    return T('Preparei a ação abaixo — confirme para eu aplicar.');
+  }
+  return s;
+}
+
 async function iaEnviar(){
   if(_iaEnviando){ toast(T('Aguarde a resposta da IA terminar')); return; }
   var inp=$('#iaInput'); if(!inp) return;
@@ -1011,8 +1021,9 @@ async function iaEnviar(){
     var acoesLib=window.snIaAcoes;
     var acoesExtra = acoesLib ? acoesLib.extrairAcoes(res.texto) : { acoes: null, textoLimpo: res.texto };
     if(acoesExtra.acoes && acoesExtra.acoes.length){
-      iaAppend('ia', acoesExtra.textoLimpo||res.texto, false);
-      iaHistorico.push({papel:'ia', texto: acoesExtra.textoLimpo||res.texto});
+      var falaAcoes=falaSeguraComAcoes(acoesExtra.textoLimpo||res.texto);
+      iaAppend('ia', falaAcoes, false);
+      iaHistorico.push({papel:'ia', texto: falaAcoes});
       mostrarCartaoAcoes(acoesExtra.acoes);
       return;
     }

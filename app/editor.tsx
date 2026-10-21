@@ -18,7 +18,7 @@ import {
     StyleSheet, Text, TextInput, TouchableOpacity, UIManager, View
 } from 'react-native';
 import { responderPergunta, resumirNotaComIA, extrairPropostaEdicao, conteudoAplicadoDaProposta, midiasDaNotaAberta, type MensagemChat, type PropostaEdicao } from '../context/ia-service';
-import { extrairAcoes, resumoAcao, executarAcoes, type AcaoIA, type DepsAcoes } from '../context/ia-acoes';
+import { extrairAcoes, resumoAcao, executarAcoes, falaSeguraComAcoes, type AcaoIA, type DepsAcoes } from '../context/ia-acoes';
 import { useNotas } from '../context/NotasContext';
 import { useTarefas } from '../context/TarefasContext';
 import { useListas } from '../context/ListaContext';
@@ -696,7 +696,7 @@ export default function EditorScreen() {
                 // separa o texto da conversa da proposta aplicável.
                 const { proposta, textoLimpo } = extrairPropostaEdicao(baseTexto);
                 const fala = extraidas.acoes?.length
-                    ? (extraidas.textoLimpo || t('Tudo pronto — toque em Permitir para eu fazer.'))
+                    ? falaSeguraComAcoes(extraidas.textoLimpo, t)
                     : (textoLimpo || extraidas.textoLimpo || t('Entendi o pedido, mas não consegui aplicar. Pode repetir de outro jeito?'));
                 setMensagensIA(prev => [...prev, { papel: 'ia', texto: fala }]);
                 if (extraidas.acoes && extraidas.acoes.length) {

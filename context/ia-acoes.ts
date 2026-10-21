@@ -365,6 +365,16 @@ export function resumoAcao(a: AcaoIA, deps?: Partial<DepsAcoes>): string {
   }
 }
 
+/** Com ações propostas, a IA ainda não executou nada: tira falas falsas de sucesso/erro. */
+export function falaSeguraComAcoes(texto: string, t: (s: string) => string): string {
+  const s = String(texto || '').trim();
+  if (!s) return t('Tudo pronto — toque em Permitir para eu fazer.');
+  if (/(não consegui|nao consegui|não há recursos|nao ha recursos|sem recursos|indisponível|indisponivel|não foi possível|nao foi possivel|não tenho (acesso|recursos)|sistema.*(indispon|falh|erro)|\b(criei|apaguei|atualizei|movi|fixei)\b|nota criada|pasta criada|lista criada)/i.test(s)) {
+    return t('Preparei a ação abaixo — confirme para eu aplicar.');
+  }
+  return s;
+}
+
 // ── Execução (SEMPRE após confirmação do usuário) ────────────────────────
 
 /**

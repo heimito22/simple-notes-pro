@@ -23,7 +23,7 @@ import { useTarefas } from '../context/TarefasContext';
 import { useListas } from '../context/ListaContext';
 import { useTheme } from '../context/ThemeContext';
 import { responderPergunta, type MensagemChat } from '../context/ia-service';
-import { extrairAcoes, resumoAcao, executarAcoes, type AcaoIA, type DepsAcoes } from '../context/ia-acoes';
+import { extrairAcoes, resumoAcao, executarAcoes, falaSeguraComAcoes, type AcaoIA, type DepsAcoes } from '../context/ia-acoes';
 import TextoRico from '../components/ia-texto-rico';
 import { appColors } from '../constants/theme';
 import { PROXY_IA_ATIVO } from '../constants/ia-proxy';
@@ -176,7 +176,7 @@ export default function TelaIA() {
             setMensagens(prev => [...prev, {
                 papel: 'ia',
                 texto: extraidas.acoes?.length
-                    ? (textoLimpo || t('Tudo pronto — toque em Permitir para eu fazer.'))
+                    ? falaSeguraComAcoes(textoLimpo, t)
                     // Nunca mostrar JSON cru; se a ação veio inválida, avisa em vez de fingir que fez.
                     : (textoLimpo || t('Entendi o pedido, mas não consegui aplicar. Pode repetir de outro jeito?')),
             }]);
