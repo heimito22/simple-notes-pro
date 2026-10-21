@@ -236,7 +236,7 @@
         if(a.tipo==='criar_nota'){
           var titulo = String(a.titulo||'').trim();
           var id = ctx.uid();
-          var pastaId = (a.pasta !== undefined)
+          var pastaId = (a.pasta !== undefined && String(a.pasta).trim() !== '')
             ? resolverPastaId(ctx, a.pasta, resultados, extra)
             : (pastaCriadaNoLote ? pastaCriadaNoLote.id : undefined);
           store.notas.unshift({ id: id, titulo: titulo, conteudo: conteudoFinal(a.conteudo, titulo, id, undefined), data: ctx.hoje(), fixada: !!a.fixar, pastaId: pastaId||undefined });
@@ -257,7 +257,7 @@
           var itens = (Array.isArray(a.itens)?a.itens:[]).filter(function(it){ return it && tem(it.texto); })
             .map(function(it){ return { id: ctx.uid(), texto: String(it.texto).trim(), concluido: !!it.concluido }; });
           var lId = ctx.uid();
-          var lPasta = (a.pasta !== undefined)
+          var lPasta = (a.pasta !== undefined && String(a.pasta).trim() !== '')
             ? resolverPastaId(ctx, a.pasta, resultados, extra)
             : (pastaCriadaNoLote ? pastaCriadaNoLote.id : undefined);
           (store.listas||(store.listas=[])).unshift({ id: lId, titulo: String(a.titulo||'').trim()||T('Nova lista'), itens: itens, data: ctx.hoje(), fixada: false, pastaId: lPasta||undefined });

@@ -353,7 +353,7 @@ export async function executarAcoes(acoes: AcaoIA[], deps: DepsAcoes): Promise<s
           const titulo = String(a.titulo || '').trim();
           const conteudo = conteudoAplicadoDaProposta(String(a.conteudo || ''), titulo, undefined, []);
           let pastaId: string | null | undefined;
-          if (a.pasta !== undefined) pastaId = resolverPastaId(a.pasta, deps, resultados, t) ?? undefined;
+          if (a.pasta !== undefined && String(a.pasta).trim() !== '') pastaId = resolverPastaId(a.pasta, deps, resultados, t) ?? undefined;
           else if (pastaCriadaNoLote) pastaId = pastaCriadaNoLote.id;
           const id = deps.salvarNota(titulo, conteudo, undefined, false, pastaId);
           if (!notaParaAbrir) notaParaAbrir = id; // primeiro criado (ex.: Poema 1)
@@ -390,7 +390,7 @@ export async function executarAcoes(acoes: AcaoIA[], deps: DepsAcoes): Promise<s
             .filter((it: any) => it && tem(it.texto))
             .map((it: any) => ({ id: novoId(), texto: String(it.texto).trim(), concluido: !!it.concluido }));
           let pastaId: string | null | undefined;
-          if (a.pasta !== undefined) pastaId = resolverPastaId(a.pasta, deps, resultados, t) ?? undefined;
+          if (a.pasta !== undefined && String(a.pasta).trim() !== '') pastaId = resolverPastaId(a.pasta, deps, resultados, t) ?? undefined;
           else if (pastaCriadaNoLote) pastaId = pastaCriadaNoLote.id;
           const idLista = novoId();
           if (!listaParaAbrir) listaParaAbrir = idLista;
