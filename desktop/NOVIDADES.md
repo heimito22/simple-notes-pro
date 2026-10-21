@@ -1,5 +1,8 @@
-**Versão 1.5.29**
+**Versão 1.5.31**
 
-- Corrigido: pedir “adicionar tag” não substitui mais a nota inteira pela frase da IA
-- Nova ação `adicionar_tag`: preserva todo o texto e acrescenta `#tag` no fim
-- Se a IA devolver só uma frase em vez da nota completa, o app bloqueia e pede para repetir — nada é apagado
+- Backup no Drive agora usa uma **chave aleatória de 256 bits** guardada no cofre do Windows (DPAPI) — não depende mais do e-mail da conta
+- **Código de recuperação** de 32 caracteres abre o backup em outro aparelho: Ajustes → Chave de segurança
+- Criptografia **autenticada** (AES-256 + HMAC): qualquer alteração no backup é detectada e recusada
+- **Nunca sobe backup em claro**: se a criptografia falhar, o envio é cancelado e você é avisado
+- **Migração automática** dos backups antigos já no primeiro sync; depois que a chave nova existe, backup antigo/sem proteção é recusado (anti-downgrade)
+- Atualize o PC e o celular juntos: o primeiro aparelho mostra o código, o segundo pede uma vez

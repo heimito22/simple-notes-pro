@@ -14,6 +14,7 @@ import { acharBackupCanonico } from './backup-drive';
 import { useTheme } from './ThemeContext';
 import { idiomaAtual, tIdioma } from './idiomas';
 import Cripto from '../desktop/src/lib/cripto';
+import * as ChaveBackup from './cripto-local';
 
 // SEM webClientId de propósito: o client OAuth do app (google-services.json,
 // projeto simple-notes-39893) é do tipo Android (android_info) — não é um Web
@@ -40,6 +41,19 @@ const conjuntosIguais = (a: any[], b: any[]): boolean => {
   return (a || []).every((x: any) => mapa.get(String(x?.id)) === assinaturaItem(x));
 };
 
+/** Baixa o backup CRU (sem descriptografar) — usado para saber se o remoto é v2. */
+const baixarBackupBruto = async (token: string, id: string): Promise<any | null> => {
+  try {
+    const r = await fetch(`https://www.googleapis.com/drive/v3/files/${id}?alt=media`, {
+      headers: { Authorization: `Bearer ${token}`, 'Cache-Control': 'no-cache' },
+    });
+    if (!r.ok) return null;
+    return await r.json().catch(() => null);
+  } catch {
+    return null;
+  }
+};
+
 const NotasContext = createContext<any>(null);
 
 export function NotasProvider({ children }: any) {
@@ -48,6 +62,17 @@ export function NotasProvider({ children }: any) {
   const [isAppBloqueado, setIsAppBloqueado] = useState<boolean>(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [estaOnline, setEstaOnline] = useState<boolean>(true);
+  // Backups v2: pede o código de recuperação / mostra o código recém-criado.
+  const [codigoPendente, setCodigoPendente] = useState<boolean>(false);
+  const [codigoNovo, setCodigoNovo] = useState<string | null>(null);
+  const [erroCripto, setErroCripto] = useState<string | null>(null);
+  const envelopePendenteRef = useRef<any>(null);
+  const erroCriptoRef = useRef<string | null>(null);
+  const codigoIgnoradoRef = useRef(false);
+  const marcarErroCripto = useCallback((msg: string | null) => {
+    erroCriptoRef.current = msg;
+    setErroCripto(msg);
+  }, []);
   // Só passa a salvar localmente depois que os dados foram carregados do storage
   const [dadosCarregados, setDadosCarregados] = useState<boolean>(false);
   // Ref espelhado do estado (para agendar lembretes com o título atual em handlers)
@@ -445,17 +470,55 @@ export function NotasProvider({ children }: any) {
         preferencias: prefsParaBackup,
         ultimaSincronizacao: agoraIso
       };
-      // ── ENCRIPTAÇÃO: backup encriptado com AES-256 (chave derivada do email) ──
-      // Mesma derivação do PC (desktop/src/lib/cripto.js) — conta certa descriptografa.
-      let bodyContent: string;
-      try {
-        const chaveEnc = Cripto.derivarChave(user.user?.email);
-        const enc = chaveEnc ? Cripto.encriptarJSON(payloadBackup, chaveEnc) : null;
-        if (enc) bodyContent = enc;
-        else bodyContent = JSON.stringify(payloadBackup); // sem chave: sobe em claro (não deve ocorrer logado)
-      } catch {
-        bodyContent = JSON.stringify(payloadBackup);
+      // ── ENCRIPTAÇÃO v2: DEK aleatória no cofre + envelope autenticado ──
+      // NUNCA sobe em claro. Se já existe backup v2 de outro aparelho, pede o
+      // código e NÃO sobrescreve nada.
+      if (erroCriptoRef.current) {
+        setSyncStatus(s => ({ ...s, estado: 'erro' }));
+        return;
       }
+      const emailConta = user.user?.email;
+      let ks = await ChaveBackup.obterChave(emailConta);
+      if (!ks && fileId) {
+        const remoto = await baixarBackupBruto(tokens.accessToken, fileId);
+        if (!remoto) {
+          // Não deu para verificar o remoto: fail-closed (não arrisca sobrescrever).
+          setSyncStatus(s => ({ ...s, estado: 'erro' }));
+          return;
+        }
+        if (Cripto.ehV2(remoto)) {
+          envelopePendenteRef.current = remoto;
+          if (!codigoIgnoradoRef.current) setCodigoPendente(true);
+          setSyncStatus(s => ({ ...s, estado: 'erro' }));
+          return;
+        }
+        const valido = Cripto.estaEncriptado(remoto) || Array.isArray(remoto?.notas);
+        if (!valido) {
+          setSyncStatus(s => ({ ...s, estado: 'erro' }));
+          return;
+        }
+      }
+      if (!ks) {
+        ks = await ChaveBackup.criarChave(emailConta);
+        if (!ks) {
+          marcarErroCripto('Não consegui guardar a chave no cofre do aparelho — backup NÃO enviado.');
+          setSyncStatus(s => ({ ...s, estado: 'erro' }));
+          return;
+        }
+        setCodigoNovo(ks.codigo);
+      }
+      const env = Cripto.montarEnvelopeV2(payloadBackup, ks.chave, ks.codigo, {
+        ivDados: ChaveBackup.aleatorio(16),
+        ivChave: ChaveBackup.aleatorio(16),
+        salt: ChaveBackup.aleatorio(16),
+        iteracoes: 100000,
+      });
+      if (!env) {
+        marcarErroCripto('Falha ao criptografar — backup NÃO enviado.');
+        setSyncStatus(s => ({ ...s, estado: 'erro' }));
+        return;
+      }
+      const bodyContent = JSON.stringify(env);
 
       let res;
       if (fileId) {
@@ -509,7 +572,7 @@ export function NotasProvider({ children }: any) {
       setSyncStatus(s => ({ ...s, estado: 'erro' }));
       console.log(`[Cloud] Erro no backup: ${(e && (e.message || e)) || e}`);
     }
-  }, [estaOnline, isDarkTema, configTema]);
+  }, [estaOnline, isDarkTema, configTema, marcarErroCripto]);
 
   // Cache do token de acesso: getTokens()/signInSilently são 2 round-trips de
   // rede a CADA pull — com cache, o tick faz 1 request de meta em vez de 3.
@@ -558,25 +621,60 @@ export function NotasProvider({ children }: any) {
     const download = await fetch(`https://www.googleapis.com/drive/v3/files/${canonico.id}?alt=media`, {
       headers: { Authorization: `Bearer ${token}` }
     });
-    const bruto = await download.json();
-    // ── DESCRIPTOGRAFIA: backup encriptado (AES-256, chave do email da conta) ──
-    // Envelope antigo (sem __enc) passa direto — compatível com backups velhos.
-    try {
-      if (bruto && Cripto.estaEncriptado(bruto)) {
-        const user = await GoogleSignin.getCurrentUser();
-        const chaveEnc = Cripto.derivarChave(user?.user?.email);
-        const dec = chaveEnc ? Cripto.descriptografarJSON(bruto, chaveEnc) : null;
-        if (!dec) {
-          console.log('[Cloud] Backup encriptado mas falhou a descriptografia (conta/chave errada).');
-          return null;
-        }
-        return dec;
+    if (!download.ok) return null;
+    const bruto = await download.json().catch(() => null);
+    if (!bruto) return null;
+
+    let user: any = null;
+    try { user = GoogleSignin.getCurrentUser(); } catch {}
+    const email = user?.user?.email;
+    const ks = await ChaveBackup.obterChave(email);
+
+    // ── v2: envelope autenticado (AES-256-CTR + HMAC) ──
+    if (Cripto.ehV2(bruto)) {
+      if (!ks) {
+        // Backup de outro aparelho: pede o código, NÃO aplica nem sobrescreve.
+        envelopePendenteRef.current = bruto;
+        if (!codigoIgnoradoRef.current) setCodigoPendente(true);
+        return null;
       }
-    } catch (e) {
-      console.log('[Cloud] Descriptografia falhou, segue bruto.');
+      const dec = Cripto.lerEnvelopeV2(bruto, ks.chave);
+      if (!dec) {
+        marcarErroCripto('O backup no Drive falhou na verificação (adulterado ou chave errada). Nada foi aplicado.');
+        return null;
+      }
+      marcarErroCripto(null);
+      return dec;
     }
+
+    // Formato antigo com uma chave v2 já criada = possível downgrade.
+    if (ks) {
+      marcarErroCripto('O backup no Drive está num formato antigo/sem proteção. Atualize o outro aparelho — este não vai sobrescrever por segurança.');
+      return null;
+    }
+
+    // ── v1 (CBC do e-mail) ou em claro: só para MIGRAR ──
+    if (Cripto.estaEncriptado(bruto)) {
+      const chaveEnc = Cripto.derivarChave(email);
+      const dec = chaveEnc ? Cripto.descriptografarJSON(bruto, chaveEnc) : null;
+      if (!dec) {
+        console.log('[Cloud] Backup encriptado mas falhou a descriptografia (conta/chave errada).');
+        return null;
+      }
+      // Backup v1: força um push para migrar para v2 (e gerar a chave).
+      haMudancasLocaisRef.current = true;
+      return dec;
+    }
+
+    if (!Array.isArray(bruto?.notas)) {
+      marcarErroCripto('O arquivo no Drive não parece um backup válido. Nada foi aplicado.');
+      return null;
+    }
+    marcarErroCripto(null);
+    // Backup em claro (legado): também migra no próximo push.
+    haMudancasLocaisRef.current = true;
     return bruto;
-  }, [obterTokenRapido]);
+  }, [obterTokenRapido, marcarErroCripto]);
 
   // 3. SYNC AUTOMÁTICO LEVE — push debounce + pull por modifiedTime (sem pesar, só após defs acima)
   const pushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -919,6 +1017,41 @@ export function NotasProvider({ children }: any) {
     } catch { return false; } finally { syncEmAndamentoRef.current = false; }
   }, [estaOnline, currentUserId, buscarBackupDrive, aplicarBackupSilencioso, fazerBackupCloud]);
 
+  /** Desbloqueia o backup v2 com o código de recuperação e aplica os dados. */
+  const resolverCodigo = useCallback(async (codigo: string): Promise<boolean> => {
+    const env = envelopePendenteRef.current;
+    if (!env) return false;
+    let email: string | undefined;
+    try {
+      const u = await GoogleSignin.getCurrentUser();
+      email = u?.user?.email;
+    } catch {}
+    const ks = await ChaveBackup.definirComCodigo(env, codigo, email);
+    if (!ks) return false;
+    envelopePendenteRef.current = null;
+    codigoIgnoradoRef.current = false;
+    setCodigoPendente(false);
+    marcarErroCripto(null);
+    // PULL primeiro: um aparelho novo não pode empurrar dados vazios/velhos
+    // por cima do backup que acabou de desbloquear.
+    try {
+      const backup = await buscarBackupDrive();
+      if (backup) await aplicarBackupSilencioso(backup);
+    } catch {}
+    return true;
+  }, [buscarBackupDrive, aplicarBackupSilencioso, marcarErroCripto]);
+
+  const fecharCodigoNovo = useCallback(() => setCodigoNovo(null), []);
+  /** "Agora não": deixa usar o app sem sincronizar até o usuário pedir de novo. */
+  const ignorarCodigoPendente = useCallback(() => {
+    codigoIgnoradoRef.current = true;
+    setCodigoPendente(false);
+  }, []);
+  const abrirCodigoPendente = useCallback(() => {
+    codigoIgnoradoRef.current = false;
+    setCodigoPendente(true);
+  }, []);
+
   /**
    * Busca o uso de armazenamento da conta no Drive. Tenta primeiro o endpoint
    * `about?fields=storageQuota` (cota completa da conta) — mas ele exige escopo
@@ -1087,14 +1220,32 @@ export function NotasProvider({ children }: any) {
           varrerTs(atual.tarefas);
         }
       } catch {}
-      const backupVazio = JSON.stringify({
+      const backupVazio = {
         notas: [],
         listas: [],
         pastas: [],
         tarefas: [],
         apagados: serializarApagados(),
         wipeAllAt: Math.max(Date.now(), maiorTsConhecido) + 1, // mata TUDO anterior a este instante, de qualquer relógio
+      };
+
+      // v2: o backup vazio TAMBÉM vai cifrado. Sem chave, cria uma e mostra o
+      // código — nunca sobe em claro.
+      const emailConta = (user as any)?.user?.email;
+      let ks = await ChaveBackup.obterChave(emailConta);
+      if (!ks) {
+        ks = await ChaveBackup.criarChave(emailConta);
+        if (ks) setCodigoNovo(ks.codigo);
+      }
+      if (!ks) throw new Error(tIdioma(idiomaAtual, 'Não consegui guardar a chave no aparelho.'));
+      const envVazio = Cripto.montarEnvelopeV2(backupVazio, ks.chave, ks.codigo, {
+        ivDados: ChaveBackup.aleatorio(16),
+        ivChave: ChaveBackup.aleatorio(16),
+        salt: ChaveBackup.aleatorio(16),
+        iteracoes: 100000,
       });
+      if (!envVazio) throw new Error(tIdioma(idiomaAtual, 'Falha ao criptografar o backup.'));
+      const backupVazioStr = JSON.stringify(envVazio);
 
       const search = await fetch('https://www.googleapis.com/drive/v3/files?q=name="backup_notas.json"&spaces=appDataFolder', {
         headers: { Authorization: `Bearer ${tokens.accessToken}` }
@@ -1107,7 +1258,7 @@ export function NotasProvider({ children }: any) {
         // ATUALIZA o arquivo existente (PUT) com o backup vazio + tombstones
         const boundary = 'outrico-sync-' + Date.now();
         const metadata = JSON.stringify({ name: 'backup_notas.json' });
-        const corpo = `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${metadata}\r\n--${boundary}\r\nContent-Type: application/json\r\n\r\n${backupVazio}\r\n--${boundary}--`;
+        const corpo = `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${metadata}\r\n--${boundary}\r\nContent-Type: application/json\r\n\r\n${backupVazioStr}\r\n--${boundary}--`;
         const r = await fetch(
           `https://www.googleapis.com/upload/drive/v3/files/${canonico.id}?uploadType=multipart`,
           {
@@ -1124,7 +1275,7 @@ export function NotasProvider({ children }: any) {
         // CRIA o arquivo (primeira vez)
         const boundary = 'outrico-sync-' + Date.now();
         const metadata = JSON.stringify({ name: 'backup_notas.json', parents: ['appDataFolder'] });
-        const corpo = `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${metadata}\r\n--${boundary}\r\nContent-Type: application/json\r\n\r\n${backupVazio}\r\n--${boundary}--`;
+        const corpo = `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${metadata}\r\n--${boundary}\r\nContent-Type: application/json\r\n\r\n${backupVazioStr}\r\n--${boundary}--`;
         const r = await fetch(
           'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',
           {
@@ -1613,6 +1764,10 @@ export function NotasProvider({ children }: any) {
       usuarioId: currentUserId ?? 'local',
       syncStatus,
       sincronizarAgora,
+      // Backup v2: código de recuperação
+      codigoPendente, codigoNovo, erroCripto, resolverCodigo, fecharCodigoNovo,
+      ignorarCodigoPendente, abrirCodigoPendente,
+      limparErroCripto: () => marcarErroCripto(null),
     }}>
       {children}
     </NotasContext.Provider>

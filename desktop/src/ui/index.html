@@ -157,6 +157,10 @@
             <div class="ico">↻</div><div class="grow"><b>Sincronização Drive</b><small id="cfgSyncInfo" data-i18n-skip>Local apenas</small></div>
             <button class="btn" id="btnCfgSync" data-i18n="Sincronizar agora">Sincronizar agora</button>
           </div>
+          <div class="config-row">
+            <div class="ico">🔐</div><div class="grow"><b>Chave de segurança</b><small>Guarde o código — ele abre o backup em outro aparelho</small></div>
+            <button class="btn ghost" id="btnChaveSeguranca">Ver código</button>
+          </div>
         </div>
         <div class="config-title">Inteligência Artificial</div>
         <div class="config-group">
@@ -299,6 +303,24 @@
     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
       <button class="btn ghost" id="modalPastaCancelar" data-i18n="Cancelar">Cancelar</button>
       <button class="btn prim" id="modalPastaOk" data-i18n="Criar">Criar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Chave de segurança (mostrar / digitar) -->
+<div id="modalChave" class="modal-overlay" style="display:none">
+  <div class="modal-card">
+    <h3 id="modalChaveTitulo">Chave de segurança</h3>
+    <p id="modalChaveTexto" style="color:var(--tx2);font-size:.86rem;line-height:1.5"></p>
+    <div id="modalChaveCodigoWrap" style="display:none;margin:12px 0">
+      <code id="modalChaveCodigo" style="display:block;background:var(--bg4);border:1px solid var(--bd);border-radius:10px;padding:12px;font-family:ui-monospace,Consolas,monospace;font-size:1rem;letter-spacing:.5px;word-break:break-all;user-select:all"></code>
+    </div>
+    <input id="modalChaveInput" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX" style="display:none;width:100%;background:var(--bg4);border:1px solid var(--bd);border-radius:10px;padding:10px 12px;font-size:.95rem;font-family:ui-monospace,Consolas,monospace">
+    <p id="modalChaveErro" style="display:none;color:var(--bad);font-size:.82rem;margin-top:8px"></p>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+      <button class="btn ghost" id="modalChaveCancelar">Fechar</button>
+      <button class="btn ghost" id="modalChaveCopiar" style="display:none">Copiar</button>
+      <button class="btn prim" id="modalChaveOk" style="display:none">Desbloquear</button>
     </div>
   </div>
 </div>

@@ -91,7 +91,7 @@
     }
   }
 
-  /** Verifica se um payload está encriptado. */
+  /** Verifica se um payload está encriptado (formato antigo CBC). */
   function estaEncriptado(payload) {
     if (!payload) return false;
     try {
@@ -102,12 +102,201 @@
     }
   }
 
+  /* ======================================================================
+   * v2 — AES-256-CTR + HMAC-SHA256 (Encrypt-then-MAC), chave ALEATÓRIA.
+   *
+   * A chave de dados (DEK, 32 bytes) é gerada com CSPRNG pelo chamador e
+   * embrulhada com uma KEK derivada por PBKDF2-SHA256 de um CÓDIGO DE
+   * RECUPERAÇÃO aleatório (160 bits). O envelope leva a DEK embrulhada,
+   * então um aparelho novo só precisa do código — nunca do e-mail.
+   *
+   * Funções puras: IV/salt/chave vêm de fora (CSPRNG do PC ou do celular).
+   * ====================================================================== */
+
+  var AAD_BACKUP = 'sn-pro-backup-v2';
+  var AAD_CHAVE = 'sn-pro-wrap-v2';
+  var ALFABETO32 = '0123456789ABCDEFGHJKMNPQRSTVWXYZ'; // Crockford (sem I, L, O, U)
+
+  /** Converte 20 bytes em hex para um código de 32 caracteres (8 grupos de 4). */
+  function codigoDeHex(hex) {
+    if (!/^[0-9a-f]{40}$/i.test(String(hex || ''))) return null;
+    var bytes = String(hex).match(/.{2}/g).map(function (h) { return parseInt(h, 16); });
+    var bits = 0, valor = 0, saida = '';
+    for (var i = 0; i < bytes.length; i++) {
+      valor = (valor << 8) | bytes[i];
+      bits += 8;
+      while (bits >= 5) { saida += ALFABETO32[(valor >>> (bits - 5)) & 31]; bits -= 5; }
+    }
+    if (bits > 0) saida += ALFABETO32[(valor << (5 - bits)) & 31];
+    if (saida.length !== 32) return null;
+    return saida.match(/.{4}/g).join('-');
+  }
+
+  /** Normaliza o código digitado (maiúsculas, sem separadores, I/L→1, O→0). */
+  function normalizarCodigo(codigo) {
+    var s = String(codigo || '').toUpperCase().replace(/[^0-9A-Z]/g, '');
+    s = s.replace(/[IL]/g, '1').replace(/O/g, '0');
+    if (s.length !== 32) return null;
+    for (var i = 0; i < s.length; i++) {
+      if (ALFABETO32.indexOf(s.charAt(i)) < 0) return null;
+    }
+    return s;
+  }
+
+  /** Deriva a KEK do código (PBKDF2-SHA256). */
+  function _kek(codigo, saltHex, iteracoes) {
+    var C = _crypto();
+    var s = normalizarCodigo(codigo);
+    if (!C || !s || !/^[0-9a-f]{32,64}$/i.test(String(saltHex || ''))) return null;
+    var it = Math.max(10000, Math.min(1000000, Number(iteracoes) || 100000));
+    try {
+      return C.PBKDF2(s, C.enc.Hex.parse(saltHex), {
+        keySize: 256 / 32,
+        iterations: it,
+        hasher: C.algo.SHA256
+      }).toString();
+    } catch (e) { return null; }
+  }
+
+  /** Subchaves independentes para cifra e MAC (domain separation). */
+  function _subchaves(chaveHex) {
+    var C = _crypto();
+    if (!C || !/^[0-9a-f]{64}$/i.test(String(chaveHex || ''))) return null;
+    var chave = C.enc.Hex.parse(String(chaveHex).slice(0, 64));
+    return {
+      enc: C.HmacSHA256(C.enc.Utf8.parse('sn-pro-v2-enc'), chave),
+      mac: C.HmacSHA256(C.enc.Utf8.parse('sn-pro-v2-mac'), chave)
+    };
+  }
+
+  function _mac(C, macKey, aad, ivHex, dadosHex) {
+    return C.HmacSHA256(String(aad || '') + '|' + ivHex + '|' + dadosHex, macKey).toString();
+  }
+
+  /** Comparação em tempo constante (hex). */
+  function _iguais(a, b) {
+    a = String(a || ''); b = String(b || '');
+    if (a.length !== b.length || !a.length) return false;
+    var r = 0;
+    for (var i = 0; i < a.length; i++) r |= a.charCodeAt(i) ^ b.charCodeAt(i);
+    return r === 0;
+  }
+
+  /** Cifra autenticada (CTR + HMAC). IV de 16 bytes vindo do CSPRNG. */
+  function cifrarAutenticado(texto, chaveHex, ivHex, aad) {
+    var C = _crypto();
+    var sub = _subchaves(chaveHex);
+    if (!C || !sub || !/^[0-9a-f]{32}$/i.test(String(ivHex || ''))) return null;
+    try {
+      var iv = C.enc.Hex.parse(ivHex);
+      var enc = C.AES.encrypt(String(texto), sub.enc, { iv: iv, mode: C.mode.CTR, padding: C.pad.NoPadding });
+      var dados = enc.ciphertext.toString();
+      return { dados: dados, mac: _mac(C, sub.mac, aad, ivHex, dados) };
+    } catch (e) { return null; }
+  }
+
+  /** Decifra SÓ depois de verificar o MAC. */
+  function decifrarAutenticado(payload, chaveHex, ivHex, aad) {
+    var C = _crypto();
+    var sub = _subchaves(chaveHex);
+    if (!C || !sub || !payload || !payload.dados || !payload.mac) return null;
+    if (!/^[0-9a-f]{32}$/i.test(String(ivHex || ''))) return null;
+    try {
+      var esperado = _mac(C, sub.mac, aad, ivHex, payload.dados);
+      if (!_iguais(esperado, payload.mac)) return null;
+      var iv = C.enc.Hex.parse(ivHex);
+      var dados = C.lib.CipherParams.create({ ciphertext: C.enc.Hex.parse(payload.dados) });
+      var bytes = C.AES.decrypt(dados, sub.enc, { iv: iv, mode: C.mode.CTR, padding: C.pad.NoPadding });
+      return bytes.toString(C.enc.Utf8) || null;
+    } catch (e) { return null; }
+  }
+
+  /** Embrulha a DEK com a KEK derivada do código. */
+  function embrulharChave(chaveHex, codigo, saltHex, ivHex, iteracoes) {
+    var kek = _kek(codigo, saltHex, iteracoes);
+    if (!kek) return null;
+    var blob = cifrarAutenticado(chaveHex, kek, ivHex, AAD_CHAVE);
+    if (!blob) return null;
+    blob.iv = ivHex;
+    return blob;
+  }
+
+  /** Desembrulha a DEK; null se o código estiver errado ou o blob adulterado. */
+  function desembrulharChave(blob, codigo, saltHex, iteracoes) {
+    var kek = _kek(codigo, saltHex, iteracoes);
+    if (!kek) return null;
+    var chave = decifrarAutenticado(blob, kek, blob && blob.iv, AAD_CHAVE);
+    return chave && /^[0-9a-f]{64}$/i.test(chave) ? chave : null;
+  }
+
+  /** Monta o envelope v2 completo (dados + DEK embrulhada). */
+  function montarEnvelopeV2(obj, chaveHex, codigo, opts) {
+    opts = opts || {};
+    if (!obj || !chaveHex || !normalizarCodigo(codigo)) return null;
+    if (!opts.ivDados || !opts.ivChave || !opts.salt) return null;
+    var it = Math.max(10000, Math.min(1000000, Number(opts.iteracoes) || 100000));
+    var dados = cifrarAutenticado(JSON.stringify(obj), chaveHex, opts.ivDados, AAD_BACKUP);
+    var chave = embrulharChave(chaveHex, codigo, opts.salt, opts.ivChave, it);
+    if (!dados || !chave) return null;
+    return {
+      __enc: 'AES-256-CTR-HMAC',
+      v: 2,
+      kdf: { alg: 'PBKDF2-SHA256', it: it, salt: opts.salt },
+      chave: chave,
+      iv: opts.ivDados,
+      dados: dados.dados,
+      mac: dados.mac
+    };
+  }
+
+  /** Lê o envelope v2 com a DEK já desembrulhada. */
+  function lerEnvelopeV2(envelope, chaveHex) {
+    if (!ehV2(envelope)) return null;
+    var texto = decifrarAutenticado(
+      { dados: envelope.dados, mac: envelope.mac },
+      chaveHex,
+      envelope.iv,
+      AAD_BACKUP
+    );
+    if (!texto) return null;
+    try { return JSON.parse(texto); } catch (e) { return null; }
+  }
+
+  /** Recupera a DEK a partir do envelope + código de recuperação. */
+  function abrirEnvelopeComCodigo(envelope, codigo) {
+    if (!ehV2(envelope)) return null;
+    var kdf = envelope.kdf || {};
+    var it = Number(kdf.it) || 0;
+    if (kdf.alg !== 'PBKDF2-SHA256' || it < 10000 || it > 1000000) return null;
+    return desembrulharChave(envelope.chave, codigo, kdf.salt, it);
+  }
+
+  /** Verifica se é envelope v2. */
+  function ehV2(payload) {
+    if (!payload) return false;
+    try {
+      var o = typeof payload === 'string' ? JSON.parse(payload) : payload;
+      return !!(o && o.__enc === 'AES-256-CTR-HMAC' && o.v === 2);
+    } catch (e) { return false; }
+  }
+
   return {
     derivarChave: derivarChave,
     encriptar: encriptar,
     descriptografar: descriptografar,
     encriptarJSON: encriptarJSON,
     descriptografarJSON: descriptografarJSON,
-    estaEncriptado: estaEncriptado
+    estaEncriptado: estaEncriptado,
+    // v2
+    codigoDeHex: codigoDeHex,
+    normalizarCodigo: normalizarCodigo,
+    cifrarAutenticado: cifrarAutenticado,
+    decifrarAutenticado: decifrarAutenticado,
+    embrulharChave: embrulharChave,
+    desembrulharChave: desembrulharChave,
+    montarEnvelopeV2: montarEnvelopeV2,
+    lerEnvelopeV2: lerEnvelopeV2,
+    abrirEnvelopeComCodigo: abrirEnvelopeComCodigo,
+    ehV2: ehV2
   };
 });

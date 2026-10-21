@@ -4,6 +4,8 @@ const {app, BrowserWindow, ipcMain, nativeTheme, shell, Notification, Tray, Menu
 const {autoUpdater} = require('electron-updater');
 const path=require('path'), os=require('os'), fs=require('fs');
 const Cripto = require('./lib/cripto.js');
+const ChaveBackup = require('./lib/chave-backup.js');
+const BackupSync = require('./lib/backup-sync.js');
 const CryptoJS = require('crypto-js');
 
 // ---- Auto-update via GitHub Releases (electron-updater) ----
@@ -195,34 +197,43 @@ ipcMain.handle('store:apagarTudo',async()=>{
     try{
       const t=await tokenDeAcesso();
       if(t){
+        const email=emailAtual();
+        let ks=email?ChaveBackup.obter(email):null;
+        let bloqueio=null;
         // Itens que só existem na nuvem (outro aparelho, relógio adiantado)
         // também contam para o carimbo do wipe
         try{
           const atual = await store.buscarBackupDrive(t);
-          let conteudo = atual;
-          if (conteudo && Cripto.estaEncriptado(conteudo)) {
-            const chave = chaveDriveAtual();
-            if (chave) conteudo = Cripto.descriptografarJSON(conteudo, chave);
+          let conteudo = null;
+          if(atual && Cripto.ehV2(atual)){
+            if(!ks) bloqueio='Desbloqueie o backup com o código antes de apagar tudo.';
+            else conteudo=Cripto.lerEnvelopeV2(atual, ks.chave);
+          } else if(atual && Cripto.estaEncriptado(atual)){
+            const chave = chaveLegadoAtual();
+            if (chave) conteudo = Cripto.descriptografarJSON(atual, chave);
+          } else if(atual){
+            conteudo = atual;
           }
           if (conteudo) for (const campo of ['notas','listas','pastas','tarefas']) {
             (conteudo?.[campo]||[]).forEach(varrer);
           }
         }catch(e){}
+        if(bloqueio) return {ok:false, erro:bloqueio};
         const agora = Math.max(Date.now(), maiorTs) + 1;
         const backupVazio = {
           notas: [], listas: [], pastas: [], tarefas: [],
           apagados: tombstones,
           wipeAllAt: agora // mata TUDO anterior a este instante, de qualquer relógio
         };
-        // Encripta igual ao sync:enviar — o celular descriptografa ao puxar
-        let corpo = backupVazio;
-        const chave=chaveDriveAtual();
-        if(chave){
-          const enc=Cripto.encriptarJSON(backupVazio, chave);
-          if(enc) corpo=enc;
+        if(!ks && email) ks=ChaveBackup.criar(email);
+        if(!ks){ nuvemOk=false; }
+        else{
+          const env=Cripto.montarEnvelopeV2(backupVazio, ks.chave, ks.codigo, {
+            ivDados:aleatorio(16), ivChave:aleatorio(16), salt:aleatorio(16), iteracoes:100000
+          });
+          if(!env) nuvemOk=false;
+          else { const r = await store.enviarBackupDrive(t, env); nuvemOk = r?.ok ?? false; }
         }
-        const r = await store.enviarBackupDrive(t, corpo);
-        nuvemOk = r?.ok ?? false;
       }
     }catch(e){ nuvemOk=false; }
 
@@ -330,56 +341,47 @@ ipcMain.handle('store:sync:meta', async()=>{ try{ const t=await deps().googleAut
 // ia dentro do JSON e a sincronização ficava lenta). Devolve também o
 // `modifiedTime` da gravação (relógio do Google): é o marcador
 // que o renderer usa para saber se a nuvem mudou — sem depender do relógio do PC.
-// ── CRIPTOGRAFIA DO BACKUP NO DRIVE ──
-// Deriva a chave do email da conta Google logada (mesma no PC e celular)
-function chaveDriveAtual(){
+// ── CRIPTOGRAFIA DO BACKUP NO DRIVE (v2) ──
+// A DEK é aleatória e fica no cofre do SO (safeStorage/DPAPI). O backup leva a
+// DEK embrulhada por um código de recuperação (PBKDF2). A chave derivada do
+// e-mail só serve para LER backups v1 antigos e migrá-los — nunca para gravar.
+// A lógica fica em lib/backup-sync.js (testável fora do Electron).
+function emailAtual(){
   try{
-    // Email vem da sessão salva (síncrono) — mesma chave no PC e no celular
     const s=deps().googleAuth.carregarSessao();
-    const email=s && s.user && s.user.email ? s.user.email : null;
-    return email ? Cripto.derivarChave(email) : null;
+    return s && s.user && s.user.email ? s.user.email : null;
   }catch(e){ return null; }
 }
+function chaveLegadoAtual(){
+  const email=emailAtual();
+  return email ? Cripto.derivarChave(email) : null;
+}
+function aleatorio(n){ return require('crypto').randomBytes(n).toString('hex'); }
 
-// Encripta o backup antes de subir pro Drive
 ipcMain.handle('store:sync:enviar',async(_e,d)=>{
   try{
-    const t=await deps().googleAuth.tokenDeAcesso();
-    let dados=d;
-    try{ dados=await deps().store.desidratarNotasParaEnvio(t, d); }catch(e){ console.warn('[sync] desidratar falhou:', e&&e.message); }
-    // ── ENCRIPTA o backup antes de subir ──
-    const chave=chaveDriveAtual();
-    if(chave && dados){
-      const encriptado=Cripto.encriptarJSON(dados, chave);
-      if(encriptado){
-        console.log('[sync] Backup encriptado AES-256 antes do upload');
-        dados=encriptado;
-      }
-    }
-    const r=await deps().store.enviarBackupDrive(t,dados);
-    return {ok:!!(r&&r.ok), modifiedTime:(r&&r.modifiedTime)||null};
+    const email=emailAtual();
+    if(!email) return {ok:false, erro:'Conta não logada'};
+    const token=await deps().googleAuth.tokenDeAcesso();
+    return await BackupSync.enviar({email, store:deps().store, token, dados:d, chaveBackup:ChaveBackup});
   }catch(e){ return {ok:false,erro:String(e.message||e).slice(0,200)}; }
 });
 
-// Descriptografa o backup ao baixar do Drive
 ipcMain.handle('store:sync:baixar',async()=>{
   try{
-    const t=await deps().googleAuth.tokenDeAcesso();
-    const r=await deps().store.buscarBackupDrive(t);
-    if(!r) return {ok:true,vazio:true};
-    // ── DESCRIPTOGRAFA o backup ──
-    let dados=r;
-    if(Cripto.estaEncriptado(r)){
-      const chave=chaveDriveAtual();
-      if(!chave) return {ok:false, erro:'Conta não logada para descriptografar backup'};
-      dados=Cripto.descriptografarJSON(r, chave);
-      if(!dados) return {ok:false, erro:'Falha na descriptografia do backup (conta errada?)'};
-      console.log('[sync] Backup descriptografado');
-    }
-    try{ const a=await deps().store.hidratarNotasComAnexos(t,dados); if(a>0) console.log('[sync] anexos hidratados',a); }catch(e){ console.warn('[sync] hidratar falhou',e&&e.message); }
-    return {ok:true, dados: dados};
+    const token=await deps().googleAuth.tokenDeAcesso();
+    return await BackupSync.baixar({email:emailAtual(), store:deps().store, token, chaveBackup:ChaveBackup});
   }catch(e){ return {ok:false, erro:String(e.message||e).slice(0,200)}; }
 });
+
+// Código de recuperação: desbloqueia o backup v2 e guarda a DEK no cofre.
+ipcMain.handle('chave:definirCodigo',async(_e,codigo)=>{
+  try{
+    return await BackupSync.definirCodigo({email:emailAtual(), codigo, chaveBackup:ChaveBackup});
+  }catch(e){ return {ok:false, erro:String(e.message||e).slice(0,120)}; }
+});
+ipcMain.handle('chave:revelar',()=>{ try{ const email=emailAtual(); return {ok:true, codigo: email?ChaveBackup.revelar(email):null}; }catch(e){ return {ok:false}; } });
+ipcMain.handle('chave:estado',()=>{ try{ const email=emailAtual(); return {ok:true, tem: !!(email&&ChaveBackup.obter(email)), cofre:ChaveBackup.disponivel()}; }catch(e){ return {ok:false}; } });
 // Anexos: baixa imagens/áudios (anexo_*) do Drive e troca file:// por data:uri
 // nas notas locais — sem baixar nada quando todas já estão hidratadas.
 ipcMain.handle('store:anexos:hidratar',async()=>{ try{

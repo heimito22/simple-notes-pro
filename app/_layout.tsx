@@ -29,6 +29,7 @@ import Svg, {
 } from 'react-native-svg';
 import { Alert } from 'react-native';
 import AlarmeOverlay from '../components/alarme-overlay';
+import SegurancaBackupModal from '../components/seguranca-backup-modal';
 import { alarmeEstado } from '../context/alarme-estado';
 import { bloqueioEstado } from '../context/bloqueio-estado';
 import { FeedbackProvider } from '../context/feedback';
@@ -262,6 +263,8 @@ function ConteudoApp() {
         <Stack.Screen name="editorL" options={{ presentation: 'modal' }} />
         <Stack.Screen name="permissoes" options={{ presentation: 'modal' }} />
       </Stack>
+      {/* Chave de segurança do backup v2 — antes do bloqueio para o bloqueio cobrir. */}
+      <SegurancaBackupModal />
       {/* Tela de bloqueio em Modal nativo TRANSPARENTE: cobre inclusive as rotas
           apresentadas em modal (editor/pastas). O fundo opaco é desenhado pela
           própria TelaBloqueio — no desbloqueio ele dá fade e revela o app. */}

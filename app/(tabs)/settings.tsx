@@ -4,7 +4,7 @@ import * as LocalAuthentication from 'expo-local-authentication';
 import { useRouter } from 'expo-router';
 import { MotiView } from 'moti';
 import React, { useEffect, useRef, useState } from 'react';
-import { Alert, KeyboardAvoidingView, Linking, Modal, Platform, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Linking, Modal, Platform, ScrollView, Share, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import PreviewSom from '../../components/preview-som';
 import { useMonetizacao } from '../../context/monetizacao';
@@ -13,11 +13,15 @@ import { appColors } from '../../constants/theme';
 import { infoDoSom, SONS_ALARME } from '../../context/sons-alarme';
 import { IDIOMAS } from '../../context/idiomas';
 import { alarmeNativoDisponivel, obterPrecoRemoverAnuncios, pararSomAlarme, previewSomAlarme } from '../../modules/minhasnotas-alarm';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import { revelarCodigo } from '../../context/cripto-local';
+import { useNotas } from '../../context/NotasContext';
 
 export default function SettingsScreen() {
   const { isDark, toggleTheme, config, atualizarConfig, atualizarConfigs, t } = useTheme();
   const insets = useSafeAreaInsets();
   const { anunciosRemovidos, premiumPorEmail, comprando, comprarRemoverAnuncios, emailLogado, emailDonoCompra, solicitarLoginParaCompra, cancelarCompraPendente } = useMonetizacao();
+  const { abrirCodigoPendente } = useNotas();
   const router = useRouter();
   // Preço exibido: lido do Play Console (fallback enquanto o produto não é publicado)
   const [precoAnuncios, setPrecoAnuncios] = useState('R$ 5,99');
@@ -143,6 +147,32 @@ export default function SettingsScreen() {
     setPinNovo('');
     setPinConfirma('');
     setPinEtapa('criar');
+  };
+
+  /** Mostra o código de recuperação do backup v2 (precisa estar logado). */
+  const mostrarChaveBackup = async () => {
+    try {
+      await GoogleSignin.signInSilently().catch(() => {});
+      const u = await GoogleSignin.getCurrentUser();
+      const codigo = await revelarCodigo(u?.user?.email);
+      if (!codigo) {
+        Alert.alert(
+          t('Chave de segurança'),
+          t('Este aparelho ainda não tem a chave do backup. Se o backup foi criado em outro aparelho, digite o código que ele mostrou.'),
+          [
+            { text: t('Agora não'), style: 'cancel' },
+            { text: t('Desbloquear backup'), onPress: abrirCodigoPendente },
+          ],
+        );
+        return;
+      }
+      Alert.alert(t('Sua chave de segurança'), codigo, [
+        { text: t('Compartilhar'), onPress: () => { Share.share({ message: 'Minha chave de segurança do Simple Notes:\n' + codigo }).catch(() => {}); } },
+        { text: 'OK', style: 'cancel' },
+      ]);
+    } catch {
+      Alert.alert(t('Chave de segurança'), t('Não consegui ler a chave neste aparelho.'));
+    }
   };
 
   const selecionarTempo = () => {
@@ -544,6 +574,19 @@ export default function SettingsScreen() {
               <Ionicons name="chevron-forward" size={20} color={cores.textoSecundario} />
             </TouchableOpacity>
           )}
+
+          <TouchableOpacity
+            style={[styles.innerItem, { borderBottomColor: cores.borda, borderBottomWidth: 1 }]}
+            onPress={mostrarChaveBackup}
+          >
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.itemText, { color: cores.textoPrincipal }]}>{t('Chave de segurança do backup')}</Text>
+              <Text style={[styles.subText, { color: cores.textoSecundario }]}>
+                {t('Ver o código que abre o backup em outro aparelho')}
+              </Text>
+            </View>
+            <Ionicons name="key-outline" size={20} color={cores.textoSecundario} />
+          </TouchableOpacity>
 
           {config.exigirBiometriaApp && (
             <TouchableOpacity style={[styles.innerItem, { borderBottomWidth: 0 }]} onPress={selecionarTempo}>

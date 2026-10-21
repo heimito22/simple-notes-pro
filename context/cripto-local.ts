@@ -1,118 +1,85 @@
 /**
- * CRIPTOGRAFIA LOCAL (CELULAR) — encripta dados sensíveis no AsyncStorage.
+ * COFRE LOCAL DA CHAVE DE BACKUP (CELULAR) — expo-secure-store (Keychain/Keystore).
  *
- * Usa o mesmo módulo compartilhado com o PC (`desktop/src/lib/cripto.js`).
- * A chave é derivada do email da conta Google (mesma chave = PC e celular).
- * Se não logado, usa uma chave derivada do device ID.
+ * A DEK (32 bytes) e o código de recuperação ficam no cofre do aparelho, um
+ * par por conta Google. O envelope do backup no Drive carrega só a DEK
+ * embrulhada com o código (PBKDF2); um aparelho novo precisa do código.
  */
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { derivarChave, encriptar, descriptografar, encriptarJSON, descriptografarJSON, estaEncriptado } from '../desktop/src/lib/cripto';
+import * as SecureStore from 'expo-secure-store';
+import * as Crypto from 'expo-crypto';
+import Cripto from '../desktop/src/lib/cripto';
 
-const CHAVE_ENC = '@sn_chave_local';
-let chaveCache: string | null = null;
+const OPCOES = { keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY };
 
-/** Obtém a chave de criptografia (derivada do email da conta, ou device ID). */
-export async function obterChave(email?: string): Promise<string | null> {
-  if (chaveCache) return chaveCache;
-  try {
-    let emailUso = email;
-    if (!emailUso) {
-      const salvo = await AsyncStorage.getItem('@sn_email_drive');
-      emailUso = salvo || undefined;
-    }
-    if (!emailUso) {
-      // Sem conta Google: usa identificador local
-      const devId = await AsyncStorage.getItem('@sn_device_id');
-      if (!devId) {
-        const novo = Math.random().toString(36).substring(2) + Date.now().toString(36);
-        await AsyncStorage.setItem('@sn_device_id', novo);
-        emailUso = novo;
-      } else {
-        emailUso = devId;
-      }
-    }
-    const chave = derivarChave(emailUso);
-    if (chave) chaveCache = chave;
-    return chave;
-  } catch (e) {
-    return null;
-  }
+/** Bytes aleatórios do CSPRNG nativo, em hex. */
+export function aleatorio(n: number): string {
+  const bytes = Crypto.getRandomBytes(n);
+  let out = '';
+  for (let i = 0; i < bytes.length; i++) out += bytes[i].toString(16).padStart(2, '0');
+  return out;
 }
 
-/** Invalida cache da chave (ao trocar de conta). */
-export function limparChave(): void {
-  chaveCache = null;
+function slug(email?: string): string {
+  return String(email || 'local').toLowerCase().trim()
+    .replace(/[^a-z0-9]/g, '_').slice(0, 80) || 'local';
 }
+function chaveDek(email?: string) { return 'sn_pro_dek_' + slug(email); }
+function chaveCod(email?: string) { return 'sn_pro_cod_' + slug(email); }
 
-/** Encripta um valor string antes de gravar no AsyncStorage. */
-export async function gravarSeguro(chave: string, valor: string): Promise<boolean> {
+/** Lê a chave da conta. Retorna {chave, codigo} ou null. */
+export async function obterChave(email?: string): Promise<{ chave: string; codigo: string } | null> {
   try {
-    const chaveEnc = await obterChave();
-    if (!chaveEnc) {
-      await AsyncStorage.setItem(chave, valor);
-      return true;
-    }
-    const enc = encriptar(valor, chaveEnc);
-    if (enc) {
-      await AsyncStorage.setItem(chave, JSON.stringify({ __enc: 'AES-256-CBC', iv: enc.iv, dados: enc.dados }));
-      return true;
-    }
-    await AsyncStorage.setItem(chave, valor);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-/** Descriptografa um valor gravado com gravarSeguro. */
-export async function lerSeguro(chave: string): Promise<string | null> {
-  try {
-    const bruto = await AsyncStorage.getItem(chave);
-    if (!bruto) return null;
-    // Verifica se está encriptado
-    if (!estaEncriptado(bruto)) return bruto;
-    const chaveEnc = await obterChave();
-    if (!chaveEnc) return null;
-    const obj = JSON.parse(bruto);
-    const texto = descriptografar(obj, chaveEnc);
-    return texto;
+    const chave = await SecureStore.getItemAsync(chaveDek(email));
+    if (!chave || !/^[0-9a-f]{64}$/i.test(chave)) return null;
+    const codigo = (await SecureStore.getItemAsync(chaveCod(email))) || '';
+    return { chave, codigo };
   } catch {
     return null;
   }
 }
 
-/** Encripta um objeto JSON antes de gravar. */
-export async function gravarJSONSeguro(chave: string, obj: any): Promise<boolean> {
+/** Cria uma DEK aleatória + código de recuperação e guarda no cofre. */
+export async function criarChave(email?: string): Promise<{ chave: string; codigo: string } | null> {
   try {
-    const chaveEnc = await obterChave();
-    if (!chaveEnc) {
-      await AsyncStorage.setItem(chave, JSON.stringify(obj));
-      return true;
-    }
-    const encriptado = encriptarJSON(obj, chaveEnc);
-    if (encriptado) {
-      await AsyncStorage.setItem(chave, encriptado);
-      return true;
-    }
-    await AsyncStorage.setItem(chave, JSON.stringify(obj));
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-/** Descriptografa um objeto JSON gravado com gravarJSONSeguro. */
-export async function lerJSONSeguro(chave: string): Promise<any | null> {
-  try {
-    const bruto = await AsyncStorage.getItem(chave);
-    if (!bruto) return null;
-    if (!estaEncriptado(bruto)) {
-      return JSON.parse(bruto);
-    }
-    const chaveEnc = await obterChave();
-    if (!chaveEnc) return null;
-    return descriptografarJSON(bruto, chaveEnc);
+    const chave = aleatorio(32);
+    const codigo = Cripto.codigoDeHex(aleatorio(20));
+    if (!codigo) return null;
+    await SecureStore.setItemAsync(chaveDek(email), chave, OPCOES);
+    await SecureStore.setItemAsync(chaveCod(email), codigo, OPCOES);
+    return { chave, codigo };
   } catch {
     return null;
   }
+}
+
+/** Abre a DEK do envelope com o código digitado e guarda no cofre. */
+export async function definirComCodigo(
+  envelope: any,
+  codigo: string,
+  email?: string,
+): Promise<{ chave: string; codigo: string } | null> {
+  const chave = Cripto.abrirEnvelopeComCodigo(envelope, codigo);
+  if (!chave) return null;
+  const normalizado = Cripto.normalizarCodigo(codigo) || '';
+  try {
+    await SecureStore.setItemAsync(chaveDek(email), chave, OPCOES);
+    await SecureStore.setItemAsync(chaveCod(email), normalizado, OPCOES);
+    return { chave, codigo: normalizado };
+  } catch {
+    return null;
+  }
+}
+
+/** Código para mostrar em Ajustes (null se não houver chave). */
+export async function revelarCodigo(email?: string): Promise<string | null> {
+  const o = await obterChave(email);
+  return o ? o.codigo : null;
+}
+
+/** Remove a chave da conta. */
+export async function limparChave(email?: string): Promise<void> {
+  try {
+    await SecureStore.deleteItemAsync(chaveDek(email));
+    await SecureStore.deleteItemAsync(chaveCod(email));
+  } catch {}
 }

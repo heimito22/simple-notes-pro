@@ -609,6 +609,49 @@ async function reconciliarComNuvem(dados, metaIso){
   return { mudou: antes!==depois, localVenceu: localVenceu };
 }
 
+// ── CHAVE DE SEGURANÇA DO BACKUP (v2) ──
+// A DEK é aleatória e vive no cofre do Windows; o código de recuperação abre o
+// backup em outro aparelho. Estas funções só mostram/pedem o código.
+var _chaveResolver=null, _codigoNovoMostrado=false;
+function abrirModalChave(opts){
+  var ov=$('#modalChave'); if(!ov) return;
+  opts=opts||{};
+  $('#modalChaveTitulo').textContent=opts.titulo||T('Chave de segurança');
+  $('#modalChaveTexto').textContent=opts.texto||'';
+  var wrap=$('#modalChaveCodigoWrap'), inp=$('#modalChaveInput'), ok=$('#modalChaveOk'), cop=$('#modalChaveCopiar'), err=$('#modalChaveErro');
+  if(err){ err.style.display='none'; err.textContent=''; }
+  if(opts.codigo){
+    wrap.style.display='block'; inp.style.display='none'; ok.style.display='none'; cop.style.display='';
+    $('#modalChaveCodigo').textContent=opts.codigo;
+  } else {
+    wrap.style.display='none'; inp.style.display=''; ok.style.display=''; cop.style.display='none';
+    inp.value='';
+    setTimeout(function(){ try{ inp.focus(); }catch(e){} }, 60);
+  }
+  ov.style.display='flex';
+}
+function fecharModalChave(valor){
+  var ov=$('#modalChave'); if(ov) ov.style.display='none';
+  if(_chaveResolver){ var r=_chaveResolver; _chaveResolver=null; r(valor||null); }
+}
+function mostrarCodigoSeguranca(codigo){
+  abrirModalChave({
+    codigo:codigo,
+    titulo:T('Sua chave de segurança'),
+    texto:T('Guarde este código fora do celular/PC. Ele é o único jeito de abrir seu backup em um aparelho novo ou depois de reinstalar. Quem tiver o código e o backup consegue ler; sem ele, nem o Google consegue.')
+  });
+}
+function pedirCodigoSeguranca(){
+  if(_chaveResolver) return Promise.resolve(null); // já tem um pedido aberto
+  return new Promise(function(res){
+    _chaveResolver=res;
+    abrirModalChave({
+      titulo:T('Digite a chave de segurança'),
+      texto:T('Este backup já está protegido por uma chave criada em outro aparelho. Digite o código de 32 caracteres que o app mostrou lá (você também pode vê-lo em Ajustes → Chave de segurança no outro aparelho).')
+    });
+  });
+}
+
 async function syncBaixar(mostrarToast, metaIsoConhecido){
   var st=$('#syncTxt'), sd=$('#syncDot');
   if(st) st.textContent=T('Sincronizando…'); if(sd) sd.style.background='var(--warn)';
@@ -619,6 +662,16 @@ async function syncBaixar(mostrarToast, metaIsoConhecido){
       metaIso=(m && m.ok && m.meta && m.meta.modifiedTime)||null;
     }
     var r=await S.syncBaixar();
+    if(r && r.precisaCodigo){
+      var codigo=await pedirCodigoSeguranca();
+      if(codigo){
+        var d=await S.chaveDefinirCodigo(codigo).catch(function(){return null;});
+        if(d && d.ok){ return syncBaixar(mostrarToast, null); }
+        toast((d&&d.erro)||T('Código incorreto'));
+      }
+      if(mostrarToast!==false) toast(T('Backup protegido — digite a chave de segurança'));
+      return;
+    }
     if(r && r.ok){
       if(r.dados){
         var rec=await reconciliarComNuvem(r.dados, metaIso);
@@ -629,6 +682,7 @@ async function syncBaixar(mostrarToast, metaIsoConhecido){
         // intervalo) — sem isso o poll re-puxava o backup inteiro de novo.
         try{ var m2=await S.syncMeta(); if(m2 && m2.ok && m2.meta && m2.meta.modifiedTime) marcarMetaDrive(m2.meta.modifiedTime); }catch(e){}
         if(rec.localVenceu){ if(mostrarToast!==false) toast(T('Enviando suas alterações para o Drive…')); await syncEnviar(); }
+        else if(r.migrarV2){ if(mostrarToast!==false) toast(T('Protegendo o backup com a chave nova…')); await syncEnviar(); }
         else if(mostrarToast!==false) toast(T('Sincronizado com o celular'));
       } else if(mostrarToast!==false){ toast(T('Nenhum backup no Drive — este PC vira a fonte')); await syncEnviar(); }
       // Conta nova SEM backup (ou pós-isolamento): renderiza sempre —
@@ -679,7 +733,14 @@ async function syncEnviar(){
     var agoraIso=new Date().toISOString();
     var payload={ notas: store.notas, listas: store.listas, pastas: store.pastas, tarefas: store.tarefas, apagados: (window.Tombstones?window.Tombstones.serializar():[]), chaveIA: '', preferencias: { isDark: config ? config.temaEscuro!==false : true, config: prefsConfig }, ultimaSincronizacao: agoraIso };
     var r=await S.syncEnviar(payload).catch(function(){return null;});
+    if(r && r.precisaCodigo){
+      // Backup v2 de outro aparelho: pede o código antes de qualquer escrita.
+      toast(T('Backup protegido — digite a chave de segurança'));
+      setTimeout(function(){ try{ syncBaixar(); }catch(e){} }, 80);
+      return;
+    }
     if(r && r.ok){
+      if(r.codigoNovo && !_codigoNovoMostrado){ _codigoNovoMostrado=true; mostrarCodigoSeguranca(r.codigoNovo); }
       try{ await S.storeSalvar({ ultimaSincronizacao: agoraIso }); store.ultimaSincronizacao=agoraIso; }catch(e){}
       marcarMetaDrive(r.modifiedTime);   // a nuvem agora é ESTE envio: não puxar de volta
       ultimoPushAt=Date.now();
@@ -754,6 +815,29 @@ function iniciarAutoSync(){
 var btnSync=$('#btnSync'), btnCfgSync=$('#btnCfgSync');
 if(btnSync) btnSync.onclick=function(){ return syncBaixar(); };
 if(btnCfgSync) btnCfgSync.onclick=function(){ return syncBaixar(); };
+// Modal da chave de segurança (mostrar / pedir)
+(function(){
+  var ov=$('#modalChave'); if(!ov) return;
+  var cancelar=$('#modalChaveCancelar'), copiar=$('#modalChaveCopiar'), ok=$('#modalChaveOk'), inp=$('#modalChaveInput');
+  if(cancelar) cancelar.onclick=function(){ fecharModalChave(null); };
+  if(copiar) copiar.onclick=function(){
+    var c=$('#modalChaveCodigo') ? $('#modalChaveCodigo').textContent : '';
+    try{ navigator.clipboard.writeText(c); toast(T('Código copiado')); }
+    catch(e){ toast(c); }
+  };
+  if(ok) ok.onclick=function(){
+    var v=inp ? String(inp.value||'').trim() : '';
+    if(!v) return;
+    fecharModalChave(v);
+  };
+  if(inp) inp.addEventListener('keydown', function(e){ if(e.key==='Enter'){ e.preventDefault(); if(ok) ok.click(); } });
+})();
+var btnChave=$('#btnChaveSeguranca');
+if(btnChave) btnChave.onclick=async function(){
+  var r=await S.chaveRevelar().catch(function(){return null;});
+  if(r && r.ok && r.codigo){ mostrarCodigoSeguranca(r.codigo); }
+  else{ toast(T('Chave ainda não criada — sincronize para gerar')); }
+};
 // ao voltar o foco para a janela, puxa na hora se o Drive tem algo mais novo
 window.addEventListener('focus', function(){
   if(Date.now()-ultimoPushAt < 1000) return;

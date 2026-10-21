@@ -11,8 +11,8 @@ App de notas com IA agente e sync PC↔celular.
 - Site: `C:\Users\Pichau\Downloads\simple-notes-pro-site`
 
 ### Versões
-- Play Store: v1.7.11 (code 36) pronta para subir — tudo do 1.7.10 (corrige ação da IA que aparecia como JSON cru e não executava, aceita ação solta/lista/aninhados, executa todos os blocos, apaga pasta, aceita [c=]/[color=]/[cor=] e \n literal, bloqueia envio concorrente e abre a nota criada/alterada; chat formata negrito, listas e cores; token por conta, chave da IA local, edge-to-edge sem APIs descontinuadas, bitmaps reduzidos e R8 full mode) + correção de tag: ação `adicionar_tag` preserva a nota inteira e `pareceFalaDaIA` bloqueia a IA de aplicar a própria frase como conteúdo. Produção em 1.7.3/28. AAB/APK na Área de Trabalho.
-- Desktop: 1.5.29 publicada no GitHub (pedir “adicionar tag” usa a ação adicionar_tag e preserva a nota; se a IA devolver só uma frase, o app bloqueia em vez de substituir o conteúdo; a IA só propõe ações e nunca diz que criou/falhou antes da confirmação; bloqueia duas perguntas juntas, repara JSON com newline cru, aceita [c=]/[color=]/[cor=] e \n literal, esconde JSON inválido, executa TODOS os blocos, apaga pasta pela IA, notas do mesmo pedido entram na pasta nova).
+- Play Store: v1.7.12 (code 37) pronta para subir — backup v2 com DEK aleatória no SecureStore, código de recuperação (PBKDF2 + AES-256-CTR/HMAC), fail-closed, migração v1→v2 e anti-downgrade; tudo do 1.7.11 (correção de tag, parser tolerante, cores, concorrência, etc.). Produção em 1.7.3/28. AAB/APK na Área de Trabalho.
+- Desktop: 1.5.31 publicada — mesmo backup v2 (DEK no safeStorage/DPAPI, código de recuperação), fail-closed, migração e anti-downgrade; mantém as correções de tag/IA da 1.5.29.
 - Desktop anterior: 1.5.28 (IA só propõe ações e não diz que criou/falhou antes da confirmação).
 - Desktop anterior: 1.5.27 (bloqueio de envio concorrente, reparo de JSON e [c=#HEX]).
 - Desktop anterior: 1.5.26 (executa todos os blocos, apaga pasta, herda pasta nova mesmo com campo vazio, aceita [color=] e \n literal).
