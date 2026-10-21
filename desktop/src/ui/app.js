@@ -304,10 +304,6 @@ document.addEventListener('keydown', function(e){
     if(e.key==='Escape' || e.key==='Enter'){ e.preventDefault(); return; }
   }
   // 3) App normal
-  if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='n'){ e.preventDefault(); if(window.snNotas) window.snNotas.nova(ctx); return; }
-  if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='f'){ e.preventDefault(); if(busca) busca.focus(); return; }
-  // Ctrl+S salva o editor sem fechar (o push para o Drive sai pelo salvarLocal)
-  if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='s'){ e.preventDefault(); if(window.snNotas){ window.snNotas.salvarConteudo(ctx); ctx.toast(T('Salvo · sincronizando…')); } return; }
   if(e.key==='Escape'){
     if(document.getElementById('modalPasta') && document.getElementById('modalPasta').style.display==='flex'){ fecharModalPasta(); return; }
     if(document.getElementById('modalMover') && document.getElementById('modalMover').style.display==='flex'){ fecharModalMover(); return; }
@@ -1244,8 +1240,7 @@ if(window.snConfig && window.snConfig.bind) window.snConfig.bind(ctx);
 var ATALHOS = [
   { grupo:'Geral', itens:[
     { teclas:['Ctrl','Shift','P'], key:'p', ctrl:1, shift:1, desc:'Paleta de comandos', cmd:'paleta' },
-    { teclas:['Ctrl','/'],         key:'/', ctrl:1,             desc:'Mostrar atalhos', cmd:'ajuda' },
-    { teclas:['F1'],               key:'f1',                   desc:'Mostrar atalhos', cmd:'ajuda' },
+    { teclas:['Ctrl','/'],         key:'/', ctrl:1,             desc:'Mostrar atalhos (F1 também)', cmd:'ajuda' },
     { teclas:['Ctrl',','],         key:',', ctrl:1,             desc:'Abrir Configurações', cmd:'config' }
   ]},
   { grupo:'Criar', itens:[
@@ -1259,7 +1254,6 @@ var ATALHOS = [
     { teclas:['Ctrl','2'], key:'2', ctrl:1, desc:'Notas fixadas', cmd:'fixadas' },
     { teclas:['Ctrl','3'], key:'3', ctrl:1, desc:'Tarefas', cmd:'tarefas' },
     { teclas:['Ctrl','4'], key:'4', ctrl:1, desc:'Assistente IA', cmd:'ia' },
-    { teclas:['Ctrl','5'], key:'5', ctrl:1, desc:'Configurações', cmd:'config' },
     { teclas:['Ctrl','B'], key:'b', ctrl:1, desc:'Mostrar/ocultar barra lateral', cmd:'sidebar' }
   ]},
   { grupo:'Organização', itens:[
@@ -1272,17 +1266,119 @@ var ATALHOS = [
     { teclas:['Ctrl','Shift','S'], key:'s', ctrl:1, shift:1,    desc:'Sincronizar com o Drive', cmd:'sync' },
     { teclas:['Ctrl','F'],         key:'f', ctrl:1,             desc:'Buscar notas', cmd:'busca' },
     { teclas:['Esc'],              desc:'Fechar editor, modais e paleta' },
-    { teclas:[],                   desc:'Fechar apenas o editor aberto', cmd:'fechar' },
-    { teclas:[],                   desc:'Bloquear o app agora', cmd:'bloquear' }
+    { teclas:['Ctrl','W'],         key:'w', ctrl:1,             desc:'Fechar apenas o editor aberto', cmd:'fechar' },
+    { teclas:['Ctrl','Alt','L'],   key:'l', ctrl:1, alt:1,      desc:'Bloquear o app agora', cmd:'bloquear' }
   ]}
 ];
+
+// Atalhos editáveis: guarda só o que o usuário mudou (por PC, nunca sincroniza).
+var ATALHOS_PADRAO = JSON.parse(JSON.stringify(ATALHOS));
+var ATALHOS_CUSTOM = {};
+try{ ATALHOS_CUSTOM = JSON.parse(localStorage.getItem('snAtalhosCustom')||'{}') || {}; }catch(e){ ATALHOS_CUSTOM={}; }
+
+function acharItemAtalho(cmd){
+  for(var g=0; g<ATALHOS.length; g++){
+    var itens=ATALHOS[g].itens;
+    for(var i=0;i<itens.length;i++){ if(itens[i].cmd===cmd) return itens[i]; }
+  }
+  return null;
+}
+function aplicarAtalhosCustom(){
+  ATALHOS.forEach(function(g,gi){
+    g.itens.forEach(function(it,ii){
+      if(!it.cmd) return;
+      var def=ATALHOS_PADRAO[gi].itens[ii];
+      it.key=def.key; it.ctrl=def.ctrl?1:0; it.shift=def.shift?1:0; it.alt=def.alt?1:0;
+      it.teclas=(def.teclas||[]).slice();
+      if(Object.prototype.hasOwnProperty.call(ATALHOS_CUSTOM, it.cmd)){
+        var c=ATALHOS_CUSTOM[it.cmd];
+        if(c && c.key){
+          it.key=c.key; it.ctrl=c.ctrl?1:0; it.shift=c.shift?1:0; it.alt=c.alt?1:0;
+          it.teclas=Array.isArray(c.teclas)&&c.teclas.length?c.teclas.slice():teclasDeCombo(c);
+        } else {
+          it.key=''; it.ctrl=0; it.shift=0; it.alt=0; it.teclas=[];
+        }
+      }
+    });
+  });
+}
+function teclasDeCombo(c){
+  var t=[];
+  if(c.ctrl) t.push('Ctrl');
+  if(c.alt) t.push('Alt');
+  if(c.shift) t.push('Shift');
+  t.push(String(c.key||'').length===1 ? String(c.key).toUpperCase() : String(c.key||''));
+  return t;
+}
+function persistirAtalhos(){ try{ localStorage.setItem('snAtalhosCustom', JSON.stringify(ATALHOS_CUSTOM)); }catch(e){} }
+function definirAtalhoCustom(cmd, combo){
+  if(combo){
+    ATALHOS_CUSTOM[cmd]={ key:combo.key, ctrl:combo.ctrl?1:0, shift:combo.shift?1:0, alt:combo.alt?1:0, teclas:combo.teclas };
+  } else {
+    ATALHOS_CUSTOM[cmd]=null;
+  }
+  persistirAtalhos();
+  aplicarAtalhosCustom();
+  atualizarDicaAtalhos();
+}
+function restaurarAtalhosCustom(){
+  ATALHOS_CUSTOM={};
+  try{ localStorage.removeItem('snAtalhosCustom'); }catch(e){}
+  aplicarAtalhosCustom();
+  atualizarDicaAtalhos();
+}
+function atalhoEmUso(combo, cmdIgnorar){
+  var achado=null;
+  ATALHOS.forEach(function(g){
+    g.itens.forEach(function(it){
+      if(achado || !it.cmd || it.cmd===cmdIgnorar || !it.key) return;
+      if(it.key===combo.key && !!it.ctrl===!!combo.ctrl && !!it.shift===!!combo.shift && !!it.alt===!!combo.alt) achado=it;
+    });
+  });
+  return achado;
+}
+function nomeTecla(e){
+  var k=String(e.key||'');
+  var low=k.toLowerCase();
+  var mapa={ ' ':'Espaço', 'escape':'Esc', 'arrowup':'↑', 'arrowdown':'↓', 'arrowleft':'←', 'arrowright':'→',
+             'delete':'Del', 'backspace':'Backspace', 'enter':'Enter', 'tab':'Tab', 'home':'Home', 'end':'End',
+             'pageup':'PgUp', 'pagedown':'PgDn', 'insert':'Ins' };
+  if(mapa[low]) return { key:low, nome:mapa[low] };
+  if(low.length===1) return { key:low, nome:k.toUpperCase() };
+  return { key:low, nome:k.toUpperCase() };
+}
+function comboDoEvento(e){
+  var t=nomeTecla(e); if(!t || !t.key) return null;
+  var ctrl=!!(e.ctrlKey||e.metaKey);
+  var teclas=[];
+  if(ctrl) teclas.push('Ctrl');
+  if(e.altKey) teclas.push('Alt');
+  if(e.shiftKey) teclas.push('Shift');
+  teclas.push(t.nome);
+  return { key:t.key, ctrl:ctrl, shift:!!e.shiftKey, alt:!!e.altKey, teclas:teclas };
+}
+function atualizarDicaAtalhos(){
+  var el=$('#hintAtalhos'); if(!el) return;
+  var itens=['paleta','ajuda','nova-nota','fechar'];
+  var rotulos={ 'paleta':'paleta de comandos', 'ajuda':'todos os atalhos', 'nova-nota':'nova nota', 'fechar':'fechar editor' };
+  var partes=[];
+  itens.forEach(function(cmd){
+    var it=acharItemAtalho(cmd);
+    if(!it || !it.teclas || !it.teclas.length) return;
+    partes.push(it.teclas.map(function(k){ return '<span class="kbd">'+esc(k)+'</span>'; }).join(' + ')+' '+T(rotulos[cmd]));
+  });
+  if(partes.length) el.innerHTML=partes.join(' · ');
+}
+
+aplicarAtalhosCustom();
+atualizarDicaAtalhos();
 
 function estaDigitando(el){
   if(!el) return false;
   var tag=(el.tagName||'').toLowerCase();
   return tag==='input' || tag==='textarea' || tag==='select' || el.isContentEditable===true;
 }
-var PROIBIDOS_DIGITANDO={ 'nova-nota':1, 'nova-lista':1, 'nova-pasta':1, 'nova-tarefa':1, 'sidebar':1, 'tema':1, 'grade-lista':1, 'fechar':1 };
+var PROIBIDOS_DIGITANDO={ 'nova-nota':1, 'nova-lista':1, 'nova-pasta':1, 'nova-tarefa':1, 'sidebar':1, 'tema':1, 'grade-lista':1 };
 
 function irPara(vista){ var el=document.querySelector('.nav-item[data-view="'+vista+'"]'); if(el) el.click(); }
 
@@ -1310,7 +1406,9 @@ function executarComando(id){
       break;
     case 'busca': if(busca){ busca.focus(); if(busca.select) busca.select(); } break;
     case 'salvar':
-      if(window.snNotas){ window.snNotas.salvarConteudo(ctx); toast(T('Salvo')); }
+      var edS=window.snNotas && window.snNotas.getEdit && window.snNotas.getEdit();
+      if(edS && window.snNotas){ window.snNotas.salvarConteudo(ctx); toast(T('Salvo · sincronizando…')); }
+      else toast(T('Nenhum editor aberto'));
       break;
     case 'sync': try{ syncBaixar(); }catch(e){} break;
     case 'tema':
@@ -1343,7 +1441,9 @@ function executarComando(id){
       else toast(T('Defina um PIN em Configurações → Segurança para bloquear'));
       break;
     case 'fechar':
-      var ed=$('#editor'); if(ed && ed.style.display!=='none' && window.snNotas){ window.snNotas.salvarEFechar(ctx); }
+      var ed=$('#editor');
+      if(ed && ed.style.display!=='none' && window.snNotas){ window.snNotas.salvarEFechar(ctx); }
+      else toast(T('Nenhum editor aberto'));
       break;
   }
 }
@@ -1361,6 +1461,8 @@ function acharAtalho(e){
     var itens=ATALHOS[g].itens;
     for(var i=0;i<itens.length;i++){ if(itens[i].cmd && combinaAtalho(e, itens[i])) return itens[i]; }
   }
+  // F1 é alias fixo de "Mostrar atalhos" (não aparece como linha editável).
+  if(!e.ctrlKey && !e.altKey && !e.shiftKey && String(e.key||'').toLowerCase()==='f1') return acharItemAtalho('ajuda');
   return null;
 }
 function overlayAberto(){
@@ -1368,20 +1470,77 @@ function overlayAberto(){
   return !!((p && p.style.display==='flex') || (a && a.style.display==='flex'));
 }
 
+// ---------- Edição de atalhos ----------
+var capturaCmd=null;
+function iniciarCapturaAtalho(cmd){
+  var ov=$('#atalhosOverlay');
+  if(!ov || ov.style.display!=='flex') abrirAtalhos();
+  capturaCmd=cmd;
+  var inp=$('#atalhosBusca'); if(inp) inp.blur();
+  renderAtalhos(inp ? inp.value : '');
+  setTimeout(function(){
+    var lista=$('#atalhosLista');
+    var b=lista && lista.querySelector('button.sn-atalho-keys.capturando');
+    if(!lista || !b) return;
+    var lr=lista.getBoundingClientRect(), br=b.getBoundingClientRect();
+    if(br.top < lr.top || br.bottom > lr.bottom){
+      lista.scrollTop += (br.top - lr.top) - Math.max(16, (lr.height - br.height)/2);
+    }
+  }, 40);
+}
+function cancelarCapturaAtalho(){
+  if(!capturaCmd) return;
+  capturaCmd=null;
+  var inp=$('#atalhosBusca');
+  renderAtalhos(inp ? inp.value : '');
+}
+
 document.addEventListener('keydown', function(e){
-  if(bloqueioAtivo) return;
+  if(bloqueioAtivo){
+    if((e.ctrlKey||e.metaKey) && String(e.key||'').toLowerCase()==='w'){ e.preventDefault(); e.stopPropagation(); }
+    return;
+  }
   var pinOv=$('#pinOverlay');
-  if(pinOv && pinOv.style.display==='flex') return;
+  if(pinOv && pinOv.style.display==='flex'){
+    if((e.ctrlKey||e.metaKey) && String(e.key||'').toLowerCase()==='w'){ e.preventDefault(); e.stopPropagation(); }
+    return;
+  }
+  if(capturaCmd){
+    if(/^(Control|Shift|Alt|Meta|OS|CapsLock)$/i.test(e.key||'')) return;
+    e.preventDefault(); e.stopPropagation();
+    if(e.key==='Escape'){ cancelarCapturaAtalho(); return; }
+    var alvo=acharItemAtalho(capturaCmd);
+    if(e.key==='Backspace' || e.key==='Delete'){
+      definirAtalhoCustom(capturaCmd, null);
+      capturaCmd=null;
+      var inpB=$('#atalhosBusca'); renderAtalhos(inpB ? inpB.value : '');
+      toast(T('Atalho removido')+(alvo?': '+alvo.desc:''));
+      return;
+    }
+    var combo=comboDoEvento(e);
+    if(!combo || !combo.key) return;
+    if(!combo.ctrl && !combo.alt && !/^f\d{1,2}$/.test(combo.key)){
+      toast(T('Use Ctrl ou Alt junto, ou uma tecla F1–F12'));
+      return;
+    }
+    var conflito=atalhoEmUso(combo, capturaCmd);
+    if(conflito){ toast(T('Esse atalho já é usado por: ')+conflito.desc); return; }
+    definirAtalhoCustom(capturaCmd, combo);
+    capturaCmd=null;
+    var inpC=$('#atalhosBusca'); renderAtalhos(inpC ? inpC.value : '');
+    toast(T('Atalho atualizado')+(alvo?': '+alvo.desc:''));
+    return;
+  }
   var p=$('#paletaOverlay'), a=$('#atalhosOverlay');
   if(p && p.style.display==='flex'){
     if(e.key==='Escape'){ e.preventDefault(); e.stopPropagation(); fecharPaleta(); return; }
     // Enquanto a paleta está aberta, combos não vazam para o app.
-    if((e.ctrlKey||e.metaKey) && !/^[cvaxz]$/i.test(e.key||'')) e.stopPropagation();
+    if((e.ctrlKey||e.metaKey) && !/^[cvaxz]$/i.test(e.key||'')){ e.stopPropagation(); if(/^w$/i.test(e.key||'')) e.preventDefault(); }
     return;
   }
   if(a && a.style.display==='flex'){
     if(e.key==='Escape'){ e.preventDefault(); e.stopPropagation(); fecharAtalhos(); return; }
-    if((e.ctrlKey||e.metaKey) && !/^[cvaxz]$/i.test(e.key||'')) e.stopPropagation();
+    if((e.ctrlKey||e.metaKey) && !/^[cvaxz]$/i.test(e.key||'')){ e.stopPropagation(); if(/^w$/i.test(e.key||'')) e.preventDefault(); }
     return;
   }
   var it=acharAtalho(e);
@@ -1509,6 +1668,12 @@ function fecharPaleta(){ var ov=$('#paletaOverlay'); if(ov) ov.style.display='no
 // ---------- Tela de atalhos ----------
 function renderAtalhos(q){
   var lista=$('#atalhosLista'); if(!lista) return;
+  var dica=$('#atalhosDica');
+  if(dica){
+    dica.innerHTML = capturaCmd
+      ? '<span class="sn-captura">Pressione a combinação desejada…</span> <span class="sn-atalhos-dica"><kbd>Esc</kbd> cancela</span>'
+      : 'Clique em um atalho para alterar. <span class="sn-atalhos-dica"><kbd>Backspace</kbd> remove · <kbd>Esc</kbd> cancela</span>';
+  }
   var termos=normalizarTexto(q).split(/\s+/).filter(Boolean);
   var html='';
   ATALHOS.forEach(function(g){
@@ -1523,7 +1688,15 @@ function renderAtalhos(q){
       var keys=(it.teclas&&it.teclas.length)
         ? it.teclas.map(function(k){ return '<kbd>'+esc(k)+'</kbd>'; }).join('')
         : '<span class="sn-sem-atalho">sem atalho</span>';
-      html+='<div class="sn-atalho-linha"><span>'+esc(it.desc)+'</span><span class="sn-atalho-keys">'+keys+'</span></div>';
+      var emCaptura=!!(capturaCmd && it.cmd===capturaCmd);
+      if(it.cmd){
+        html+='<div class="sn-atalho-linha'+(emCaptura?' editando':'')+'"><span>'+esc(it.desc)+'</span>'+
+          '<button type="button" class="sn-atalho-keys'+(emCaptura?' capturando':'')+'" data-cmd="'+esc(it.cmd)+'" title="Clique para alterar">'+
+          (emCaptura ? '<span class="sn-captura">Pressione…</span>' : keys)+
+          '</button></div>';
+      } else {
+        html+='<div class="sn-atalho-linha"><span>'+esc(it.desc)+'</span><span class="sn-atalho-keys">'+keys+'</span></div>';
+      }
     });
     html+='</div>';
   });
@@ -1532,17 +1705,29 @@ function renderAtalhos(q){
 function abrirAtalhos(){
   var ov=$('#atalhosOverlay'); if(!ov) return;
   ov.style.display='flex';
+  capturaCmd=null;
   var inp=$('#atalhosBusca'); if(inp) inp.value='';
   renderAtalhos('');
   setTimeout(function(){ var i=$('#atalhosBusca'); if(i) i.focus(); }, 30);
 }
-function fecharAtalhos(){ var ov=$('#atalhosOverlay'); if(ov) ov.style.display='none'; }
+function fecharAtalhos(){ capturaCmd=null; var ov=$('#atalhosOverlay'); if(ov) ov.style.display='none'; }
 
 (function ligarAtalhos(){
-  var ov=$('#atalhosOverlay'), inp=$('#atalhosBusca'), btn=$('#atalhosFechar');
+  var ov=$('#atalhosOverlay'), inp=$('#atalhosBusca'), btn=$('#atalhosFechar'), lista=$('#atalhosLista'), rst=$('#atalhosReset');
   if(!ov) return;
   if(inp) inp.addEventListener('input', function(){ renderAtalhos(inp.value); });
   if(btn) btn.addEventListener('click', fecharAtalhos);
+  if(rst) rst.addEventListener('click', function(){
+    capturaCmd=null;
+    restaurarAtalhosCustom();
+    renderAtalhos(inp ? inp.value : '');
+    toast(T('Atalhos restaurados'));
+  });
+  if(lista) lista.addEventListener('click', function(e){
+    var b=e.target && e.target.closest ? e.target.closest('button.sn-atalho-keys[data-cmd]') : null;
+    if(!b) return;
+    iniciarCapturaAtalho(b.getAttribute('data-cmd'));
+  });
   ov.addEventListener('mousedown', function(e){ if(e.target===ov) fecharAtalhos(); });
 })();
 
@@ -1584,5 +1769,5 @@ if(btnCopiar) btnCopiar.onclick=function(){ var el=document.getElementById('hint
   };
 })();
 
-(async function(){ try{ await refreshConta(); await carregar(); iniciarAutoSync(); document.addEventListener('visibilitychange', function(){ if(!document.hidden) iniciarAutoSync(); }); await hidratarAnexosSilencioso(); setTimeout(hidratarAnexosSilencioso, 20000); setInterval(hidratarAnexosSilencioso, 60000); if(window.Movimento){ window.Movimento.entrada(); window.Movimento.stagger('#grid', '.card', { y: 24, each: 0.035 }); } }catch(e){ console.error('boot',e); } })();
+(async function(){ try{ await refreshConta(); await carregar(); atualizarDicaAtalhos(); iniciarAutoSync(); document.addEventListener('visibilitychange', function(){ if(!document.hidden) iniciarAutoSync(); }); await hidratarAnexosSilencioso(); setTimeout(hidratarAnexosSilencioso, 20000); setInterval(hidratarAnexosSilencioso, 60000); if(window.Movimento){ window.Movimento.entrada(); window.Movimento.stagger('#grid', '.card', { y: 24, each: 0.035 }); } }catch(e){ console.error('boot',e); } })();
 });

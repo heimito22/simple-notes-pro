@@ -384,9 +384,12 @@
     <div class="sn-atalhos-head">
       <div>
         <h3>Atalhos de teclado</h3>
-        <p>Tudo ao alcance do teclado. <span class="sn-atalhos-dica">Abra a paleta com <kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>P</kbd></span></p>
+        <p id="atalhosDica">Clique em um atalho para alterar.</p>
       </div>
-      <button type="button" id="atalhosFechar" class="sn-icone-btn" title="Fechar (Esc)" aria-label="Fechar">×</button>
+      <div class="sn-atalhos-acoes">
+        <button type="button" id="atalhosReset" class="sn-texto-btn" title="Voltar todos os atalhos ao padrão">Restaurar padrões</button>
+        <button type="button" id="atalhosFechar" class="sn-icone-btn" title="Fechar (Esc)" aria-label="Fechar">×</button>
+      </div>
     </div>
     <input id="atalhosBusca" type="text" placeholder="Buscar atalho…" autocomplete="off" spellcheck="false" aria-label="Buscar atalho">
     <div id="atalhosLista" class="sn-atalhos-lista"></div>
