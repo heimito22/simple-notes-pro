@@ -114,7 +114,7 @@ export default function TelaIA() {
         danger: paleta.danger,
     };
 
-    const { notas, pastas, salvarNota, salvarLembreteNota, criarPasta, moverNotasParaPasta, alternarFixarNota, excluirNota } = useNotas();
+    const { notas, pastas, salvarNota, salvarLembreteNota, criarPasta, excluirPasta, moverNotasParaPasta, alternarFixarNota, excluirNota } = useNotas();
     const { tarefas, adicionarTarefa, alternarTarefa, excluirTarefa } = useTarefas();
     const { listas, salvarLista, moverListasParaPasta, alternarFixarLista, excluirLista } = useListas();
 
@@ -192,7 +192,7 @@ export default function TelaIA() {
         try {
             const deps: DepsAcoes = {
                 notas, pastas, listas, tarefas,
-                salvarNota, criarPasta, moverNotasParaPasta, alternarFixarNota,
+                salvarNota, criarPasta, excluirPasta, moverNotasParaPasta, alternarFixarNota,
                 salvarLembreteNota, excluirNota,
                 salvarLista, moverListasParaPasta, alternarFixarLista, excluirLista,
                 adicionarTarefa, alternarTarefa, excluirTarefa,
@@ -201,6 +201,19 @@ export default function TelaIA() {
             const resultados = await executarAcoes(acoesIA, deps);
             setAcoesIA(null);
             setMensagens(prev => [...prev, { papel: 'ia', texto: resultados.join('\n') || t('✅ Pronto!') }]);
+            // Abre o editor no item criado/alterado: o usuário vê o resultado em
+            // vez de achar que a IA só falou e não fez nada.
+            const notaId = (resultados as any).notaId as string | null;
+            const listaId = (resultados as any).listaId as string | null;
+            if (notaId || listaId) {
+                setTimeout(() => {
+                    try {
+                        router.push(notaId
+                            ? { pathname: '/editor', params: { id: notaId } }
+                            : { pathname: '/editorL', params: { id: listaId } });
+                    } catch {}
+                }, 250);
+            }
         } catch (e) {
             setMensagens(prev => [...prev, { papel: 'ia', texto: t('Algumas ações falharam — veja os avisos acima.'), erro: true }]);
         } finally {

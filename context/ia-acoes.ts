@@ -21,7 +21,7 @@ import { conteudoAplicadoDaProposta, extrairMidias } from './ia-service';
 export type TipoAcao =
   | 'criar_nota' | 'editar_nota' | 'criar_lista' | 'editar_lista'
   | 'apagar_nota' | 'fixar_nota' | 'criar_tarefa' | 'concluir_tarefa'
-  | 'apagar_tarefa' | 'criar_pasta' | 'mover_para_pasta' | 'lembrete_nota';
+  | 'apagar_tarefa' | 'criar_pasta' | 'apagar_pasta' | 'mover_para_pasta' | 'lembrete_nota';
 
 /** Ação proposta pela IA — campos soltos, validados na extração e na execução. */
 export interface AcaoIA {
@@ -64,6 +64,7 @@ export interface DepsAcoes {
   tarefas: any[];
   salvarNota: (titulo: string, conteudo: string, id?: string, protegida?: boolean, pastaId?: string | null) => string;
   criarPasta: (nome: string) => string;
+  excluirPasta?: (id: string) => void;
   moverNotasParaPasta: (ids: string[], pastaId: string | null) => void;
   moverListasParaPasta: (ids: string[], pastaId: string | null) => void;
   alternarFixarNota: (id: string) => void;
@@ -167,8 +168,7 @@ function resolverPastaId(nome: string | null | undefined, deps: DepsAcoes, resul
   if (nome === null) return null;               // explicitamente sair da pasta
   const alvo = String(nome ?? '').trim();
   if (!alvo) return undefined;                  // sem pasta → onde estiver
-  const norm = (s: string) => s.trim().toLowerCase();
-  const existente = deps.pastas.find((p: any) => norm(p?.nome || '') === norm(alvo));
+  const existente = deps.pastas.find((p: any) => semAcento(p?.nome || '').trim() === semAcento(alvo).trim());
   if (existente) return existente.id;
   const novoId = deps.criarPasta(alvo);
   resultados.push(`✅ ${t('Pasta criada')}: "${alvo}"`);
@@ -180,13 +180,15 @@ function resolverPastaId(nome: string | null | undefined, deps: DepsAcoes, resul
 const TIPOS_VALIDOS: TipoAcao[] = [
   'criar_nota', 'editar_nota', 'criar_lista', 'editar_lista',
   'apagar_nota', 'fixar_nota', 'criar_tarefa', 'concluir_tarefa',
-  'apagar_tarefa', 'criar_pasta', 'mover_para_pasta', 'lembrete_nota',
+  'apagar_tarefa', 'criar_pasta', 'apagar_pasta', 'mover_para_pasta', 'lembrete_nota',
 ];
 
 const MAX_ACOES = 10;
 
 /** Campo obrigatório presente? (string não vazia) */
 const tem = (v: any) => typeof v === 'string' && v.trim().length > 0;
+/** Compara nomes de pasta sem acento e sem caixa ("Exercícios" = "exercicios"). */
+const semAcento = (s: any) => String(s ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 
 /** Extrai todos os objetos/arrays JSON de nível superior, respeitando strings. */
 function blocosJson(texto: string): string[] {
@@ -267,6 +269,7 @@ export function extrairAcoes(texto: string): { acoes: AcaoIA[] | null; textoLimp
           (tipo === 'concluir_tarefa' && tem(a.alvo)) ||
           (tipo === 'apagar_tarefa' && tem(a.alvo)) ||
           (tipo === 'criar_pasta' && tem(a.nome)) ||
+          (tipo === 'apagar_pasta' && (tem(a.nome) || tem(a.alvo))) ||
           (tipo === 'mover_para_pasta' && Array.isArray(a.alvos) && a.alvos.length > 0) ||
           (tipo === 'lembrete_nota' && tem(a.alvo));
         if (ok) {
@@ -321,6 +324,7 @@ export function resumoAcao(a: AcaoIA, deps?: Partial<DepsAcoes>): string {
     case 'concluir_tarefa': return `✔️ ${a.valor === false ? 'Reabrir' : 'Concluir'} tarefa "${nome(a.alvo)}"`;
     case 'apagar_tarefa': return `🗑 Apagar tarefa "${nome(a.alvo)}"`;
     case 'criar_pasta': return `📁 Criar pasta "${a.nome}"`;
+    case 'apagar_pasta': return `🗑 Apagar pasta "${a.nome || a.alvo}"`;
     case 'mover_para_pasta': return `➡️ Mover ${(a.alvos?.length ?? 0)} item(ns) para ${a.pasta ? `"${a.pasta}"` : 'a lista principal'}`;
     case 'lembrete_nota': return a.lembrete ? `🔔 Lembrar da nota "${nome(a.alvo)}"` : `🔕 Remover lembrete da nota "${nome(a.alvo)}"`;
     default: return `• ${a.tipo}`;
@@ -336,6 +340,11 @@ export function resumoAcao(a: AcaoIA, deps?: Partial<DepsAcoes>): string {
 export async function executarAcoes(acoes: AcaoIA[], deps: DepsAcoes): Promise<string[]> {
   const t = deps.t || ((s: string) => s);
   const resultados: string[] = [];
+  let notaParaAbrir: string | null = null;
+  let listaParaAbrir: string | null = null;
+  // Pasta criada neste mesmo lote: as notas/listas seguintes sem "pasta"
+  // explícita entram nela (ex.: "crie a pasta Poemas e 5 poemas").
+  let pastaCriadaNoLote: { id: string; nome: string } | null = null;
 
   for (const a of acoes) {
     try {
@@ -344,8 +353,10 @@ export async function executarAcoes(acoes: AcaoIA[], deps: DepsAcoes): Promise<s
           const titulo = String(a.titulo || '').trim();
           const conteudo = conteudoAplicadoDaProposta(String(a.conteudo || ''), titulo, undefined, []);
           let pastaId: string | null | undefined;
-          if (a.pasta) pastaId = resolverPastaId(a.pasta, deps, resultados, t) ?? undefined;
+          if (a.pasta !== undefined) pastaId = resolverPastaId(a.pasta, deps, resultados, t) ?? undefined;
+          else if (pastaCriadaNoLote) pastaId = pastaCriadaNoLote.id;
           const id = deps.salvarNota(titulo, conteudo, undefined, false, pastaId);
+          if (!notaParaAbrir) notaParaAbrir = id; // primeiro criado (ex.: Poema 1)
           if (a.fixar) deps.alternarFixarNota(id);
           if (a.lembrete) {
             const lem = normLembrete(a.lembrete);
@@ -369,6 +380,7 @@ export async function executarAcoes(acoes: AcaoIA[], deps: DepsAcoes): Promise<s
           } else {
             deps.salvarNota(novoTitulo, novoConteudo, a.alvo, !!nota.protegida, nota.pastaId ?? undefined);
           }
+          notaParaAbrir = a.alvo!;
           resultados.push(`✅ ${t('Nota atualizada')}: "${novoTitulo}"`);
           break;
         }
@@ -378,9 +390,12 @@ export async function executarAcoes(acoes: AcaoIA[], deps: DepsAcoes): Promise<s
             .filter((it: any) => it && tem(it.texto))
             .map((it: any) => ({ id: novoId(), texto: String(it.texto).trim(), concluido: !!it.concluido }));
           let pastaId: string | null | undefined;
-          if (a.pasta) pastaId = resolverPastaId(a.pasta, deps, resultados, t) ?? undefined;
+          if (a.pasta !== undefined) pastaId = resolverPastaId(a.pasta, deps, resultados, t) ?? undefined;
+          else if (pastaCriadaNoLote) pastaId = pastaCriadaNoLote.id;
+          const idLista = novoId();
+          if (!listaParaAbrir) listaParaAbrir = idLista;
           deps.salvarLista({
-            id: novoId(),
+            id: idLista,
             titulo: String(a.titulo || '').trim() || t('Nova lista'),
             itens,
             fixada: false,
@@ -402,6 +417,7 @@ export async function executarAcoes(acoes: AcaoIA[], deps: DepsAcoes): Promise<s
               : lista.itens,
           };
           deps.salvarLista(nova);
+          listaParaAbrir = a.alvo!;
           resultados.push(`✅ ${t('Lista atualizada')}: "${nova.titulo}"`);
           break;
         }
@@ -468,8 +484,24 @@ export async function executarAcoes(acoes: AcaoIA[], deps: DepsAcoes): Promise<s
         }
 
         case 'criar_pasta': {
-          deps.criarPasta(String(a.nome || '').trim());
+          const nomePasta = String(a.nome || '').trim();
+          const idPasta = deps.criarPasta(nomePasta);
+          pastaCriadaNoLote = { id: idPasta, nome: nomePasta };
           resultados.push(`✅ ${t('Pasta criada')}: "${a.nome}"`);
+          break;
+        }
+
+        case 'apagar_pasta': {
+          const alvoPasta = String(a.alvo || a.nome || '').trim();
+          const pasta = deps.pastas.find((p: any) => String(p?.id) === alvoPasta ||
+            semAcento(String(p?.nome || '')).trim() === semAcento(alvoPasta).trim());
+          if (!pasta || !deps.excluirPasta) {
+            resultados.push(`⚠️ ${t('Pasta não encontrada')} (${alvoPasta})`);
+            break;
+          }
+          deps.excluirPasta(pasta.id);
+          if (pastaCriadaNoLote?.id === pasta.id) pastaCriadaNoLote = null;
+          resultados.push(`🗑 ${t('Pasta apagada')}: "${pasta.nome}"`);
           break;
         }
 
@@ -510,5 +542,8 @@ export async function executarAcoes(acoes: AcaoIA[], deps: DepsAcoes): Promise<s
     }
   }
 
+  // Metadados para a tela abrir o editor no item criado/alterado.
+  (resultados as any).notaId = notaParaAbrir;
+  (resultados as any).listaId = listaParaAbrir;
   return resultados;
 }

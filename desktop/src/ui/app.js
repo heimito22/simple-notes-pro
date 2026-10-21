@@ -880,7 +880,7 @@ document.addEventListener('visibilitychange', function(){
 function iaInline(txt){
   var s=esc(String(txt||''));
   s=s.replace(/`([^`]+)`/g,'<code>$1</code>');
-  s=s.replace(/\[cor=(#[0-9a-f]{3}|#[0-9a-f]{6})\]([\s\S]*?)\[\/cor\]/gi, function(m,c,t){
+  s=s.replace(/\[(?:cor|color)=(#[0-9a-f]{3}|#[0-9a-f]{6})\]([\s\S]*?)\[\/(?:cor|color)\]/gi, function(m,c,t){
     return '<span class="ia-cor" style="color:'+c+'">'+t+'</span>';
   });
   s=s.replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>');

@@ -11,7 +11,7 @@
   function _t(extra, s){ return (extra && typeof extra.T === 'function') ? extra.T(s) : s; }
   var tem = function(v){ return typeof v === 'string' && v.trim().length > 0; };
 
-  var TIPOS_VALIDOS = ['criar_nota','editar_nota','criar_lista','editar_lista','apagar_nota','fixar_nota','criar_tarefa','concluir_tarefa','apagar_tarefa','criar_pasta','mover_para_pasta','lembrete_nota'];
+  var TIPOS_VALIDOS = ['criar_nota','editar_nota','criar_lista','editar_lista','apagar_nota','fixar_nota','criar_tarefa','concluir_tarefa','apagar_tarefa','criar_pasta','apagar_pasta','mover_para_pasta','lembrete_nota'];
   var MAX_ACOES = 10;
   var DIAS_VALIDOS = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
 
@@ -128,6 +128,7 @@
             (a.tipo==='concluir_tarefa' && tem(a.alvo)) ||
             (a.tipo==='apagar_tarefa' && tem(a.alvo)) ||
             (a.tipo==='criar_pasta' && tem(a.nome)) ||
+            (a.tipo==='apagar_pasta' && (tem(a.nome) || tem(a.alvo))) ||
             (a.tipo==='mover_para_pasta' && Array.isArray(a.alvos) && a.alvos.length>0) ||
             (a.tipo==='lembrete_nota' && tem(a.alvo));
           if(ok){
@@ -179,6 +180,7 @@
       case 'concluir_tarefa': return '✔️ '+(a.valor===false?_t2('Reabrir'):_t2('Concluir'))+' "'+nome(a.alvo)+'"';
       case 'apagar_tarefa': return '🗑 '+_t2('Apagar tarefa')+' "'+nome(a.alvo)+'"';
       case 'criar_pasta': return '📁 '+_t2('Criar pasta')+' "'+a.nome+'"';
+    case 'apagar_pasta': return '🗑 '+_t2('Apagar pasta')+' "'+(a.nome||a.alvo)+'"';
       case 'mover_para_pasta': return '➡️ '+_t2('Mover')+' '+(a.alvos?a.alvos.length:0)+' '+_t2('item(ns) para')+' '+(a.pasta?'"'+a.pasta+'"':_t2('a lista principal'));
       case 'lembrete_nota': return a.lembrete ? '🔔 '+_t2('Lembrar da nota')+' "'+nome(a.alvo)+'"' : '🔕 '+_t2('Remover lembrete (só no celular)')+' "'+nome(a.alvo)+'"';
     }
@@ -214,7 +216,10 @@
    */
   async function executar(acoes, ctx, extra){
     var resultados = [];
-    var ultimaNotaId = null, ultimaListaId = null;
+    var notaParaAbrir = null, listaParaAbrir = null;
+    // Pasta criada neste mesmo lote: as notas/listas seguintes sem "pasta"
+    // explícita entram nela (ex.: "crie a pasta Poemas e 5 poemas").
+    var pastaCriadaNoLote = null;
     var store = ctx.store;
     var iaLib = (typeof root!=='undefined' && root.iaDesktop) || (typeof window!=='undefined' && window.iaDesktop) || null;
     function T(s){ return _t(extra, s); }
@@ -231,9 +236,11 @@
         if(a.tipo==='criar_nota'){
           var titulo = String(a.titulo||'').trim();
           var id = ctx.uid();
-          var pastaId = a.pasta ? resolverPastaId(ctx, a.pasta, resultados, extra) : undefined;
+          var pastaId = (a.pasta !== undefined)
+            ? resolverPastaId(ctx, a.pasta, resultados, extra)
+            : (pastaCriadaNoLote ? pastaCriadaNoLote.id : undefined);
           store.notas.unshift({ id: id, titulo: titulo, conteudo: conteudoFinal(a.conteudo, titulo, id, undefined), data: ctx.hoje(), fixada: !!a.fixar, pastaId: pastaId||undefined });
-          ultimaNotaId = id;
+          if(!notaParaAbrir) notaParaAbrir = id; // primeiro criado (ex.: Poema 1)
           if(a.lembrete) await lembreteComoTarefa(ctx, extra, '🔔 '+titulo, a.lembrete, store, resultados);
           resultados.push('✅ '+T('Nota criada')+': "'+titulo+'"'+(a.lembrete?' 🔔':''));
 
@@ -243,16 +250,18 @@
           var novoTitulo = tem(a.titulo) ? String(a.titulo).trim() : nota.titulo;
           if(tem(a.conteudo)) nota.conteudo = conteudoFinal(a.conteudo, novoTitulo, nota.id, nota.titulo);
           nota.titulo = novoTitulo;
-          ultimaNotaId = nota.id;
+          notaParaAbrir = nota.id;
           resultados.push('✅ '+T('Nota atualizada')+': "'+novoTitulo+'"');
 
         } else if(a.tipo==='criar_lista'){
           var itens = (Array.isArray(a.itens)?a.itens:[]).filter(function(it){ return it && tem(it.texto); })
             .map(function(it){ return { id: ctx.uid(), texto: String(it.texto).trim(), concluido: !!it.concluido }; });
           var lId = ctx.uid();
-          var lPasta = a.pasta ? resolverPastaId(ctx, a.pasta, resultados, extra) : undefined;
+          var lPasta = (a.pasta !== undefined)
+            ? resolverPastaId(ctx, a.pasta, resultados, extra)
+            : (pastaCriadaNoLote ? pastaCriadaNoLote.id : undefined);
           (store.listas||(store.listas=[])).unshift({ id: lId, titulo: String(a.titulo||'').trim()||T('Nova lista'), itens: itens, data: ctx.hoje(), fixada: false, pastaId: lPasta||undefined });
-          ultimaListaId = lId;
+          if(!listaParaAbrir) listaParaAbrir = lId;
           resultados.push('✅ '+T('Lista criada')+': "'+a.titulo+'" ('+itens.length+' '+T('itens')+')');
 
         } else if(a.tipo==='editar_lista'){
@@ -261,7 +270,7 @@
           if(tem(a.titulo)) lista.titulo = String(a.titulo).trim();
           if(Array.isArray(a.itens)) lista.itens = a.itens.filter(function(it){ return it && tem(it.texto); })
             .map(function(it){ return { id: ctx.uid(), texto: String(it.texto).trim(), concluido: !!it.concluido }; });
-          ultimaListaId = lista.id;
+          listaParaAbrir = lista.id;
           resultados.push('✅ '+T('Lista atualizada')+': "'+lista.titulo+'"');
 
         } else if(a.tipo==='apagar_nota'){
@@ -308,8 +317,27 @@
           resultados.push('🗑 '+T('Tarefa apagada')+': "'+tDel.titulo+'"');
 
         } else if(a.tipo==='criar_pasta'){
-          store.pastas.push({ id: ctx.uid(), nome: String(a.nome||'').trim(), dataModificacao: Date.now() });
+          var novaPasta = { id: ctx.uid(), nome: String(a.nome||'').trim(), dataModificacao: Date.now() };
+          store.pastas.push(novaPasta);
+          pastaCriadaNoLote = novaPasta;
           resultados.push('✅ '+T('Pasta criada')+': "'+a.nome+'"');
+
+        } else if(a.tipo==='apagar_pasta'){
+          var alvoPasta = String(a.alvo||a.nome||'').trim();
+          var pastaApagar = null;
+          for(var pi=0; pi<(store.pastas||[]).length; pi++){
+            var pAtual = store.pastas[pi];
+            if(!pAtual) continue;
+            if(String(pAtual.id)===alvoPasta || semAcento(pAtual.nome||'').trim()===semAcento(alvoPasta).trim()){ pastaApagar=pAtual; break; }
+          }
+          if(!pastaApagar){ resultados.push('⚠️ '+T('Pasta não encontrada')+' ('+alvoPasta+')'); continue; }
+          var nomePastaApagada = pastaApagar.nome || '';
+          try{ if(window.Tombstones) window.Tombstones.tombarItem(pastaApagar.id, pastaApagar); }catch(e){}
+          store.pastas = (store.pastas||[]).filter(function(p){ return p.id !== pastaApagar.id; });
+          (store.notas||[]).forEach(function(n){ if(n.pastaId===pastaApagar.id) delete n.pastaId; });
+          (store.listas||[]).forEach(function(l){ if(l.pastaId===pastaApagar.id) delete l.pastaId; });
+          if(pastaCriadaNoLote && pastaCriadaNoLote.id===pastaApagar.id) pastaCriadaNoLote=null;
+          resultados.push('🗑 '+T('Pasta apagada')+': "'+nomePastaApagada+'"');
 
         } else if(a.tipo==='mover_para_pasta'){
           var pastaId2 = a.pasta ? resolverPastaId(ctx, a.pasta, resultados, extra) : null;
@@ -337,7 +365,7 @@
     try{ if(extra && extra.salvarEAgora) extra.salvarEAgora(); }catch(e){}
     try{ if(extra && extra.renderNotas) extra.renderNotas(); }catch(e){}
     try{ if(extra && extra.renderTarefas) extra.renderTarefas(); }catch(e){}
-    try{ resultados.notaId = ultimaNotaId; resultados.listaId = ultimaListaId; }catch(e){}
+    try{ resultados.notaId = notaParaAbrir; resultados.listaId = listaParaAbrir; }catch(e){}
     return resultados;
   }
 

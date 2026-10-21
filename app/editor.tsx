@@ -154,7 +154,7 @@ const TypingDots = ({ cor }: { cor: string }) => {
 export default function EditorScreen() {
     const router = useRouter();
     const params = useLocalSearchParams();
-    const { notas, pastas, salvarNota, salvarLembreteNota, criarPasta, moverNotasParaPasta, alternarFixarNota, excluirNota } = useNotas();
+    const { notas, pastas, salvarNota, salvarLembreteNota, criarPasta, excluirPasta, moverNotasParaPasta, alternarFixarNota, excluirNota } = useNotas();
     // ── TAGS (#palavra no texto) ──
     // Catálogo global de tags (todas as notas) + prefixo digitado antes do
     // cursor (o WebView manda via __tag__). null = sem sugestões abertas.
@@ -778,7 +778,7 @@ export default function EditorScreen() {
         try {
             const deps: DepsAcoes = {
                 notas, pastas, listas, tarefas,
-                salvarNota, criarPasta, moverNotasParaPasta, alternarFixarNota,
+                salvarNota, criarPasta, excluirPasta, moverNotasParaPasta, alternarFixarNota,
                 salvarLembreteNota, excluirNota,
                 salvarLista, moverListasParaPasta, alternarFixarLista, excluirLista,
                 adicionarTarefa, alternarTarefa, excluirTarefa,
