@@ -45,35 +45,6 @@
     });
   }
 
-  /* ---------- atalhos ---------- */
-  document.addEventListener('keydown', function(e){
-    var ctrl = e.ctrlKey || e.metaKey;
-    var k = (e.key || '').toLowerCase();
-    if(ctrl && k === 'k'){
-      e.preventDefault();
-      var b = document.querySelector('#busca');
-      if(b){ b.focus(); if(b.select) b.select(); }
-      return;
-    }
-    if(ctrl && e.key === 'Enter'){
-      var ia = document.querySelector('#iaInput');
-      if(ia && document.activeElement === ia){
-        e.preventDefault();
-        var btn = document.querySelector('#btnIaEnviar');
-        if(btn) btn.click();
-      }
-      return;
-    }
-    if(e.key === 'Escape'){
-      var busca = document.querySelector('#busca');
-      if(busca && document.activeElement === busca){
-        busca.value = '';
-        busca.dispatchEvent(new Event('input', { bubbles:true }));
-        busca.blur();
-      }
-    }
-  });
-
   function iniciar(){
     ligarContadores();
     // Os contadores são recriados pelos renders? Reobserva periodicamente

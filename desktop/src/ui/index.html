@@ -18,11 +18,15 @@
   <div class="shell" id="shell">
     <aside class="sidebar">
       <div class="sidebar-head" style="position:relative">
-        <label class="busca" title="Buscar" style="flex:1">
-          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <label class="busca" id="buscaBox" title="Buscar (Ctrl+F)">
+          <svg class="icon busca-icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
           <input id="busca" placeholder="Buscar…" data-i18n-ph="Buscar…">
+          <button type="button" id="btnLimparBusca" class="busca-limpar" title="Limpar busca" aria-label="Limpar busca">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 6l12 12M18 6L6 18"/></svg>
+          </button>
+          <span class="busca-sep" aria-hidden="true"></span>
           <!-- FILTRO POR TAGS: só o ícone de funil, DENTRO da barra (com badge). -->
-          <button id="btnFiltroTag" title="Filtrar por tag" style="margin-left:auto;flex:none;width:26px;height:26px;border:none;background:transparent;color:var(--tx2);cursor:pointer;display:flex;align-items:center;justify-content:center;border-radius:8px;position:relative;overflow:visible">
+          <button type="button" id="btnFiltroTag" class="busca-filtro" title="Filtrar por tag" aria-label="Filtrar por tag">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" style="flex-shrink:0"><path d="M3 5h18l-7 8v5l-4 2v-7L3 5z"/></svg>
             <span id="badgeFiltroTagPc" style="display:none;position:absolute;top:-4px;right:-4px;min-width:15px;height:15px;border-radius:8px;background:var(--azul);color:#fff;font-size:9.5px;font-weight:900;align-items:center;justify-content:center;padding:0 3px"></span>
           </button>
@@ -91,7 +95,7 @@
         </div>
       </div>
       <div class="grid" id="grid"></div>
-      <div class="hint"><span class="kbd">Ctrl</span> + <span class="kbd">N</span> <span data-i18n="nova nota">nova nota</span> · <span class="kbd">Ctrl</span> + <span class="kbd">F</span> <span data-i18n="buscar">buscar</span> · <span class="kbd">Esc</span> <span data-i18n="fechar editor">fechar editor</span> · <span class="kbd">Ctrl</span> + <span data-i18n="clique para selecionar">clique para selecionar</span></div>
+      <div class="hint" id="hintAtalhos" title="Ver todos os atalhos (Ctrl + /)"><span class="kbd">Ctrl</span> + <span class="kbd">Shift</span> + <span class="kbd">P</span> <span data-i18n="paleta de comandos">paleta de comandos</span> · <span class="kbd">Ctrl</span> + <span class="kbd">/</span> <span data-i18n="todos os atalhos">todos os atalhos</span> · <span class="kbd">Ctrl</span> + <span class="kbd">N</span> <span data-i18n="nova nota">nova nota</span> · <span class="kbd">Esc</span> <span data-i18n="fechar editor">fechar editor</span></div>
     </main>
 
     <!-- Tarefas -->
@@ -354,6 +358,38 @@
     <div class="pin-pad" id="bloqueioPad"></div>
     <!-- textos do bloqueio traduzidos em app.js (I18N.T) -->
     <small style="color:var(--tx2)">PIN definido em Configurações → Segurança · Backspace apaga</small>
+  </div>
+</div>
+
+<!-- PALETA DE COMANDOS (Ctrl+Shift+P) -->
+<div id="paletaOverlay" class="sn-overlay" style="display:none" role="dialog" aria-modal="true" aria-label="Paleta de comandos">
+  <div class="sn-paleta" id="paletaCard">
+    <div class="sn-paleta-topo">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input id="paletaInput" type="text" placeholder="Digite um comando, nota ou pasta…" autocomplete="off" spellcheck="false" aria-label="Buscar comando">
+      <kbd class="sn-esc">Esc</kbd>
+    </div>
+    <div class="sn-paleta-lista" id="paletaLista" role="listbox"></div>
+    <div class="sn-paleta-rodape">
+      <span><kbd>↑</kbd><kbd>↓</kbd> navegar</span>
+      <span><kbd>Enter</kbd> executar</span>
+      <span class="sn-paleta-dica">Atalhos: <kbd>Ctrl</kbd><kbd>/</kbd></span>
+    </div>
+  </div>
+</div>
+
+<!-- ATALHOS DE TECLADO (Ctrl+/) -->
+<div id="atalhosOverlay" class="sn-overlay" style="display:none" role="dialog" aria-modal="true" aria-label="Atalhos de teclado">
+  <div class="sn-atalhos-card">
+    <div class="sn-atalhos-head">
+      <div>
+        <h3>Atalhos de teclado</h3>
+        <p>Tudo ao alcance do teclado. <span class="sn-atalhos-dica">Abra a paleta com <kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>P</kbd></span></p>
+      </div>
+      <button type="button" id="atalhosFechar" class="sn-icone-btn" title="Fechar (Esc)" aria-label="Fechar">×</button>
+    </div>
+    <input id="atalhosBusca" type="text" placeholder="Buscar atalho…" autocomplete="off" spellcheck="false" aria-label="Buscar atalho">
+    <div id="atalhosLista" class="sn-atalhos-lista"></div>
   </div>
 </div>
 

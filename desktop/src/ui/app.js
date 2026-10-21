@@ -278,6 +278,16 @@ if(btnGrid) btnGrid.onclick=function(){ btnGrid.classList.add('ativo'); if(btnLi
 if(btnLista) btnLista.onclick=function(){ btnLista.classList.add('ativo'); if(btnGrid) btnGrid.classList.remove('ativo'); var g=$('#grid'); if(g) g.classList.add('lista'); };
 var busca=$('#busca');
 if(busca) busca.addEventListener('input', function(){ query=busca.value.trim().toLowerCase(); if(view==='tarefas') renderTarefas(); else if(view==='config') renderConfig(); else if(view==='ia'){} else renderNotas(); });
+function atualizarBuscaUI(){ var box=$('#buscaBox'); if(box && busca) box.classList.toggle('tem-texto', !!busca.value); }
+if(busca){ busca.addEventListener('input', atualizarBuscaUI); atualizarBuscaUI(); }
+var btnLimparBusca=$('#btnLimparBusca');
+if(btnLimparBusca) btnLimparBusca.addEventListener('click', function(e){
+  e.preventDefault(); e.stopPropagation();
+  if(!busca) return;
+  busca.value='';
+  busca.dispatchEvent(new Event('input', { bubbles:true }));
+  busca.focus();
+});
 // Handler único com prioridade determinística: bloqueio > pin > app (elimina corrida de listeners)
 document.addEventListener('keydown', function(e){
   // 1) Bloqueio — quando ativo, consome dígitos/Backspace/Enter/Esc e nada mais passa
@@ -1228,6 +1238,309 @@ async function carregar(){
 if(window.snNotas && window.snNotas.bind) window.snNotas.bind(ctx);
 if(window.snTarefas && window.snTarefas.bind) window.snTarefas.bind(ctx);
 if(window.snConfig && window.snConfig.bind) window.snConfig.bind(ctx);
+// ===================== ATALHOS DE TECLADO + PALETA DE COMANDOS =====================
+// Combos novos, sem colisão com os atalhos que o app já tinha
+// (Ctrl+N nova nota, Ctrl+F buscar, Ctrl+S salvar, Esc fechar).
+var ATALHOS = [
+  { grupo:'Geral', itens:[
+    { teclas:['Ctrl','Shift','P'], key:'p', ctrl:1, shift:1, desc:'Paleta de comandos', cmd:'paleta' },
+    { teclas:['Ctrl','/'],         key:'/', ctrl:1,             desc:'Mostrar atalhos', cmd:'ajuda' },
+    { teclas:['F1'],               key:'f1',                   desc:'Mostrar atalhos', cmd:'ajuda' },
+    { teclas:['Ctrl',','],         key:',', ctrl:1,             desc:'Abrir Configurações', cmd:'config' }
+  ]},
+  { grupo:'Criar', itens:[
+    { teclas:['Ctrl','N'],         key:'n', ctrl:1,             desc:'Nova nota', cmd:'nova-nota' },
+    { teclas:['Ctrl','Shift','N'], key:'n', ctrl:1, shift:1,    desc:'Nova pasta', cmd:'nova-pasta' },
+    { teclas:['Ctrl','Shift','L'], key:'l', ctrl:1, shift:1,    desc:'Nova lista', cmd:'nova-lista' },
+    { teclas:['Ctrl','Shift','T'], key:'t', ctrl:1, shift:1,    desc:'Nova tarefa', cmd:'nova-tarefa' }
+  ]},
+  { grupo:'Navegar', itens:[
+    { teclas:['Ctrl','1'], key:'1', ctrl:1, desc:'Todas as notas', cmd:'todas' },
+    { teclas:['Ctrl','2'], key:'2', ctrl:1, desc:'Notas fixadas', cmd:'fixadas' },
+    { teclas:['Ctrl','3'], key:'3', ctrl:1, desc:'Tarefas', cmd:'tarefas' },
+    { teclas:['Ctrl','4'], key:'4', ctrl:1, desc:'Assistente IA', cmd:'ia' },
+    { teclas:['Ctrl','5'], key:'5', ctrl:1, desc:'Configurações', cmd:'config' },
+    { teclas:['Ctrl','B'], key:'b', ctrl:1, desc:'Mostrar/ocultar barra lateral', cmd:'sidebar' }
+  ]},
+  { grupo:'Organização', itens:[
+    { teclas:['Ctrl','Shift','V'], key:'v', ctrl:1, shift:1, desc:'Alternar grade/lista', cmd:'grade-lista' },
+    { teclas:['Ctrl','Shift','D'], key:'d', ctrl:1, shift:1, desc:'Alternar tema claro/escuro', cmd:'tema' }
+  ]},
+  { grupo:'Dados', itens:[
+    { teclas:['Ctrl','S'],         key:'s', ctrl:1,             desc:'Salvar nota aberta', cmd:'salvar' },
+    { teclas:['Ctrl','Shift','S'], key:'s', ctrl:1, shift:1,    desc:'Sincronizar com o Drive', cmd:'sync' },
+    { teclas:['Ctrl','F'],         key:'f', ctrl:1,             desc:'Buscar notas', cmd:'busca' },
+    { teclas:['Esc'],              desc:'Fechar editor, modais e paleta' },
+    { teclas:[],                   desc:'Fechar apenas o editor aberto', cmd:'fechar' },
+    { teclas:[],                   desc:'Bloquear o app agora', cmd:'bloquear' }
+  ]}
+];
+
+function estaDigitando(el){
+  if(!el) return false;
+  var tag=(el.tagName||'').toLowerCase();
+  return tag==='input' || tag==='textarea' || tag==='select' || el.isContentEditable===true;
+}
+var PROIBIDOS_DIGITANDO={ 'nova-nota':1, 'nova-lista':1, 'nova-pasta':1, 'nova-tarefa':1, 'sidebar':1, 'tema':1, 'grade-lista':1, 'fechar':1 };
+
+function irPara(vista){ var el=document.querySelector('.nav-item[data-view="'+vista+'"]'); if(el) el.click(); }
+
+function executarComando(id){
+  switch(id){
+    case 'paleta': abrirPaleta(); break;
+    case 'ajuda': abrirAtalhos(); break;
+    case 'config': irPara('config'); break;
+    case 'todas': irPara('todas'); break;
+    case 'fixadas': irPara('fixadas'); break;
+    case 'tarefas': irPara('tarefas'); break;
+    case 'ia': irPara('ia'); break;
+    case 'nova-nota':
+      irPara('todas');
+      setTimeout(function(){ if(window.snNotas) window.snNotas.nova(ctx); }, 20);
+      break;
+    case 'nova-lista':
+      irPara('todas');
+      setTimeout(function(){ if(window.snNotas) window.snNotas.novaLista(ctx); }, 20);
+      break;
+    case 'nova-pasta': abrirModalNovaPasta(); break;
+    case 'nova-tarefa':
+      irPara('tarefas');
+      setTimeout(function(){ var i=$('#tarefaTitulo'); if(i) i.focus(); }, 60);
+      break;
+    case 'busca': if(busca){ busca.focus(); if(busca.select) busca.select(); } break;
+    case 'salvar':
+      if(window.snNotas){ window.snNotas.salvarConteudo(ctx); toast(T('Salvo')); }
+      break;
+    case 'sync': try{ syncBaixar(); }catch(e){} break;
+    case 'tema':
+      var escuro=!config || config.temaEscuro!==false;
+      salvarConfigPatch({ temaEscuro: !escuro });
+      toast(!escuro ? T('Tema escuro') : T('Tema claro'));
+      if(view==='config') renderConfig();
+      break;
+    case 'grade-lista':
+      var g=$('#grid');
+      var emLista=!!(g && g.classList.contains('lista'));
+      var alvo=emLista ? $('#btnGrid') : $('#btnLista');
+      if(alvo) alvo.click();
+      break;
+    case 'sidebar':
+      var sh=$('#shell');
+      if(sh){
+        sh.classList.toggle('sn-sem-sidebar');
+        var oculta=sh.classList.contains('sn-sem-sidebar');
+        try{ localStorage.setItem('snSidebarOculta', oculta?'1':'0'); }catch(e){}
+      }
+      break;
+    case 'bloquear':
+      if(deveBloquear()) mostrarBloqueio();
+      else toast(T('Defina um PIN em Configurações → Segurança para bloquear'));
+      break;
+    case 'fechar':
+      var ed=$('#editor'); if(ed && ed.style.display!=='none' && window.snNotas){ window.snNotas.salvarEFechar(ctx); }
+      break;
+  }
+}
+
+function combinaAtalho(e, it){
+  if(!it || !it.key) return false;
+  var ctrl=!!(e.ctrlKey||e.metaKey);
+  if(!!it.ctrl!==ctrl) return false;
+  if(!!it.shift!==!!e.shiftKey) return false;
+  if(!!it.alt!==!!e.altKey) return false;
+  return String(e.key||'').toLowerCase()===it.key;
+}
+function acharAtalho(e){
+  for(var g=0; g<ATALHOS.length; g++){
+    var itens=ATALHOS[g].itens;
+    for(var i=0;i<itens.length;i++){ if(itens[i].cmd && combinaAtalho(e, itens[i])) return itens[i]; }
+  }
+  return null;
+}
+function overlayAberto(){
+  var p=$('#paletaOverlay'), a=$('#atalhosOverlay');
+  return !!((p && p.style.display==='flex') || (a && a.style.display==='flex'));
+}
+
+document.addEventListener('keydown', function(e){
+  var p=$('#paletaOverlay'), a=$('#atalhosOverlay');
+  if(p && p.style.display==='flex'){
+    if(e.key==='Escape'){ e.preventDefault(); e.stopPropagation(); fecharPaleta(); return; }
+    // Enquanto a paleta está aberta, combos não vazam para o app.
+    if((e.ctrlKey||e.metaKey) && !/^[cvaxz]$/i.test(e.key||'')) e.stopPropagation();
+    return;
+  }
+  if(a && a.style.display==='flex'){
+    if(e.key==='Escape'){ e.preventDefault(); e.stopPropagation(); fecharAtalhos(); return; }
+    if((e.ctrlKey||e.metaKey) && !/^[cvaxz]$/i.test(e.key||'')) e.stopPropagation();
+    return;
+  }
+  var it=acharAtalho(e);
+  if(!it) return;
+  if(estaDigitando(e.target) && PROIBIDOS_DIGITANDO[it.cmd]){ e.stopPropagation(); return; }
+  e.preventDefault();
+  e.stopPropagation();
+  executarComando(it.cmd);
+}, true);
+
+// ---------- Paleta de comandos ----------
+var paletaTodos=[], paletaItens=[], paletaIdx=0;
+
+function normalizarTexto(s){
+  try{ return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase(); }
+  catch(e){ return String(s||'').toLowerCase(); }
+}
+function iconePaleta(tipo){
+  var d={
+    'Nota':'<rect x="5" y="3" width="14" height="18" rx="2.5"/><path d="M8.5 8h7M8.5 12h7M8.5 16h4"/>',
+    'Lista':'<path d="M4 6.5l1.6 1.6L8.5 5"/><path d="M4 12.5l1.6 1.6L8.5 11"/><path d="M4 18.5l1.6 1.6L8.5 17"/><path d="M12 7h8M12 13h8M12 19h8"/>',
+    'Pasta':'<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/>',
+    'Comando':'<path d="M9 6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3V6z"/>'
+  };
+  return '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+(d[tipo]||d['Comando'])+'</svg>';
+}
+function montarItensPaleta(){
+  var out=[], vistos={};
+  ATALHOS.forEach(function(g){
+    g.itens.forEach(function(it){
+      if(!it.cmd || vistos[it.cmd]) return;
+      vistos[it.cmd]=1;
+      out.push({ tipo:'Comando', titulo:it.desc, teclas:it.teclas, run:function(){ executarComando(it.cmd); } });
+    });
+  });
+  (store.notas||[]).forEach(function(n){
+    out.push({ tipo:'Nota', titulo:n.titulo||T('Sem título'), teclas:[], run:function(){
+      irPara('todas');
+      setTimeout(function(){ if(window.snNotas) window.snNotas.abrir(ctx,'nota',n.id); }, 20);
+    }});
+  });
+  (store.listas||[]).forEach(function(l){
+    out.push({ tipo:'Lista', titulo:l.titulo||T('Lista'), teclas:[], run:function(){
+      irPara('todas');
+      setTimeout(function(){ if(window.snNotas) window.snNotas.abrir(ctx,'lista',l.id); }, 20);
+    }});
+  });
+  (store.pastas||[]).forEach(function(p){
+    out.push({ tipo:'Pasta', titulo:p.nome||T('Pasta'), teclas:[], run:function(){
+      ctx.pastaAtiva=p.id; ctx.view='pasta';
+      document.querySelectorAll('.nav-item').forEach(function(x){ x.classList.remove('ativo'); });
+      var tv=$('#tituloView'); if(tv) tv.textContent=p.nome;
+      ctx.showView('pasta'); renderNotas();
+    }});
+  });
+  return out;
+}
+function renderPaleta(q){
+  var lista=$('#paletaLista'); if(!lista) return;
+  var termos=normalizarTexto(q).split(/\s+/).filter(Boolean);
+  paletaItens=paletaTodos.filter(function(it){
+    if(!termos.length) return true;
+    var alvo=normalizarTexto(it.titulo+' '+it.tipo);
+    return termos.every(function(t){ return alvo.indexOf(t)>=0; });
+  }).slice(0,80);
+  if(paletaIdx>=paletaItens.length) paletaIdx=Math.max(0, paletaItens.length-1);
+  if(!paletaItens.length){
+    lista.innerHTML='<div class="sn-paleta-vazio">Nenhum resultado para “'+esc(q)+'”</div>';
+    return;
+  }
+  lista.innerHTML=paletaItens.map(function(it,i){
+    var teclas=(it.teclas&&it.teclas.length) ? '<span class="sn-paleta-teclas">'+it.teclas.map(function(k){ return '<kbd>'+esc(k)+'</kbd>'; }).join('')+'</span>' : '';
+    return '<div class="sn-paleta-item'+(i===paletaIdx?' sel':'')+'" data-i="'+i+'" role="option">'+
+      '<span class="sn-paleta-ico">'+iconePaleta(it.tipo)+'</span>'+
+      '<span class="sn-paleta-txt"><b>'+esc(it.titulo)+'</b><small>'+it.tipo+'</small></span>'+
+      teclas+
+    '</div>';
+  }).join('');
+}
+function selecionarItemPaleta(novo){
+  if(!paletaItens.length) return;
+  paletaIdx=(novo+paletaItens.length)%paletaItens.length;
+  var lista=$('#paletaLista'); if(!lista) return;
+  var itens=lista.querySelectorAll('.sn-paleta-item');
+  for(var i=0;i<itens.length;i++) itens[i].classList.toggle('sel', i===paletaIdx);
+  var sel=itens[paletaIdx]; if(sel && sel.scrollIntoView) sel.scrollIntoView({ block:'nearest' });
+}
+function executarItemPaleta(i){
+  var it=paletaItens[i];
+  if(!it) return;
+  fecharPaleta();
+  setTimeout(function(){ it.run(); }, 10);
+}
+function abrirPaleta(){
+  var ov=$('#paletaOverlay'); if(!ov) return;
+  paletaTodos=montarItensPaleta();
+  paletaIdx=0;
+  ov.style.display='flex';
+  var inp=$('#paletaInput'); if(inp) inp.value='';
+  renderPaleta('');
+  setTimeout(function(){ var i=$('#paletaInput'); if(i) i.focus(); }, 30);
+}
+function fecharPaleta(){ var ov=$('#paletaOverlay'); if(ov) ov.style.display='none'; }
+
+(function ligarPaleta(){
+  var ov=$('#paletaOverlay'), inp=$('#paletaInput'), lista=$('#paletaLista');
+  if(!ov) return;
+  if(inp){
+    inp.addEventListener('input', function(){ paletaIdx=0; renderPaleta(inp.value); });
+    inp.addEventListener('keydown', function(e){
+      if(e.key==='ArrowDown'){ e.preventDefault(); selecionarItemPaleta(paletaIdx+1); }
+      else if(e.key==='ArrowUp'){ e.preventDefault(); selecionarItemPaleta(paletaIdx-1); }
+      else if(e.key==='Enter'){ e.preventDefault(); executarItemPaleta(paletaIdx); }
+      else if(e.key==='Escape'){ e.preventDefault(); fecharPaleta(); }
+    });
+  }
+  if(lista) lista.addEventListener('click', function(e){
+    var el=e.target.closest ? e.target.closest('.sn-paleta-item') : null;
+    if(!el) return;
+    executarItemPaleta(parseInt(el.getAttribute('data-i'),10)||0);
+  });
+  ov.addEventListener('mousedown', function(e){ if(e.target===ov) fecharPaleta(); });
+})();
+
+// ---------- Tela de atalhos ----------
+function renderAtalhos(q){
+  var lista=$('#atalhosLista'); if(!lista) return;
+  var termos=normalizarTexto(q).split(/\s+/).filter(Boolean);
+  var html='';
+  ATALHOS.forEach(function(g){
+    var itens=g.itens.filter(function(it){
+      if(!termos.length) return true;
+      var alvo=normalizarTexto(it.desc+' '+it.teclas.join(' ')+' '+g.grupo);
+      return termos.every(function(t){ return alvo.indexOf(t)>=0; });
+    });
+    if(!itens.length) return;
+    html+='<div class="sn-atalhos-grupo"><h4>'+esc(g.grupo)+'</h4>';
+    itens.forEach(function(it){
+      var keys=(it.teclas&&it.teclas.length)
+        ? it.teclas.map(function(k){ return '<kbd>'+esc(k)+'</kbd>'; }).join('')
+        : '<span class="sn-sem-atalho">sem atalho</span>';
+      html+='<div class="sn-atalho-linha"><span>'+esc(it.desc)+'</span><span class="sn-atalho-keys">'+keys+'</span></div>';
+    });
+    html+='</div>';
+  });
+  lista.innerHTML=html || '<div class="sn-paleta-vazio">Nenhum atalho encontrado.</div>';
+}
+function abrirAtalhos(){
+  var ov=$('#atalhosOverlay'); if(!ov) return;
+  ov.style.display='flex';
+  var inp=$('#atalhosBusca'); if(inp) inp.value='';
+  renderAtalhos('');
+  setTimeout(function(){ var i=$('#atalhosBusca'); if(i) i.focus(); }, 30);
+}
+function fecharAtalhos(){ var ov=$('#atalhosOverlay'); if(ov) ov.style.display='none'; }
+
+(function ligarAtalhos(){
+  var ov=$('#atalhosOverlay'), inp=$('#atalhosBusca'), btn=$('#atalhosFechar');
+  if(!ov) return;
+  if(inp) inp.addEventListener('input', function(){ renderAtalhos(inp.value); });
+  if(btn) btn.addEventListener('click', fecharAtalhos);
+  ov.addEventListener('mousedown', function(e){ if(e.target===ov) fecharAtalhos(); });
+})();
+
+try{ if(localStorage.getItem('snSidebarOculta')==='1'){ var shellIni=$('#shell'); if(shellIni) shellIni.classList.add('sn-sem-sidebar'); } }catch(e){}
+var hintAtalhos=$('#hintAtalhos');
+if(hintAtalhos){ hintAtalhos.style.cursor='pointer'; hintAtalhos.addEventListener('click', abrirAtalhos); }
+
 var btnCopiar=document.getElementById('btnCopiarRedirect');
 if(btnCopiar) btnCopiar.onclick=function(){ var el=document.getElementById('hintRedirectUri'); var v=el?el.textContent.trim():''; if(!v) return; if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(v).then(function(){ toast(T('URI copiado: ')+v); }).catch(function(){ toast(v); }); else toast(v); };
 

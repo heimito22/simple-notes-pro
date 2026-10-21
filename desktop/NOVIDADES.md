@@ -1,8 +1,8 @@
-**Versão 1.5.19**
+**Versão 1.5.20**
 
-- Visual renovado: fundo com profundidade, barra lateral em vidro, cartões com mais respiro
-- Animações: ripple nos botões, contadores com "pop", transições mais suaves
-- IA no PC ganhou animação de pensamento: órbita pulsante, pontinhos e frases que mudam ("Lendo suas notas…")
-- Chat da IA com bolhas mais bonitas e campo de texto com foco iluminado
-- Atalhos: Ctrl+K busca, Ctrl+Enter envia para a IA, Esc limpa a busca
-- Modo claro também refinado
+- Barra de busca redesenhada: mais limpa, com botão de limpar e filtro de tags integrado
+- Paleta de comandos (Ctrl+Shift+P): busque notas, listas, pastas e ações em um só lugar
+- Tela de atalhos (Ctrl+/ ou F1) com todos os comandos e busca
+- Novos atalhos: nova pasta (Ctrl+Shift+N), nova lista (Ctrl+Shift+L), nova tarefa (Ctrl+Shift+T), navegação (Ctrl+1 a 5), grade/lista (Ctrl+Shift+V), tema (Ctrl+Shift+D), barra lateral (Ctrl+B), sincronizar (Ctrl+Shift+S)
+- Dica de atalhos no rodapé agora abre a lista completa com um clique
+- Atalhos antigos preservados: Ctrl+N, Ctrl+F, Ctrl+S e Esc
