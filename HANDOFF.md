@@ -12,7 +12,7 @@ App de notas com IA agente e sync PC↔celular.
 
 ### Versões
 - Play Store: v1.7.8 (code 33) pronta para subir — token por conta, chave da IA local, edge-to-edge sem APIs descontinuadas, bitmaps reduzidos e R8 full mode. Produção em 1.7.3/28.
-- Desktop: 1.5.22 publicada no GitHub (atalhos editáveis na tela Ctrl+/, Ctrl+W fecha só o editor, Ctrl+Alt+L bloqueia o app, busca redesenhada, paleta Ctrl+Shift+P).
+- Desktop: 1.5.23 publicada no GitHub (chat da IA renderiza negrito/markdown e cores, paleta "A" no editor, cores preservadas na edição da IA; atalhos editáveis em Ctrl+/, Ctrl+W fecha só o editor, Ctrl+Alt+L bloqueia o app).
 - Repo: `origin/main` = último commit do dia (mobile e PC).
 
 ### Idioma (recém-corrigido, não regredir)

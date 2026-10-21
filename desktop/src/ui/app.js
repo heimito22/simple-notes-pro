@@ -876,11 +876,78 @@ document.addEventListener('visibilitychange', function(){
 });
 
 // ---- IA Chat ----
+/** Formata a resposta da IA: negrito/itálico/listas e cores [cor=#RRGGBB]…[/cor]. */
+function iaInline(txt){
+  var s=esc(String(txt||''));
+  s=s.replace(/`([^`]+)`/g,'<code>$1</code>');
+  s=s.replace(/\[cor=(#[0-9a-f]{3}|#[0-9a-f]{6})\]([\s\S]*?)\[\/cor\]/gi, function(m,c,t){
+    return '<span class="ia-cor" style="color:'+c+'">'+t+'</span>';
+  });
+  s=s.replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>');
+  s=s.replace(/(^|[^*])\*([^*\n]+)\*/g,'$1<i>$2</i>');
+  s=s.replace(/~~([^~]+)~~/g,'<s>$1</s>');
+  return s;
+}
+function iaFormatar(texto){
+  var linhas=String(texto||'').replace(/\r/g,'').split('\n');
+  var out=[], lista=null, codigo=null;
+  function fechaLista(){
+    if(!lista) return;
+    out.push('<'+lista.tipo+'>'+lista.itens.map(function(i){ return '<li>'+i+'</li>'; }).join('')+'</'+lista.tipo+'>');
+    lista=null;
+  }
+  function fechaCodigo(){
+    if(codigo===null) return;
+    out.push('<pre class="ia-pre"><code>'+esc(codigo.join('\n'))+'</code></pre>');
+    codigo=null;
+  }
+  for(var i=0;i<linhas.length;i++){
+    var l=linhas[i];
+    if(l.indexOf('```')===0){
+      if(codigo===null){ fechaLista(); codigo=[]; }
+      else fechaCodigo();
+      continue;
+    }
+    if(codigo!==null){ codigo.push(l); continue; }
+    var t=l.trim();
+    if(!t){ fechaLista(); continue; }
+    if(/^([-*_])\1{2,}$/.test(t)){ fechaLista(); out.push('<hr class="ia-hr">'); continue; }
+    var m;
+    if((m=t.match(/^(#{1,4})\s+(.*)$/))){
+      fechaLista();
+      var n=Math.min(m[1].length,3);
+      out.push('<div class="ia-md-h'+n+'">'+iaInline(m[2])+'</div>');
+      continue;
+    }
+    // Linha só com negrito vira um subtítulo (o formato que a IA mais usa).
+    if(/^\*\*[^*]+\*\*$/.test(t)){
+      fechaLista();
+      out.push('<div class="ia-md-h3">'+iaInline(t)+'</div>');
+      continue;
+    }
+    if((m=t.match(/^[-*•]\s+(.*)$/))){
+      if(!lista || lista.tipo!=='ul'){ fechaLista(); lista={tipo:'ul', itens:[]}; }
+      lista.itens.push(iaInline(m[1]));
+      continue;
+    }
+    if((m=t.match(/^\d+[.)]\s+(.*)$/))){
+      if(!lista || lista.tipo!=='ol'){ fechaLista(); lista={tipo:'ol', itens:[]}; }
+      lista.itens.push(iaInline(m[1]));
+      continue;
+    }
+    fechaLista();
+    if((m=t.match(/^>\s*(.*)$/))){ out.push('<blockquote class="ia-quote">'+iaInline(m[1])+'</blockquote>'); continue; }
+    out.push('<div class="ia-p">'+iaInline(t)+'</div>');
+  }
+  fechaLista(); fechaCodigo();
+  return out.join('');
+}
 function iaAppend(papel, texto, isErro){
   var hist=$('#iaHistorico'); if(!hist) return;
   var div=document.createElement('div');
   div.className='ia-msg '+(papel==='usuario'?'user':'ia')+(isErro?' erro':'');
-  div.textContent=texto;
+  if(papel==='usuario' || isErro){ div.textContent=texto; }
+  else { div.innerHTML=iaFormatar(texto); }
   hist.appendChild(div);
   hist.scrollTo({ top: hist.scrollHeight, behavior: 'smooth' });
 }

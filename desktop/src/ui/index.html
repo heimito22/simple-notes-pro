@@ -237,6 +237,20 @@
         <button data-cmd="italic" title="Itálico"><i>I</i></button>
         <button data-cmd="underline" title="Sublinhado"><u>U</u></button>
         <button data-cmd="strikeThrough" title="Tachado"><s>S</s></button>
+        <div class="editor-cor" id="editorCor">
+          <button type="button" id="btnEditorCor" title="Cor do texto" aria-haspopup="true" aria-expanded="false" aria-label="Cor do texto">A<span class="cor-amostra"></span></button>
+          <div class="editor-cor-pop" id="editorCorPop" role="menu" aria-label="Cores do texto">
+            <button type="button" data-cor="#FF453A" style="--cor:#FF453A" title="Vermelho" aria-label="Vermelho"></button>
+            <button type="button" data-cor="#FF9F0A" style="--cor:#FF9F0A" title="Laranja" aria-label="Laranja"></button>
+            <button type="button" data-cor="#FFB300" style="--cor:#FFB300" title="Amarelo" aria-label="Amarelo"></button>
+            <button type="button" data-cor="#30D158" style="--cor:#30D158" title="Verde" aria-label="Verde"></button>
+            <button type="button" data-cor="#64D2FF" style="--cor:#64D2FF" title="Azul-claro" aria-label="Azul-claro"></button>
+            <button type="button" data-cor="#0A84FF" style="--cor:#0A84FF" title="Azul" aria-label="Azul"></button>
+            <button type="button" data-cor="#BF5AF2" style="--cor:#BF5AF2" title="Roxo" aria-label="Roxo"></button>
+            <button type="button" data-cor="#FF375F" style="--cor:#FF375F" title="Rosa" aria-label="Rosa"></button>
+            <button type="button" data-cor="" class="cor-auto" title="Remover cor" aria-label="Remover cor">A</button>
+          </div>
+        </div>
         <span class="sep"></span>
         <button data-cmd="insertUnorderedList" title="Lista com marcadores">•≡</button>
         <button data-cmd="insertOrderedList" title="Lista numerada">1.</button>

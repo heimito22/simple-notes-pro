@@ -83,6 +83,39 @@
     atualizarToolbarEstado();
     if(edit) persistirRichDebounced();
   }
+  function desembrulhar(el){
+    var pai=el.parentNode; if(!pai) return;
+    while(el.firstChild) pai.insertBefore(el.firstChild, el);
+    pai.removeChild(el);
+  }
+  /** Remove só a cor dos trechos selecionados, preservando negrito/listas. */
+  function limparCorSelecao(){
+    var r=richEl(); if(!r) return;
+    var sel=window.getSelection(); if(!sel || !sel.rangeCount) return;
+    var range=sel.getRangeAt(0);
+    var todos=r.querySelectorAll('span[style*="color"], font[color]');
+    var alvos=[];
+    for(var i=0;i<todos.length;i++){
+      try{ if(range.intersectsNode(todos[i])) alvos.push(todos[i]); }catch(e){}
+    }
+    alvos.forEach(desembrulhar);
+  }
+  /** Aplica cor (hex) ou remove a cor da seleção. */
+  function aplicarCor(cor){
+    var r=richEl(); if(!r) return;
+    r.focus();
+    try{
+      if(cor){
+        document.execCommand('styleWithCSS', false, true);
+        document.execCommand('foreColor', false, cor);
+        document.execCommand('styleWithCSS', false, false);
+      } else {
+        limparCorSelecao();
+      }
+    }catch(e){}
+    atualizarToolbarEstado();
+    if(edit) persistirRichDebounced();
+  }
   var richSaveTimer=null;
   function persistirRichDebounced(){
     clearTimeout(richSaveTimer);
@@ -342,6 +375,7 @@
     edit={kind:kind,id:id};
     var shell=ctx.$('#shell'), ed=ctx.$('#editor');
     if(shell) shell.classList.add('editor-aberto'); if(ed) ed.style.display='flex';
+    var pc=document.getElementById('editorCorPop'); if(pc) pc.style.display='none';
     if(window.Movimento) window.Movimento.editorIn('.editor');
     var obj = kind==='nota' ? (ctx.store.notas||[]).find(function(n){return n.id===id;}) : (ctx.store.listas||[]).find(function(l){return l.id===id;});
     if(!obj) return;
@@ -579,6 +613,31 @@
       e.preventDefault();
       exec(btn.getAttribute('data-cmd'));
     });
+    // Cor do texto: paleta com seleção preservada (mousedown não rouba o foco).
+    var btnCor=$('#btnEditorCor'), popCor=$('#editorCorPop');
+    function fecharPopCor(){
+      if(popCor) popCor.style.display='none';
+      if(btnCor) btnCor.setAttribute('aria-expanded','false');
+    }
+    if(btnCor && popCor){
+      btnCor.addEventListener('mousedown', function(e){ e.preventDefault(); });
+      btnCor.addEventListener('click', function(e){
+        e.preventDefault(); e.stopPropagation();
+        var abrir=popCor.style.display!=='grid';
+        popCor.style.display=abrir?'grid':'none';
+        btnCor.setAttribute('aria-expanded', abrir?'true':'false');
+      });
+      popCor.addEventListener('mousedown', function(e){ e.preventDefault(); });
+      popCor.addEventListener('click', function(e){
+        var b=e.target.closest('button[data-cor]'); if(!b) return;
+        e.preventDefault(); e.stopPropagation();
+        aplicarCor(b.getAttribute('data-cor'));
+        fecharPopCor();
+      });
+      document.addEventListener('click', function(e){
+        if(!e.target.closest || !e.target.closest('#editorCor')) fecharPopCor();
+      });
+    }
     var inpImg=$('#inpImagem'), inpAud=$('#inpAudio'), btnImg=$('#btnEditorImagem'), btnAud=$('#btnEditorAudio');
     if(btnImg && inpImg) btnImg.addEventListener('click', function(){ inpImg.click(); });
     if(btnAud && inpAud) btnAud.addEventListener('click', function(){ inpAud.click(); });

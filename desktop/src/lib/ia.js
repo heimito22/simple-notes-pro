@@ -32,7 +32,7 @@
   var MODEL_FALLBACK2='openrouter/auto';
 
   var RECURSOS_DO_APP = [
-    'Notas com editor rico (negrito, itálico, sublinhado, listas, imagem e áudio)',
+    'Notas com editor rico (negrito, cores, itálico, sublinhado, listas, imagem e áudio)',
     'Pastas para organizar notas e listas: selecionar várias, criar/renomear, mover para pasta',
     'Listas (checklists): criar dentro de pastas, marcar/desmarcar, arrastar para reordenar',
     'Lembretes de nota: em data/hora, a cada X dias ou em dias da semana (alarme em tela cheia)',
@@ -133,6 +133,23 @@
       return ENTIDADES[e.toLowerCase()] != null ? ENTIDADES[e.toLowerCase()] : m;
     });
   }
+  /** Normaliza a cor do editor (rgb/hex) para #RRGGBB — a notação que a IA entende. */
+  function corParaHex(c){
+    c=String(c||'').trim();
+    var m=c.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
+    if(m){
+      var h=m[1]; if(h.length===3) h=h.charAt(0)+h.charAt(0)+h.charAt(1)+h.charAt(1)+h.charAt(2)+h.charAt(2);
+      return '#'+h.toUpperCase();
+    }
+    m=c.match(/^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
+    if(m){
+      return '#'+[m[1],m[2],m[3]].map(function(v){
+        var n=Math.max(0,Math.min(255,parseInt(v,10)||0)).toString(16).toUpperCase();
+        return n.length<2 ? '0'+n : n;
+      }).join('');
+    }
+    return '';
+  }
   /** HTML da nota -> notação compacta que a IA consegue manter e estender. */
   function htmlParaMarkdown(html){
     var s=String(html||'').replace(/\r/g,'');
@@ -152,6 +169,13 @@
     s=s.replace(/<(s|strike|del)\b[^>]*>([\s\S]*?)<\/\1>/gi,'~~$2~~');
     s=s.replace(/<code\b[^>]*>([\s\S]*?)<\/code>/gi,'`$1`');
     s=s.replace(/<a\b[^>]*href=["']([^"']*)["'][^>]*>([\s\S]*?)<\/a>/gi,'[$2]($1)');
+    // Cor do texto: vira [cor=#RRGGBB]…[/cor] para a IA preservar e reaproveitar.
+    s=s.replace(/<span\b[^>]*style=["'][^"']*color\s*:\s*([^;"']+)[^"']*["'][^>]*>([\s\S]*?)<\/span>/gi, function(m,c,t){
+      var hex=corParaHex(c); return hex ? '[cor='+hex+']'+t+'[/cor]' : t;
+    });
+    s=s.replace(/<font\b[^>]*color=["']([^"']+)["'][^>]*>([\s\S]*?)<\/font>/gi, function(m,c,t){
+      var hex=corParaHex(c); return hex ? '[cor='+hex+']'+t+'[/cor]' : t;
+    });
     // <u> é mantido: a notação não tem sublinhado
     s=s.replace(/<(?!\/?u>)[^>]+>/g,'');
     s=decodificaEntidades(s);
@@ -161,11 +185,14 @@
   function pareceMarkdown(s){
     var t=String(s||'');
     if(/<\s*(p|div|h[1-6]|ul|ol|li|br|blockquote)\b/i.test(t)) return false;
-    return /\*\*[^*\n]+\*\*|^\s*[-*•]\s+\S|^\s*\d+[.)]\s+\S|^#{1,6}\s|~~[^~\n]+~~|^\s*>\s/m.test(t);
+    return /\*\*[^*\n]+\*\*|^\s*[-*•]\s+\S|^\s*\d+[.)]\s+\S|^#{1,6}\s|~~[^~\n]+~~|^\s*>\s|\[cor=#[0-9a-f]{3,6}\]/im.test(t);
   }
   function linhaInlineHtml(txt){
     var s=String(txt||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     s=s.replace(/&lt;u&gt;/g,'<u>').replace(/&lt;\/u&gt;/g,'</u>');
+    s=s.replace(/\[cor=(#[0-9a-f]{3}|#[0-9a-f]{6})\]([\s\S]*?)\[\/cor\]/gi, function(m,c,t){
+      return '<span style="color:'+c+'">'+t+'</span>';
+    });
     s=s.replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>');
     s=s.replace(/(^|[^*])\*([^*\n]+)\*/g,'$1<i>$2</i>');
     s=s.replace(/~~([^~]+)~~/g,'<s>$1</s>');
@@ -280,7 +307,7 @@
   /** Instrução de edição: a IA propõe, nunca aplica. Só é anexada quando o
    *  usuário ORDENA uma mudança — conversa normal nunca gera bloco JSON. */
   function instrucaoEdicao(){
-    return 'O USUÁRIO ORDENOU UMA EDIÇÃO. Faça agora: PRIMEIRO uma linha curta de texto explicando exatamente o que muda, DEPOIS — isto é obrigatório, não opcional — acrescente um bloco cercado ```json {"edicao":{"alvo":"<id da nota>","explicacao":"<resumo da mudança>","titulo":"<título novo, ou o mesmo se não mudar>","conteudo":"<nota final COMPLETA na notação de formatação>","itens":[{"texto":"<item>","concluido":false}]}} ```. NOTAÇÃO DO CONTEÚDO (use a MESMA que você recebeu, nunca HTML): **negrito**, *itálico*, <u>sublinhado</u>, ~~riscado~~, `código`, - item de lista, 1. item numerado, # título, ## subtítulo, > citação e [texto](url) para links. Uma linha por parágrafo (linha vazia separa parágrafos). REGRAS: (1) CONSERVE a formatação que a nota já tem — se um trecho estava em negrito, ele continua em negrito; altere apenas o que o usuário pediu; (2) acrescente o conteúdo novo JÁ FORMATADO (se pedirem tópicos, use - ; se pedirem destaque, use ** ); (3) preserve TODAS as marcas [[midia1]], [[midia2]]... exatamente no lugar onde aparecem: elas são imagens/áudios do usuário e NUNCA podem ser removidas nem renomeadas; (4) o campo conteudo contém SOMENTE a nota — nada de frases suas como "Pronto", "A nota foi alterada" ou o título; (5) o título vai SÓ no campo titulo, nunca repetido no começo do conteúdo. Para LISTAS use "itens" (não "conteudo"). "alvo" deve ser o id exato de uma das notas fornecidas. O bloco JSON está ISENTO do limite de 180 palavras. Nunca aplique a mudança em silencio — o app pergunta ao usuário antes.';
+    return 'O USUÁRIO ORDENOU UMA EDIÇÃO. Faça agora: PRIMEIRO uma linha curta de texto explicando exatamente o que muda, DEPOIS — isto é obrigatório, não opcional — acrescente um bloco cercado ```json {"edicao":{"alvo":"<id da nota>","explicacao":"<resumo da mudança>","titulo":"<título novo, ou o mesmo se não mudar>","conteudo":"<nota final COMPLETA na notação de formatação>","itens":[{"texto":"<item>","concluido":false}]}} ```. NOTAÇÃO DO CONTEÚDO (use a MESMA que você recebeu, nunca HTML): **negrito**, *itálico*, <u>sublinhado</u>, ~~riscado~~, [cor=#RRGGBB]texto colorido[/cor], `código`, - item de lista, 1. item numerado, # título, ## subtítulo, > citação e [texto](url) para links. Uma linha por parágrafo (linha vazia separa parágrafos). REGRAS: (1) CONSERVE a formatação que a nota já tem — se um trecho estava em negrito, ele continua em negrito; altere apenas o que o usuário pediu; (2) acrescente o conteúdo novo JÁ FORMATADO (se pedirem tópicos, use - ; se pedirem destaque, use ** ); (3) preserve TODAS as marcas [[midia1]], [[midia2]]... exatamente no lugar onde aparecem: elas são imagens/áudios do usuário e NUNCA podem ser removidas nem renomeadas; (4) o campo conteudo contém SOMENTE a nota — nada de frases suas como "Pronto", "A nota foi alterada" ou o título; (5) o título vai SÓ no campo titulo, nunca repetido no começo do conteúdo. Para LISTAS use "itens" (não "conteudo"). "alvo" deve ser o id exato de uma das notas fornecidas. O bloco JSON está ISENTO do limite de 180 palavras. Nunca aplique a mudança em silencio — o app pergunta ao usuário antes.';
   }
 
   /**
@@ -321,7 +348,7 @@
    * mostra o cartão e só executa após confirmação (nunca sozinho).
    */
   function instrucaoAcoes(){
-    return 'AÇÕES DE AGENTE: você pode EXECUTAR operações do app — o usuário sempre confirma antes de qualquer aplicação. Sempre que o usuário pedir para CRIAR, ORGANIZAR, AGENDAR, APAGAR ou ALTERAR algo (nota, lista de verificação, tarefa, pasta, lembrete, fixar), responda com 1-2 frases curtas dizendo o que fará e EM SEGUIDA — obrigatório — um bloco cercado: ```json {"acoes":[ ...uma ou mais ações... ]} ```. Tipos de ação (use EXATAMENTE estes "tipo"): {"tipo":"criar_nota","titulo":"...","conteudo":"...","pasta":"Nome da pasta (opcional)","fixar":true,"lembrete":{"tipo":"data","data":"yyyy-mm-dd","horario":"HH:MM"}} · {"tipo":"editar_nota","alvo":"<id da nota>","titulo":"...","conteudo":"<conteúdo final COMPLETO na notação>"} · {"tipo":"criar_lista","titulo":"...","itens":[{"texto":"...","concluido":false}],"pasta":"..."} · {"tipo":"editar_lista","alvo":"<id>","titulo":"...","itens":[...]} · {"tipo":"criar_tarefa","titulo":"...","recorrencia":"Uma vez"|"Diária"|"Segunda"|"Terça"|"Quarta"|"Quinta"|"Sexta"|"Sábado"|"Domingo","horario":"HH:MM"} · {"tipo":"concluir_tarefa","alvo":"<id>","valor":true} · {"tipo":"apagar_tarefa","alvo":"<id>"} · {"tipo":"apagar_nota","alvo":"<id de nota OU lista>"} · {"tipo":"fixar_nota","alvo":"<id>","valor":true} · {"tipo":"criar_pasta","nome":"..."} · {"tipo":"mover_para_pasta","alvos":["<id>"],"pasta":"Nome"} · {"tipo":"lembrete_nota","alvo":"<id>","lembrete":{"tipo":"data"|"dias"|"semana","data":"yyyy-mm-dd"|"intervaloDias":7|"diasSemana":["Segunda"],"horario":"HH:MM"}} (lembrete null remove). REGRAS: (1) "conteudo" usa a MESMA notação de formatação das notas (**negrito**, *itálico*, <u>sublinhado</u>, ~~riscado~~, - item, 1. numerado, # título, > citação); (2) tags de organização são #hashtags escritas DENTRO do conteúdo; (3) "alvo"/"alvos" DEVEM ser ids do INVENTÁRIO fornecido — nunca invente ids; (4) para EDITAR, o campo conteudo traz a nota INTEIRA final (as regras do protocolo de edição valem aqui); (5) lembrete exige horário; para "amanhã" use {"tipo":"dias","intervaloDias":1}; (6) NÃO proponha ações em perguntas de conversa — apenas em pedidos operativos; (7) pode combinar várias ações numa resposta só (ex.: nota + tarefa + lembrete do mesmo tema). O bloco JSON está ISENTO do limite de 180 palavras.';
+    return 'AÇÕES DE AGENTE: você pode EXECUTAR operações do app — o usuário sempre confirma antes de qualquer aplicação. Sempre que o usuário pedir para CRIAR, ORGANIZAR, AGENDAR, APAGAR ou ALTERAR algo (nota, lista de verificação, tarefa, pasta, lembrete, fixar), responda com 1-2 frases curtas dizendo o que fará e EM SEGUIDA — obrigatório — um bloco cercado: ```json {"acoes":[ ...uma ou mais ações... ]} ```. Tipos de ação (use EXATAMENTE estes "tipo"): {"tipo":"criar_nota","titulo":"...","conteudo":"...","pasta":"Nome da pasta (opcional)","fixar":true,"lembrete":{"tipo":"data","data":"yyyy-mm-dd","horario":"HH:MM"}} · {"tipo":"editar_nota","alvo":"<id da nota>","titulo":"...","conteudo":"<conteúdo final COMPLETO na notação>"} · {"tipo":"criar_lista","titulo":"...","itens":[{"texto":"...","concluido":false}],"pasta":"..."} · {"tipo":"editar_lista","alvo":"<id>","titulo":"...","itens":[...]} · {"tipo":"criar_tarefa","titulo":"...","recorrencia":"Uma vez"|"Diária"|"Segunda"|"Terça"|"Quarta"|"Quinta"|"Sexta"|"Sábado"|"Domingo","horario":"HH:MM"} · {"tipo":"concluir_tarefa","alvo":"<id>","valor":true} · {"tipo":"apagar_tarefa","alvo":"<id>"} · {"tipo":"apagar_nota","alvo":"<id de nota OU lista>"} · {"tipo":"fixar_nota","alvo":"<id>","valor":true} · {"tipo":"criar_pasta","nome":"..."} · {"tipo":"mover_para_pasta","alvos":["<id>"],"pasta":"Nome"} · {"tipo":"lembrete_nota","alvo":"<id>","lembrete":{"tipo":"data"|"dias"|"semana","data":"yyyy-mm-dd"|"intervaloDias":7|"diasSemana":["Segunda"],"horario":"HH:MM"}} (lembrete null remove). REGRAS: (1) "conteudo" usa a MESMA notação de formatação das notas (**negrito**, *itálico*, <u>sublinhado</u>, ~~riscado~~, [cor=#RRGGBB]texto colorido[/cor], - item, 1. numerado, # título, > citação); (2) tags de organização são #hashtags escritas DENTRO do conteúdo; (3) "alvo"/"alvos" DEVEM ser ids do INVENTÁRIO fornecido — nunca invente ids; (4) para EDITAR, o campo conteudo traz a nota INTEIRA final (as regras do protocolo de edição valem aqui); (5) lembrete exige horário; para "amanhã" use {"tipo":"dias","intervaloDias":1}; (6) NÃO proponha ações em perguntas de conversa — apenas em pedidos operativos; (7) pode combinar várias ações numa resposta só (ex.: nota + tarefa + lembrete do mesmo tema). O bloco JSON está ISENTO do limite de 180 palavras.';
   }
 
   /** Detecta pedido OPERACIONAL (criar/agendar/organizar/apagar/mover/fixar). */
@@ -413,7 +440,7 @@
     var ordemAcao=ehOrdemAcao(perguntaLimpa);
     // Notas/listas com ids: a IA precisa dos ids para propor edição ("alvo").
     var ctxComIds=montarContextoComIds((storeNotas||[]), perguntaLimpa, ordemEdicao);
-    var system='Você é o NotaIA, assistente do app Simple Notes. '+instrucaoIdioma()+' Use as notas fornecidas como contexto quando fizer sentido. Se a pergunta for saudação, responda de forma simpática e curta. Se perguntarem quem é você, diga que é o NotaIA do Simple Notes. Recursos reais do app: '+RECURSOS_DO_APP+'. Nunca invente recursos. Se a pergunta realmente não tiver relação com as notas, diga gentilmente que só pode ajudar com as notas. Se for sobre um recurso do app, responda exatamente com o que está na lista. '+(ordemEdicao?instrucaoEdicao():'')+' '+instrucaoAcoes();
+    var system='Você é o NotaIA, assistente do app Simple Notes. '+instrucaoIdioma()+' Use as notas fornecidas como contexto quando fizer sentido. Se a pergunta for saudação, responda de forma simpática e curta. Se perguntarem quem é você, diga que é o NotaIA do Simple Notes. Recursos reais do app: '+RECURSOS_DO_APP+'. Nunca invente recursos. FORMATAÇÃO DA CONVERSA: use **negrito**, *itálico*, listas com "- ", títulos com "## " e cores no formato [cor=#RRGGBB]texto[/cor] (ex.: [cor=#FF9F0A]Atenção[/cor]), preferindo a paleta #FF453A, #FF9F0A, #FFB300, #30D158, #64D2FF, #0A84FF, #BF5AF2 e #FF375F. Cores são um recurso real do editor; use com moderação, só para destacar o que importa. Se a pergunta realmente não tiver relação com as notas, diga gentilmente que só pode ajudar com as notas. Se for sobre um recurso do app, responda exatamente com o que está na lista. '+(ordemEdicao?instrucaoEdicao():'')+' '+instrucaoAcoes();
     var msgs=[{role:'system', content: system}];
     historico.slice(-6).forEach(function(m){ msgs.push({role: m.papel==='usuario'?'user':'assistant', content: m.texto}); });
     msgs.push({role:'user', content:'Notas do usuário:\n'+ctxTexto+'\n\nTodas as notas e listas (com ids, para possíveis edições):\n'+(ctxComIds||'(vazio)')+ (tarefasTxt?('\n'+tarefasTxt):'') +'\n\nINVENTÁRIO COM IDs (use estes ids para preencher alvo/alvos das ações — também inclui pastas e tarefas):\n'+(montarInventario(pastasInventario, tarefasInventario)||'(vazio)') +'\n\nPergunta: '+perguntaLimpa});

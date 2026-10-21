@@ -602,6 +602,75 @@ button.sn-atalho-keys.capturando{
 .sn-texto-btn:hover{ background:rgba(255,255,255,.09); color:var(--tx); border-color:rgba(255,255,255,.2) }
 html[data-tema="light"] .sn-texto-btn{ background:#fff; border-color:#E1E1E8; color:#585863 }
 html[data-tema="light"] .sn-texto-btn:hover{ background:#F5F5FA; color:#0F0F14 }
+
+/* ---- IA: markdown seguro + cores no chat ---- */
+.ia-msg.ia{ white-space:normal }
+.ia-msg .ia-p{ margin:0 0 7px }
+.ia-msg .ia-p:last-child{ margin-bottom:0 }
+.ia-msg .ia-md-h1,
+.ia-msg .ia-md-h2,
+.ia-msg .ia-md-h3{ font-weight:750; color:var(--tx); margin:10px 0 5px; line-height:1.3 }
+.ia-msg .ia-md-h1{ font-size:1.06rem }
+.ia-msg .ia-md-h2{ font-size:1rem }
+.ia-msg .ia-md-h3{ font-size:.94rem }
+.ia-msg .ia-md-h1:first-child,
+.ia-msg .ia-md-h2:first-child,
+.ia-msg .ia-md-h3:first-child{ margin-top:0 }
+.ia-msg ul,
+.ia-msg ol{ margin:5px 0 8px; padding-left:20px }
+.ia-msg li{ margin:2px 0 }
+.ia-msg li::marker{ color:var(--azul2) }
+.ia-msg blockquote.ia-quote{
+  margin:7px 0; padding:3px 0 3px 10px;
+  border-left:3px solid var(--azul);
+  color:var(--tx2);
+}
+.ia-msg code{
+  background:rgba(255,255,255,.09);
+  border:1px solid rgba(255,255,255,.07);
+  border-radius:5px; padding:1px 5px;
+  font-family:ui-monospace,SFMono-Regular,Consolas,monospace;
+  font-size:.9em;
+}
+html[data-tema="light"] .ia-msg code{ background:#F1F1F6; border-color:#E6E6EC }
+.ia-msg .ia-pre{
+  margin:7px 0; padding:9px 11px; overflow:auto;
+  background:rgba(0,0,0,.32); border:1px solid rgba(255,255,255,.09);
+  border-radius:9px; white-space:pre;
+}
+html[data-tema="light"] .ia-msg .ia-pre{ background:#F6F6FA; border-color:#E6E6EC }
+.ia-msg .ia-pre code{ background:transparent; border:0; padding:0 }
+.ia-msg .ia-hr{ border:0; border-top:1px solid var(--bd); margin:9px 0 }
+.ia-msg .ia-cor{ font-weight:600 }
+
+/* ---- Editor: cor do texto ---- */
+.editor-cor{ position:relative; display:flex; align-items:center }
+.editor-cor > button{ position:relative }
+.editor-cor .cor-amostra{
+  position:absolute; left:7px; right:7px; bottom:4px; height:3px; border-radius:2px;
+  background:linear-gradient(90deg,#FF453A,#FFB300,#30D158,#0A84FF,#BF5AF2);
+  pointer-events:none;
+}
+.editor-cor-pop{
+  position:absolute; top:38px; left:0; z-index:30;
+  display:none; grid-template-columns:repeat(5,24px); gap:6px;
+  padding:9px; border-radius:11px;
+  background:var(--bg3); border:1px solid var(--bd);
+  box-shadow:0 12px 32px rgba(0,0,0,.4);
+}
+.editor-cor-pop button{
+  width:24px; height:24px; border-radius:7px; padding:0;
+  border:1px solid rgba(255,255,255,.16);
+  background:var(--cor,transparent);
+  transition:transform .12s ease, box-shadow .12s ease;
+}
+.editor-cor-pop button:hover{ transform:scale(1.12); box-shadow:0 0 0 2px rgba(255,255,255,.25) }
+.editor-cor-pop button.cor-auto{
+  background:transparent; color:var(--tx); font-size:.78rem; font-weight:700;
+  border-color:var(--bd);
+}
+html[data-tema="light"] .editor-cor-pop{ background:#fff; border-color:#E4E4EA; box-shadow:0 12px 32px rgba(16,24,40,.16) }
+html[data-tema="light"] .editor-cor-pop button{ border-color:rgba(0,0,0,.12) }
 .sn-sem-atalho{ font-size:.70rem; color:var(--tx3) }
 @media (max-width:640px){
   .sn-atalhos-lista{ grid-template-columns:1fr }
