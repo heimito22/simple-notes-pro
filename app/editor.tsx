@@ -30,6 +30,7 @@ import { useMonetizacao } from '../context/monetizacao';
 import { appColors } from '../constants/theme';
 import { PROXY_IA_ATIVO } from '../constants/ia-proxy';
 import RichTextEditor, { FormatoAtivo, RichTextEditorHandle } from '../components/rich-text-editor';
+import TextoRico from '../components/ia-texto-rico';
 import { PALETA_TAGS, corDaTag, tagsDeItens } from '../context/tags';
 import { imeHeightAtual, observarIme } from '../modules/minhasnotas-ime';
 import { excluirArquivoAudio, extrairAudios, removerAudioDoHtml, type AudioAttachment } from '../components/audio-chip';
@@ -93,14 +94,23 @@ const BolhaChatAnimada = ({ m, isUsuario, tema }: any) => {
                 estiloEntrada,
             ]}
         >
-            <Text
-                style={[
-                    styles.bolhaChatTexto,
-                    isUsuario ? { color: tema.onPrimary } : { color: m.erro ? tema.danger : tema.sheetTitulo },
-                ]}
-            >
-                {m.texto}
-            </Text>
+            {isUsuario || m.erro ? (
+                <Text
+                    style={[
+                        styles.bolhaChatTexto,
+                        isUsuario ? { color: tema.onPrimary } : { color: tema.danger },
+                    ]}
+                >
+                    {m.texto}
+                </Text>
+            ) : (
+                <TextoRico
+                    texto={m.texto}
+                    cor={tema.sheetTitulo}
+                    estilo={styles.bolhaChatTexto}
+                    corDestaque={tema.accent}
+                />
+            )}
         </Animated.View>
     );
 };

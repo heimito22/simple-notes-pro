@@ -24,6 +24,7 @@ import { useListas } from '../context/ListaContext';
 import { useTheme } from '../context/ThemeContext';
 import { responderPergunta, type MensagemChat } from '../context/ia-service';
 import { extrairAcoes, resumoAcao, executarAcoes, type AcaoIA, type DepsAcoes } from '../context/ia-acoes';
+import TextoRico from '../components/ia-texto-rico';
 import { appColors } from '../constants/theme';
 import { PROXY_IA_ATIVO } from '../constants/ia-proxy';
 import { imeHeightAtual, observarIme } from '../modules/minhasnotas-ime';
@@ -47,9 +48,13 @@ const BolhaChat = ({ m, isUsuario, tema }: any) => {
                 ] },
             ]}
         >
-            <Text style={[styles.bolhaTexto, isUsuario ? { color: tema.onPrimary } : { color: m.erro ? tema.danger : tema.sheetTitulo }]}>
-                {m.texto}
-            </Text>
+            {isUsuario || m.erro ? (
+                <Text style={[styles.bolhaTexto, isUsuario ? { color: tema.onPrimary } : { color: tema.danger }]}>
+                    {m.texto}
+                </Text>
+            ) : (
+                <TextoRico texto={m.texto} cor={tema.sheetTitulo} estilo={styles.bolhaTexto} corDestaque={tema.accent} />
+            )}
         </Animated.View>
     );
 };
