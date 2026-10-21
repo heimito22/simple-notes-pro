@@ -1263,6 +1263,7 @@ var ATALHOS = [
     { teclas:['Ctrl','B'], key:'b', ctrl:1, desc:'Mostrar/ocultar barra lateral', cmd:'sidebar' }
   ]},
   { grupo:'Organização', itens:[
+    { teclas:['F2'],              key:'f2',                    desc:'Renomear nota aberta', cmd:'renomear' },
     { teclas:['Ctrl','Shift','V'], key:'v', ctrl:1, shift:1, desc:'Alternar grade/lista', cmd:'grade-lista' },
     { teclas:['Ctrl','Shift','D'], key:'d', ctrl:1, shift:1, desc:'Alternar tema claro/escuro', cmd:'tema' }
   ]},
@@ -1324,6 +1325,11 @@ function executarComando(id){
       var alvo=emLista ? $('#btnGrid') : $('#btnLista');
       if(alvo) alvo.click();
       break;
+    case 'renomear':
+      var edv=$('#editor'), edt=$('#edTitulo');
+      if(edv && edv.style.display!=='none' && edt){ edt.focus(); if(edt.select) edt.select(); }
+      else toast(T('Abra uma nota para renomear'));
+      break;
     case 'sidebar':
       var sh=$('#shell');
       if(sh){
@@ -1363,6 +1369,9 @@ function overlayAberto(){
 }
 
 document.addEventListener('keydown', function(e){
+  if(bloqueioAtivo) return;
+  var pinOv=$('#pinOverlay');
+  if(pinOv && pinOv.style.display==='flex') return;
   var p=$('#paletaOverlay'), a=$('#atalhosOverlay');
   if(p && p.style.display==='flex'){
     if(e.key==='Escape'){ e.preventDefault(); e.stopPropagation(); fecharPaleta(); return; }
@@ -1403,7 +1412,7 @@ function montarItensPaleta(){
   var out=[], vistos={};
   ATALHOS.forEach(function(g){
     g.itens.forEach(function(it){
-      if(!it.cmd || vistos[it.cmd]) return;
+      if(!it.cmd || it.cmd==='paleta' || vistos[it.cmd]) return;
       vistos[it.cmd]=1;
       out.push({ tipo:'Comando', titulo:it.desc, teclas:it.teclas, run:function(){ executarComando(it.cmd); } });
     });

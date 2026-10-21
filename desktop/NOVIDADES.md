@@ -1,8 +1,8 @@
-**Versão 1.5.20**
+**Versão 1.5.21**
 
-- Barra de busca redesenhada: mais limpa, com botão de limpar e filtro de tags integrado
-- Paleta de comandos (Ctrl+Shift+P): busque notas, listas, pastas e ações em um só lugar
-- Tela de atalhos (Ctrl+/ ou F1) com todos os comandos e busca
-- Novos atalhos: nova pasta (Ctrl+Shift+N), nova lista (Ctrl+Shift+L), nova tarefa (Ctrl+Shift+T), navegação (Ctrl+1 a 5), grade/lista (Ctrl+Shift+V), tema (Ctrl+Shift+D), barra lateral (Ctrl+B), sincronizar (Ctrl+Shift+S)
-- Dica de atalhos no rodapé agora abre a lista completa com um clique
-- Atalhos antigos preservados: Ctrl+N, Ctrl+F, Ctrl+S e Esc
+- Barra de busca redesenhada: mais limpa e com botão de limpar
+- Paleta de comandos (Ctrl+Shift+P): busque notas, listas, pastas e ações
+- Tela de atalhos (Ctrl+/ ou F1) com busca
+- Novos atalhos: F2 renomear nota, Ctrl+Shift+N pasta, Ctrl+Shift+L lista, Ctrl+Shift+T tarefa, Ctrl+1 a 5 navegação, Ctrl+Shift+V grade/lista, Ctrl+Shift+D tema, Ctrl+B barra lateral, Ctrl+Shift+S sincronizar
+- Atalhos desativados enquanto o app está bloqueado (segurança)
+- Ctrl+N, Ctrl+F, Ctrl+S e Esc continuam iguais
