@@ -8,7 +8,7 @@ import { Platform, StyleProp, StyleSheet, Text, TextStyle, View } from 'react-na
 
 function inlineRico(texto: string, chave: string): React.ReactNode[] {
     const nos: React.ReactNode[] = [];
-    const re = /(\*\*[^*\n]+\*\*|\*[^*\n]+\*|`[^`\n]+`|~~[^~\n]+~~|\[(?:cor|color)=(#[0-9a-fA-F]{3}|#[0-9a-fA-F]{6})\][\s\S]*?\[\/(?:cor|color)\])/g;
+    const re = /(\*\*[^*\n]+\*\*|\*[^*\n]+\*|`[^`\n]+`|~~[^~\n]+~~|\[(?:cor|color|c)=(#[0-9a-fA-F]{3}|#[0-9a-fA-F]{6})\][\s\S]*?\[\/(?:cor|color|c)\])/g;
     let ultimo = 0;
     let m: RegExpExecArray | null;
     let i = 0;
@@ -16,7 +16,7 @@ function inlineRico(texto: string, chave: string): React.ReactNode[] {
         if (m.index > ultimo) nos.push(texto.slice(ultimo, m.index));
         const tok = m[0];
         const k = `${chave}-${i++}`;
-        const cor = tok.match(/^\[(?:cor|color)=(#[0-9a-fA-F]{3}|#[0-9a-fA-F]{6})\]([\s\S]*)\[\/(?:cor|color)\]$/);
+        const cor = tok.match(/^\[(?:cor|color|c)=(#[0-9a-fA-F]{3}|#[0-9a-fA-F]{6})\]([\s\S]*)\[\/(?:cor|color|c)\]$/);
         if (cor) {
             nos.push(<Text key={k} style={{ color: cor[1], fontWeight: '600' }}>{inlineRico(cor[2], k)}</Text>);
         } else if (tok.startsWith('**')) {

@@ -880,7 +880,7 @@ document.addEventListener('visibilitychange', function(){
 function iaInline(txt){
   var s=esc(String(txt||''));
   s=s.replace(/`([^`]+)`/g,'<code>$1</code>');
-  s=s.replace(/\[(?:cor|color)=(#[0-9a-f]{3}|#[0-9a-f]{6})\]([\s\S]*?)\[\/(?:cor|color)\]/gi, function(m,c,t){
+  s=s.replace(/\[(?:cor|color|c)=(#[0-9a-f]{3}|#[0-9a-f]{6})\]([\s\S]*?)\[\/(?:cor|color|c)\]/gi, function(m,c,t){
     return '<span class="ia-cor" style="color:'+c+'">'+t+'</span>';
   });
   s=s.replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>');
@@ -957,6 +957,9 @@ function iaAppend(papel, texto, isErro){
  * trabalha (percepção de progresso; some sozinha ao chegar a resposta).
  */
 var _iaPensandoTimer=null;
+// Trava de envio: sem isto, duas perguntas disparavam juntas e as respostas
+// chegavam fora de ordem (uma delas aparecia como JSON cru no chat).
+var _iaEnviando=false;
 function iaPensando(){
   var hist=$('#iaHistorico'); if(!hist) return null;
   var antigo=document.getElementById('iaLoading'); if(antigo) antigo.remove();
@@ -984,8 +987,11 @@ function iaPensando(){
   };
 }
 async function iaEnviar(){
+  if(_iaEnviando){ toast(T('Aguarde a resposta da IA terminar')); return; }
   var inp=$('#iaInput'); if(!inp) return;
   var pergunta=inp.value.trim(); if(!pergunta) return;
+  _iaEnviando=true;
+  var btnEnviar=$('#btnIaEnviar'); if(btnEnviar) btnEnviar.disabled=true;
   inp.value='';
   iaAppend('usuario', pergunta);
   iaHistorico.push({papel:'usuario', texto: pergunta});
@@ -1026,6 +1032,9 @@ async function iaEnviar(){
   }catch(e){
     if(pensando) pensando.parar();
     iaAppend('ia', T('Erro: ')+String(e.message||e).slice(0,200), true);
+  }finally{
+    _iaEnviando=false;
+    if(btnEnviar) btnEnviar.disabled=false;
   }
 }
 

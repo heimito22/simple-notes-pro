@@ -217,6 +217,37 @@ function blocosJson(texto: string): string[] {
   return out;
 }
 
+/** Conserta JSON de modelo free: newline/tab crus dentro de string e vírgula sobrando. */
+function repararJson(s: string): string {
+  let out = '', emString = false, escape = false;
+  for (let i = 0; i < s.length; i++) {
+    const ch = s.charAt(i);
+    if (emString) {
+      if (escape) {
+        if (ch === '\n' || ch === '\r') out += 'n';
+        else out += ch;
+        escape = false;
+        continue;
+      }
+      if (ch === '\\') { out += ch; escape = true; continue; }
+      if (ch === '"') { out += ch; emString = false; continue; }
+      if (ch === '\n') { out += '\\n'; continue; }
+      if (ch === '\r') continue;
+      if (ch === '\t') { out += '\\t'; continue; }
+      if (ch.charCodeAt(0) < 0x20) { out += '\\u' + ('000' + ch.charCodeAt(0).toString(16)).slice(-4); continue; }
+      out += ch;
+    } else {
+      if (ch === '"') emString = true;
+      out += ch;
+    }
+  }
+  return out.replace(/,\s*([}\]])/g, '$1');
+}
+
+function parseJsonTolerante(s: string): any {
+  try { return JSON.parse(s); } catch { return JSON.parse(repararJson(s)); }
+}
+
 /** Aceita {"acoes":[...]}, {"tipo":...}, {"acao":{...}} ou um array solto. */
 function listaDeAcoes(obj: any): any[] | null {
   if (Array.isArray(obj)) return obj;
@@ -250,7 +281,7 @@ export function extrairAcoes(texto: string): { acoes: AcaoIA[] | null; textoLimp
 
   for (const cand of blocos) {
     try {
-      const obj = JSON.parse(cand);
+      const obj = parseJsonTolerante(cand);
       const lista = listaDeAcoes(obj);
       if (!lista || !lista.length) continue;
       let achou = false;
@@ -293,10 +324,13 @@ export function extrairAcoes(texto: string): { acoes: AcaoIA[] | null; textoLimp
   let limpoFalha = bruto;
   for (const cand of blocos) {
     try {
-      const o = JSON.parse(cand);
+      const o = parseJsonTolerante(cand);
       const l = listaDeAcoes(o);
       if (l && l.length) limpoFalha = limpoFalha.split(cand).join('');
-    } catch { /* ignora */ }
+    } catch {
+      // Mesmo inválido, se parece bloco de ação, não mostra o JSON cru.
+      if (/"(?:acoes|tipo)"\s*:/.test(cand)) limpoFalha = limpoFalha.split(cand).join('');
+    }
   }
   limpoFalha = limpoFalha.replace(/```(?:json)?\s*```/gi, '').replace(/```(?:json)?/gi, '').trim();
   return { acoes: null, textoLimpo: limpoFalha };

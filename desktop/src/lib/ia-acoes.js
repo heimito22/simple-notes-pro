@@ -84,6 +84,36 @@
     return out;
   }
 
+  /** Conserta JSON de modelo free: newline/tab crus dentro de string e vírgula sobrando. */
+  function repararJson(s){
+    var out='', emString=false, escape=false;
+    for(var i=0;i<s.length;i++){
+      var ch=s.charAt(i);
+      if(emString){
+        if(escape){
+          if(ch==='\n' || ch==='\r') out+='n';
+          else out+=ch;
+          escape=false;
+          continue;
+        }
+        if(ch==='\\'){ out+=ch; escape=true; continue; }
+        if(ch==='"'){ out+=ch; emString=false; continue; }
+        if(ch==='\n'){ out+='\\n'; continue; }
+        if(ch==='\r'){ continue; }
+        if(ch==='\t'){ out+='\\t'; continue; }
+        if(ch.charCodeAt(0)<0x20){ out+='\\u'+('000'+ch.charCodeAt(0).toString(16)).slice(-4); continue; }
+        out+=ch;
+      } else {
+        if(ch==='"') emString=true;
+        out+=ch;
+      }
+    }
+    return out.replace(/,\s*([}\]])/g,'$1');
+  }
+  function parseJsonTolerante(s){
+    try{ return JSON.parse(s); }catch(e){ return JSON.parse(repararJson(s)); }
+  }
+
   /** Aceita {"acoes":[...]}, {"tipo":...}, {"acao":{...}} ou um array solto. */
   function listaDeAcoes(obj){
     if(Array.isArray(obj)) return obj;
@@ -107,7 +137,7 @@
     for(var c=0;c<blocos.length;c++){
       var cand = blocos[c];
       try{
-        var obj = JSON.parse(cand);
+        var obj = parseJsonTolerante(cand);
         var lista = listaDeAcoes(obj);
         if(!lista || !lista.length) continue;
         var achou = false;
@@ -151,10 +181,13 @@
     var limpoFalha = bruto;
     for(var b=0;b<blocos.length;b++){
       try{
-        var o = JSON.parse(blocos[b]);
+        var o = parseJsonTolerante(blocos[b]);
         var l = listaDeAcoes(o);
         if(l && l.length) limpoFalha = limpoFalha.split(blocos[b]).join('');
-      }catch(e){}
+      }catch(e){
+        // Mesmo inválido, se parece bloco de ação, não mostra o JSON cru.
+        if(/"(?:acoes|tipo)"\s*:/.test(blocos[b])) limpoFalha = limpoFalha.split(blocos[b]).join('');
+      }
     }
     limpoFalha = limpoFalha.replace(/```(?:json)?\s*```/gi,'').replace(/```(?:json)?/gi,'').trim();
     return { acoes: null, textoLimpo: limpoFalha };

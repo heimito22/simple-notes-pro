@@ -126,6 +126,9 @@ export default function TelaIA() {
 
     const scrollRef = useRef<ScrollView>(null);
     const boasVindasRef = useRef(false);
+    // Trava imediata: o estado "pensando" do React só atualiza depois do
+    // render, então dois toques rápidos disparavam duas perguntas juntas.
+    const enviandoRef = useRef(false);
     if (!boasVindasRef.current) {
         boasVindasRef.current = true;
         setMensagens([{ papel: 'ia', texto: t('Olá! Sou o NotaIA ✨\n\nPosso criar notas, listas, tarefas e pastas, mover, fixar, apagar e agendar lembretes — você sempre confirma antes de eu fazer.\n\nPeça, por exemplo: "cria uma nota de treino" ou "cria uma tarefa de alongar todo dia às 7".') }]);
@@ -154,7 +157,8 @@ export default function TelaIA() {
     // ── Pergunta → IA (motor do editor, sem nota aberta) ───────────────────
     const enviarPergunta = async () => {
         const texto = pergunta.trim();
-        if (!texto || pensando) return;
+        if (!texto || pensando || enviandoRef.current) return;
+        enviandoRef.current = true;
         try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch {}
         setMensagens(prev => [...prev, { papel: 'usuario', texto }]);
         setPergunta('');
@@ -180,6 +184,7 @@ export default function TelaIA() {
         } catch (e: any) {
             setMensagens(prev => [...prev, { papel: 'ia', texto: t('Desculpe, não consegui responder agora. Tente de novo.'), erro: true }]);
         } finally {
+            enviandoRef.current = false;
             setPensando(false);
             rolarProFim();
         }

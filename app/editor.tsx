@@ -267,6 +267,9 @@ export default function EditorScreen() {
     const [animaSeta] = useState(() => new Animated.Value(0));
     const [animaHop] = useState(() => new Animated.Value(0));
     const chatScrollRef = useRef<ScrollView>(null);
+    // Trava imediata contra dois toques rápidos: "chatPensando" só atualiza no
+    // próximo render e duas perguntas chegavam juntas, com respostas trocadas.
+    const enviandoChatRef = useRef(false);
     // Botão circular "ir para o fim" — aparece quando a nota tem anexos e o fim
     // ainda não está à vista; some ao chegar no fim (maxScroll vem do WebView)
     const [temAnexo, setTemAnexo] = useState(false);
@@ -668,7 +671,8 @@ export default function EditorScreen() {
     const fazerPerguntaIA = async () => {
         if (!temChaveIA) return;
         const texto = perguntaIA.trim();
-        if (!texto || chatPensando) return;
+        if (!texto || chatPensando || enviandoChatRef.current) return;
+        enviandoChatRef.current = true;
         pulsarEnviarIA();
         const novaPergunta: MensagemChat = { papel: 'usuario', texto };
         setMensagensIA(prev => [...prev, novaPergunta]);
@@ -685,11 +689,16 @@ export default function EditorScreen() {
                     listas || []);
                 // 1º o protocolo de AÇÕES (agente); se não veio bloco, o de edição antigo.
                 const extraidas = extrairAcoes(resposta.texto);
-                const baseTexto = extraidas.acoes ? extraidas.textoLimpo : resposta.texto;
+                // Nunca usa a resposta crua: se o JSON de ação veio inválido,
+                // textoLimpo já removeu o bloco e aqui entra um aviso amigável.
+                const baseTexto = extraidas.textoLimpo || '';
                 // A resposta pode conter proposta de edição (bloco ```json) —
                 // separa o texto da conversa da proposta aplicável.
                 const { proposta, textoLimpo } = extrairPropostaEdicao(baseTexto);
-                setMensagensIA(prev => [...prev, { papel: 'ia', texto: extraidas.acoes ? (extraidas.textoLimpo || t('Tudo pronto — toque em Permitir para eu fazer.')) : (textoLimpo || resposta.texto) }]);
+                const fala = extraidas.acoes?.length
+                    ? (extraidas.textoLimpo || t('Tudo pronto — toque em Permitir para eu fazer.'))
+                    : (textoLimpo || extraidas.textoLimpo || t('Entendi o pedido, mas não consegui aplicar. Pode repetir de outro jeito?'));
+                setMensagensIA(prev => [...prev, { papel: 'ia', texto: fala }]);
                 if (extraidas.acoes && extraidas.acoes.length) {
                     setSugestaoIA(null);
                     setPropostaIA(null);
@@ -702,6 +711,7 @@ export default function EditorScreen() {
         } catch (e) {
             setMensagensIA(prev => [...prev, { papel: 'ia', texto: t('Desculpe, não consegui responder agora. Tente de novo.'), erro: true }]);
         } finally {
+            enviandoChatRef.current = false;
             setChatPensando(false);
         }
     };
