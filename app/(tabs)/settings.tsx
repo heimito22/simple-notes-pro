@@ -1,9 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import * as LocalAuthentication from 'expo-local-authentication';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { MotiView } from 'moti';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Linking, Modal, Platform, ScrollView, Share, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import PreviewSom from '../../components/preview-som';
@@ -14,17 +14,18 @@ import { infoDoSom, SONS_ALARME } from '../../context/sons-alarme';
 import { IDIOMAS } from '../../context/idiomas';
 import { alarmeNativoDisponivel, obterPrecoRemoverAnuncios, pararSomAlarme, previewSomAlarme } from '../../modules/minhasnotas-alarm';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
-import { revelarCodigo } from '../../context/cripto-local';
+import { revelarCodigo, limparChave } from '../../context/cripto-local';
 import { useNotas } from '../../context/NotasContext';
 
 export default function SettingsScreen() {
   const { isDark, toggleTheme, config, atualizarConfig, atualizarConfigs, t } = useTheme();
   const insets = useSafeAreaInsets();
   const { anunciosRemovidos, premiumPorEmail, comprando, comprarRemoverAnuncios, emailLogado, emailDonoCompra, solicitarLoginParaCompra, cancelarCompraPendente } = useMonetizacao();
-  const { abrirCodigoPendente } = useNotas();
+  const { abrirCodigoPendente, sincronizarAgora, fecharCodigoNovo } = useNotas();
   const router = useRouter();
   // Preço exibido: lido do Play Console (fallback enquanto o produto não é publicado)
   const [precoAnuncios, setPrecoAnuncios] = useState('R$ 5,99');
+  const [chaveStatus, setChaveStatus] = useState<{ tem: boolean; inicio: string; email?: string } | null>(null);
 
   const [somModalAberto, setSomModalAberto] = useState(false);
   const [idiomaModalAberto, setIdiomaModalAberto] = useState(false);
@@ -149,15 +150,56 @@ export default function SettingsScreen() {
     setPinEtapa('criar');
   };
 
-  /** Mostra o código de recuperação do backup v2 (precisa estar logado). */
-  const mostrarChaveBackup = async () => {
+  const carregarStatusChave = useCallback(async () => {
     try {
       await GoogleSignin.signInSilently().catch(() => {});
       const u = await GoogleSignin.getCurrentUser();
-      const codigo = await revelarCodigo(u?.user?.email);
+      const email = u?.user?.email;
+      const codigo = await revelarCodigo(email);
+      setChaveStatus(codigo
+        ? { tem: true, inicio: codigo.replace(/-/g, '').slice(0, 4), email }
+        : { tem: false, inicio: '', email });
+    } catch {
+      setChaveStatus({ tem: false, inicio: '' });
+    }
+  }, []);
+
+  // Atualiza o status ao abrir/voltar para Ajustes (chave pode ter sido criada agora).
+  useFocusEffect(useCallback(() => { void carregarStatusChave(); }, [carregarStatusChave]));
+
+  /** Remove a chave SÓ deste aparelho; o backup na nuvem continua intacto. */
+  const esquecerChave = async () => {
+    const email = chaveStatus?.email;
+    Alert.alert(
+      t('Esquecer chave deste aparelho'),
+      t('O backup na nuvem NÃO será apagado. Este aparelho vai pedir o código de novo no próximo sync. Use o código do outro aparelho (ou o que você guardou).'),
+      [
+        { text: t('Cancelar'), style: 'cancel' },
+        {
+          text: t('Esquecer'), style: 'destructive', onPress: async () => {
+            await limparChave(email);
+            await carregarStatusChave();
+            setTimeout(() => { sincronizarAgora().catch(() => {}); }, 300);
+          },
+        },
+      ],
+    );
+  };
+
+  /** Mostra o estado e o código de recuperação do backup v2. */
+  const mostrarChaveBackup = async () => {
+    fecharCodigoNovo(); // não deixa a tela de "chave nova" aberta junto
+    try {
+      await GoogleSignin.signInSilently().catch(() => {});
+      const u = await GoogleSignin.getCurrentUser();
+      const email = u?.user?.email;
+      const codigo = await revelarCodigo(email);
+      setChaveStatus(codigo
+        ? { tem: true, inicio: codigo.replace(/-/g, '').slice(0, 4), email }
+        : { tem: false, inicio: '', email });
       if (!codigo) {
         Alert.alert(
-          t('Chave de segurança'),
+          t('Chave não vinculada'),
           t('Este aparelho ainda não tem a chave do backup. Se o backup foi criado em outro aparelho, digite o código que ele mostrou.'),
           [
             { text: t('Agora não'), style: 'cancel' },
@@ -166,10 +208,15 @@ export default function SettingsScreen() {
         );
         return;
       }
-      Alert.alert(t('Sua chave de segurança'), codigo, [
-        { text: t('Compartilhar'), onPress: () => { Share.share({ message: 'Minha chave de segurança do Simple Notes:\n' + codigo }).catch(() => {}); } },
-        { text: 'OK', style: 'cancel' },
-      ]);
+      Alert.alert(
+        t('Chave vinculada'),
+        `${codigo}\n\n${t('Esta é a chave da conta {email}. Use a mesma nos outros aparelhos. Quem tiver este código e o backup consegue ler tudo.', { email: email || '' })}`,
+        [
+          { text: t('Compartilhar'), onPress: () => { Share.share({ message: 'Minha chave de segurança do Simple Notes:\n' + codigo }).catch(() => {}); } },
+          { text: t('Esquecer chave'), style: 'destructive', onPress: esquecerChave },
+          { text: 'OK', style: 'cancel' },
+        ],
+      );
     } catch {
       Alert.alert(t('Chave de segurança'), t('Não consegui ler a chave neste aparelho.'));
     }
@@ -582,7 +629,11 @@ export default function SettingsScreen() {
             <View style={{ flex: 1 }}>
               <Text style={[styles.itemText, { color: cores.textoPrincipal }]}>{t('Chave de segurança do backup')}</Text>
               <Text style={[styles.subText, { color: cores.textoSecundario }]}>
-                {t('Ver o código que abre o backup em outro aparelho')}
+                {chaveStatus === null
+                  ? t('Verificando…')
+                  : chaveStatus.tem
+                    ? t('Vinculada a esta conta · começa com {p}', { p: chaveStatus.inicio })
+                    : t('Não vinculada — toque para desbloquear')}
               </Text>
             </View>
             <Ionicons name="key-outline" size={20} color={cores.textoSecundario} />
