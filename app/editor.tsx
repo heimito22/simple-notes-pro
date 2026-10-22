@@ -1131,32 +1131,7 @@ export default function EditorScreen() {
         }
     };
 
-    // A barra de FORMATAÇÃO agora vive DENTRO do WebView (mesmo documento do
-    // texto), como no PC. Aqui ficam apenas os anexos.
-    const renderToolbar = () => (
-        <View style={[styles.toolbarWrapper, { backgroundColor: tema.toolbar, borderColor: tema.sheetBorda }]}>
-            <View style={styles.toolbarAnexos}>
-                <TouchableOpacity
-                    onPress={gravando ? pararGravacao : iniciarGravacao}
-                    style={styles.btnToolbarExtra}
-                    accessibilityRole="button"
-                    accessibilityLabel={gravando ? t('Parar gravação') : t('Gravar áudio')}
-                    activeOpacity={0.55}
-                >
-                    <Ionicons name={gravando ? "stop-circle" : "mic"} size={22} color={gravando ? "#FF3B30" : tema.accent} />
-                </TouchableOpacity>
-                <TouchableOpacity
-                    onPress={selecionarImagem}
-                    style={styles.btnToolbarExtra}
-                    accessibilityRole="button"
-                    accessibilityLabel={t('Inserir imagem')}
-                    activeOpacity={0.55}
-                >
-                    <Ionicons name="image" size={22} color={tema.accent} />
-                </TouchableOpacity>
-            </View>
-        </View>
-    );
+    // A barra de formatação e os anexos vivem DENTRO do WebView, como no PC.
 
     return (
         <KeyboardAvoidingView
@@ -1265,6 +1240,8 @@ export default function EditorScreen() {
                     initialValue={notaExistente?.conteudo || ''}
                     onChange={handleConteudoChange}
                     onTagPrefixo={handleTagPrefixo}
+                    onPedirAudio={() => { if (gravando) { void pararGravacao(); } else { void iniciarGravacao(); } }}
+                    onPedirImagem={selecionarImagem}
                     paletaTags={PALETA_TAGS}
                     editavel={editando}
                     placeholder={editando ? t('Comece a escrever...') : ""}
@@ -1314,7 +1291,6 @@ export default function EditorScreen() {
                                 </ScrollView>
                             </View>
                         )}
-                        {renderToolbar()}
                     </View>
                 )}
             </View>

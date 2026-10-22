@@ -46,6 +46,9 @@ interface Props {
   onFormatoChange?: (fmt: FormatoAtivo) => void;
   /** `#prefixo` digitado imediatamente antes do cursor (sugestões de tags). */
   onTagPrefixo?: (prefixo: string) => void;
+  /** Botões de anexo dentro da barra do WebView. */
+  onPedirAudio?: () => void;
+  onPedirImagem?: () => void;
   /** Paleta de cores das tags (destaque visual na leitura). */
   paletaTags?: string[];
   /** Modo leitura inicial. Mudanças usam setEditable() (sem recarregar o WebView). */
@@ -166,31 +169,35 @@ const buildDoc = (
   /* Em edição: espaço extra no fim (acima da toolbar) para o texto final nunca
      ficar preso atrás dela — com adjustResize o teclado encolhe a janela, então
      o espaço do teclado já é liberado sozinho (innerHeight diminui). */
-  body.editando { padding-bottom: 78px; }
-  /* Barra de formatação DENTRO do WebView, no MESMO documento do texto:
-     o toque no botão não perde a seleção (mesmo modelo do editor do PC). */
+  body.editando { padding-bottom: 96px; }
+  /* Barra flutuante arredondada, no MESMO documento do texto (modelo do PC).
+     O toque no botão não perde a seleção; o visual é o da barra antiga. */
   #fmtbar {
     display: none;
     position: fixed;
-    left: 0; right: 0; bottom: 0;
+    left: 16px; right: 16px; bottom: 10px;
     z-index: 9999;
+    height: 58px;
+    box-sizing: border-box;
     background: ${toolbarColor};
-    border-top: 1px solid ${toolbarBorderColor};
+    border: 1px solid ${toolbarBorderColor};
+    border-radius: 20px;
     padding: 6px 8px;
     gap: 4px;
     align-items: center;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.28);
   }
   body.editando #fmtbar { display: flex; }
   #fmtbar button {
     flex: 0 0 auto;
     width: 42px; height: 42px;
-    border-radius: 12px;
+    border-radius: 13px;
     border: 1px solid transparent;
     background: transparent;
     color: ${textColor};
-    font-size: 17px; font-weight: 700;
+    font-size: 18px; font-weight: 700;
     line-height: 1;
     display: flex; align-items: center; justify-content: center;
     padding: 0;
@@ -202,9 +209,18 @@ const buildDoc = (
     border-color: ${accentColor};
     color: ${accentColor};
   }
+  #fmtbar svg {
+    width: 22px; height: 22px;
+    display: block;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
   #fmtbar .sep {
     flex: 0 0 auto;
-    width: 1px; height: 24px;
+    width: 1px; height: 26px;
     background: ${placeholderColor}55;
     margin: 0 4px;
   }
@@ -295,9 +311,6 @@ const buildDoc = (
 <body class="${editavel ? 'editando' : ''}">
 <div id="editor" contenteditable="${editavel ? 'true' : 'false'}" data-placeholder="${placeholder.replace(/"/g, '&quot;')}"></div>
 <div id="fmtbar" role="toolbar" aria-label="Formatação">
-  <button type="button" data-cmd="undo" title="Desfazer" aria-label="Desfazer">↶</button>
-  <button type="button" data-cmd="redo" title="Refazer" aria-label="Refazer">↷</button>
-  <span class="sep"></span>
   <button type="button" data-cmd="bold" title="Negrito" aria-label="Negrito"><b>B</b></button>
   <button type="button" data-cmd="italic" title="Itálico" aria-label="Itálico"><i>I</i></button>
   <button type="button" data-cmd="underline" title="Sublinhado" aria-label="Sublinhado"><u>U</u></button>
@@ -306,7 +319,23 @@ const buildDoc = (
   <button type="button" data-cmd="insertUnorderedList" title="Lista com marcadores" aria-label="Lista com marcadores">•≡</button>
   <button type="button" data-cmd="insertOrderedList" title="Lista numerada" aria-label="Lista numerada">1.</button>
   <span class="sep"></span>
-  <button type="button" data-cmd="removeFormat" title="Limpar formatação" aria-label="Limpar formatação">⌫</button>
+  <button type="button" data-cmd="removeFormat" title="Limpar formatação" aria-label="Limpar formatação">
+    <svg viewBox="0 0 24 24"><path d="M4 15l8-8 5 5-7 7H6z"/><path d="M14 20h7"/></svg>
+  </button>
+  <span class="sep"></span>
+  <button type="button" data-cmd="undo" title="Desfazer" aria-label="Desfazer">
+    <svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h9a6 6 0 0 1 0 12h-2"/></svg>
+  </button>
+  <button type="button" data-cmd="redo" title="Refazer" aria-label="Refazer">
+    <svg viewBox="0 0 24 24"><path d="M15 14l5-5-5-5"/><path d="M20 9h-9a6 6 0 0 0 0 12h2"/></svg>
+  </button>
+  <span class="sep"></span>
+  <button type="button" data-acao="audio" title="Gravar áudio" aria-label="Gravar áudio">
+    <svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M6 11a6 6 0 0 0 12 0"/><path d="M12 17v4"/><path d="M8 21h8"/></svg>
+  </button>
+  <button type="button" data-acao="imagem" title="Inserir imagem" aria-label="Inserir imagem">
+    <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10" r="1.5"/><path d="M21 16l-5-5L5 20"/></svg>
+  </button>
 </div>
 <script>
 (function() {
@@ -1135,49 +1164,37 @@ const buildDoc = (
     }
   });
 
-  // Barra de formatação DENTRO do WebView: o toque no botão não perde a
-  // seleção porque ele está no mesmo documento do texto (modelo do PC).
+  // Barra de formatação DENTRO do WebView: mesmo documento do texto (PC).
+  // Usa click (como o PC) e só previne o mousedown para não perder a seleção.
   if (bar) {
     bar.addEventListener('mousedown', function(e) {
       var b = e.target && e.target.closest ? e.target.closest('button') : null;
       if (b) e.preventDefault();
     });
-    var ultimoToqueBarra = 0;
-    var barTouch = null;
+    var rolouBarra = 0;
+    var toqueBarra = null;
     bar.addEventListener('touchstart', function(e) {
-      var b = e.target && e.target.closest ? e.target.closest('button[data-cmd]') : null;
-      if (!b) { barTouch = null; return; }
       var t = e.touches && e.touches[0];
-      if (!t) return;
-      barTouch = { x: t.clientX, y: t.clientY, botao: b, moveu: false };
+      if (t) toqueBarra = { x: t.clientX, y: t.clientY };
     }, { passive: true });
     bar.addEventListener('touchmove', function(e) {
-      if (!barTouch) return;
+      if (!toqueBarra) return;
       var t = e.touches && e.touches[0];
       if (!t) return;
-      if (Math.abs(t.clientX - barTouch.x) > 10 || Math.abs(t.clientY - barTouch.y) > 10) {
-        barTouch.moveu = true;
+      if (Math.abs(t.clientX - toqueBarra.x) > 10 || Math.abs(t.clientY - toqueBarra.y) > 10) {
+        rolouBarra = Date.now();
       }
     }, { passive: true });
-    bar.addEventListener('touchend', function(e) {
-      var info = barTouch;
-      barTouch = null;
-      if (!info) return;
-      if (info.moveu) {
-        // Foi rolagem horizontal da barra, não um toque: não executa nada.
-        ultimoToqueBarra = Date.now();
-        return;
-      }
-      e.preventDefault();
-      ultimoToqueBarra = Date.now();
-      window.editorExec(info.botao.getAttribute('data-cmd'));
-    }, { passive: false });
+    bar.addEventListener('touchend', function() { toqueBarra = null; }, { passive: true });
     bar.addEventListener('click', function(e) {
-      if (Date.now() - ultimoToqueBarra < 500) return; // já executou no touchend
-      var b = e.target && e.target.closest ? e.target.closest('button[data-cmd]') : null;
+      if (Date.now() - rolouBarra < 400) return; // foi rolagem horizontal
+      var b = e.target && e.target.closest ? e.target.closest('button') : null;
       if (!b) return;
       e.preventDefault();
-      window.editorExec(b.getAttribute('data-cmd'));
+      var cmd = b.getAttribute('data-cmd');
+      if (cmd) { window.editorExec(cmd); return; }
+      var acao = b.getAttribute('data-acao');
+      if (acao) ponte('__acao__' + acao);
     });
   }
 
@@ -1195,6 +1212,8 @@ const RichTextEditor = memo(
       onChange,
       onFormatoChange,
       onTagPrefixo,
+      onPedirAudio,
+      onPedirImagem,
       paletaTags,
       placeholder = '',
       textColor,
@@ -1303,6 +1322,8 @@ const RichTextEditor = memo(
         onTagPrefixo?.(data.slice(7));
         return;
       }
+      if (data === '__acao__audio') { onPedirAudio?.(); return; }
+      if (data === '__acao__imagem') { onPedirImagem?.(); return; }
       if (typeof data === 'string' && data.startsWith('__fmt__')) {
         try {
           onFormatoChange?.(JSON.parse(data.slice(7)));
