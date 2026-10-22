@@ -1,4 +1,4 @@
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { RecordingPresets, requestRecordingPermissionsAsync, setAudioModeAsync, useAudioRecorder } from 'expo-audio';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -29,7 +29,7 @@ import { idiomaAtual, tIdioma } from '../context/idiomas';
 import { useMonetizacao } from '../context/monetizacao';
 import { appColors } from '../constants/theme';
 import { PROXY_IA_ATIVO } from '../constants/ia-proxy';
-import RichTextEditor, { FormatoAtivo, RichTextEditorHandle } from '../components/rich-text-editor';
+import RichTextEditor, { RichTextEditorHandle } from '../components/rich-text-editor';
 import TextoRico from '../components/ia-texto-rico';
 import { PALETA_TAGS, corDaTag, tagsDeItens } from '../context/tags';
 import { imeHeightAtual, observarIme } from '../modules/minhasnotas-ime';
@@ -45,15 +45,6 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 // então os diretórios só existem em Android/iOS.
 const DIR_IMAGENS = Platform.OS === 'web' ? null : new Directory(Paths.document, 'imagens_notas');
 const DIR_AUDIOS = Platform.OS === 'web' ? null : new Directory(Paths.document, 'audios_notas');
-
-const FORMATO_INICIAL: FormatoAtivo = {
-    bold: false,
-    italic: false,
-    underline: false,
-    strikeThrough: false,
-    unorderedList: false,
-    orderedList: false,
-};
 
 // Detecta anexos (imagem/áudio) no conteúdo da nota — mostra o botão "Continuar no fim"
 const TEM_ANEXO = /<img|<audio|\[Imagem anexada:|\[Áudio anexado:/i;
@@ -230,8 +221,6 @@ export default function EditorScreen() {
     const [rHorario, setRHorario] = useState('08:00');
     const [mostrarHora, setMostrarHora] = useState(false);
     const [mostrarData, setMostrarData] = useState(false);
-    // Estado de formatação ativa na seleção (negrito/itálico/listas...) da toolbar
-    const [fmt, setFmt] = useState<FormatoAtivo>(FORMATO_INICIAL);
     // --- IA (assistente de perguntas/resumo) ---
     const [modalIAAberto, setModalIAAberto] = useState(false);
     const [abaIA, setAbaIA] = useState<'perguntar' | 'resumo'>('perguntar');
@@ -516,22 +505,6 @@ export default function EditorScreen() {
         setAudios(extrairAudios(html, DIR_AUDIOS?.uri));
     }, []);
 
-    // Atualiza os estados ativos dos botões da toolbar (negrito, listas etc.)
-    const handleFormatoChange = useCallback((f: FormatoAtivo) => {
-        setFmt((prev) => {
-            if (
-                prev.bold === f.bold &&
-                prev.italic === f.italic &&
-                prev.underline === f.underline &&
-                prev.strikeThrough === f.strikeThrough &&
-                prev.unorderedList === f.unorderedList &&
-                prev.orderedList === f.orderedList
-            ) {
-                return prev;
-            }
-            return f;
-        });
-    }, []);
 
     // Insere uma imagem/áudio de verdade (com bordas arredondadas / player) no fim da nota
     const anexarImagem = useCallback((uri: string, nome: string) => {
@@ -1158,64 +1131,11 @@ export default function EditorScreen() {
         }
     };
 
-    // Aplica o comando de formatação. O WebView devolve o estado logo depois do
-    // comando (e de novo em 40ms); não forçamos uma leitura intermediária, que
-    // podia chegar antes da reestruturação do DOM e piscar o botão errado.
-    const aplicarFormato = (cmd: string) => {
-        try { Haptics.selectionAsync(); } catch (e) {}
-        editorRef.current?.execCommand(cmd);
-    };
-
-    const corAtiva = tema.primarySoft;
-    const estiloAtivo = (ativo: boolean) => (ativo ? { backgroundColor: corAtiva, borderColor: tema.accent } : null);
-    const corBotao = (ativo: boolean) => (ativo ? tema.accent : tema.texto);
-    const BOTAO_HIST = [
-        { cmd: 'undo', rotulo: 'Desfazer', icone: 'undo-variant' },
-        { cmd: 'redo', rotulo: 'Refazer', icone: 'redo-variant' },
-    ] as const;
-    const BOTAO_INLINE: { cmd: string; rotulo: string; icone: string; ativo: boolean }[] = [
-        { cmd: 'bold', rotulo: 'Negrito', icone: 'format-bold', ativo: fmt.bold },
-        { cmd: 'italic', rotulo: 'Itálico', icone: 'format-italic', ativo: fmt.italic },
-        { cmd: 'underline', rotulo: 'Sublinhado', icone: 'format-underline', ativo: fmt.underline },
-        { cmd: 'strikeThrough', rotulo: 'Tachado', icone: 'format-strikethrough-variant', ativo: fmt.strikeThrough },
-    ];
-    const BOTAO_LISTAS: { cmd: string; rotulo: string; icone: string; ativo: boolean }[] = [
-        { cmd: 'insertUnorderedList', rotulo: 'Lista com marcadores', icone: 'format-list-bulleted', ativo: fmt.unorderedList },
-        { cmd: 'insertOrderedList', rotulo: 'Lista numerada', icone: 'format-list-numbered', ativo: fmt.orderedList },
-    ];
-    const BOTAO_LIMPAR = [{ cmd: 'removeFormat', rotulo: 'Limpar formatação', icone: 'format-clear' }] as const;
-
-    const botaoToolbar = (cmd: string, rotulo: string, icone: string, ativo: boolean = false) => (
-        <TouchableOpacity
-            key={cmd}
-            onPress={() => aplicarFormato(cmd)}
-            style={[styles.btnToolbarExtra, estiloAtivo(ativo)]}
-            accessibilityRole="button"
-            accessibilityState={ativo ? { selected: true } : {}}
-            accessibilityLabel={t(rotulo)}
-            activeOpacity={0.55}
-        >
-            <MaterialCommunityIcons name={icone as any} size={22} color={corBotao(ativo)} />
-        </TouchableOpacity>
-    );
-
+    // A barra de FORMATAÇÃO agora vive DENTRO do WebView (mesmo documento do
+    // texto), como no PC. Aqui ficam apenas os anexos.
     const renderToolbar = () => (
         <View style={[styles.toolbarWrapper, { backgroundColor: tema.toolbar, borderColor: tema.sheetBorda }]}>
-            <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                keyboardShouldPersistTaps="always"
-                contentContainerStyle={styles.toolbarScroll}
-            >
-                {BOTAO_INLINE.map(({ cmd, rotulo, icone, ativo }) => botaoToolbar(cmd, rotulo, icone, ativo))}
-                <View style={styles.divisorToolbar} />
-                {BOTAO_LISTAS.map(({ cmd, rotulo, icone, ativo }) => botaoToolbar(cmd, rotulo, icone, ativo))}
-                <View style={styles.divisorToolbar} />
-                {BOTAO_LIMPAR.map(({ cmd, rotulo, icone }) => botaoToolbar(cmd, rotulo, icone))}
-                <View style={styles.divisorToolbar} />
-                {BOTAO_HIST.map(({ cmd, rotulo, icone }) => botaoToolbar(cmd, rotulo, icone))}
-                <View style={styles.divisorToolbar} />
-
+            <View style={styles.toolbarAnexos}>
                 <TouchableOpacity
                     onPress={gravando ? pararGravacao : iniciarGravacao}
                     style={styles.btnToolbarExtra}
@@ -1234,7 +1154,7 @@ export default function EditorScreen() {
                 >
                     <Ionicons name="image" size={22} color={tema.accent} />
                 </TouchableOpacity>
-            </ScrollView>
+            </View>
         </View>
     );
 
@@ -1344,7 +1264,6 @@ export default function EditorScreen() {
                     ref={editorRef}
                     initialValue={notaExistente?.conteudo || ''}
                     onChange={handleConteudoChange}
-                    onFormatoChange={handleFormatoChange}
                     onTagPrefixo={handleTagPrefixo}
                     paletaTags={PALETA_TAGS}
                     editavel={editando}
@@ -1353,6 +1272,8 @@ export default function EditorScreen() {
                     placeholderColor={tema.placeholder}
                     backgroundColor={tema.editorFundo}
                     accentColor={tema.accent}
+                    toolbarColor={tema.toolbar}
+                    toolbarBorderColor={tema.sheetBorda}
                     imagensDirUri={DIR_IMAGENS?.uri ?? ''}
                     audiosDirUri={DIR_AUDIOS?.uri ?? ''}
                     onScrollPos={aoRolarEditor}
@@ -1876,10 +1797,10 @@ const styles = StyleSheet.create({
     inputTitulo: { fontSize: 31, fontWeight: '900', marginHorizontal: 25, paddingTop: 12, paddingBottom: 8, letterSpacing: -0.7 },
     inputConteudo: { flex: 1, minHeight: 150 },
     toolbarWrapper: {
-        height: 58,
+        height: 50,
         borderRadius: 20,
         marginHorizontal: 16,
-        marginBottom: 12,
+        marginBottom: 8,
         justifyContent: 'center',
         borderWidth: 1,
         elevation: 6,
@@ -1887,6 +1808,12 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 3 },
         shadowOpacity: 0.25,
         shadowRadius: 5
+    },
+    toolbarAnexos: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 10,
     },
     sugestoesTag: {
         marginHorizontal: 16,

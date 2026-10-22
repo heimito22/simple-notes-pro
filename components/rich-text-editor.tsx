@@ -55,6 +55,9 @@ interface Props {
   placeholderColor: string;
   backgroundColor: string;
   accentColor: string;
+  /** Cor da barra de formatação (superfície do app) e da borda. */
+  toolbarColor?: string;
+  toolbarBorderColor?: string;
   /** URI base das pastas de anexos (para converter marcadores antigos em <img>/<audio>). */
   imagensDirUri?: string;
   audiosDirUri?: string;
@@ -137,7 +140,9 @@ const buildDoc = (
   backgroundColor: string,
   accentColor: string,
   placeholder: string,
-  editavel: boolean
+  editavel: boolean,
+  toolbarColor: string,
+  toolbarBorderColor: string
 ) => `<!DOCTYPE html>
 <html>
 <head>
@@ -161,7 +166,48 @@ const buildDoc = (
   /* Em edição: espaço extra no fim (acima da toolbar) para o texto final nunca
      ficar preso atrás dela — com adjustResize o teclado encolhe a janela, então
      o espaço do teclado já é liberado sozinho (innerHeight diminui). */
-  body.editando { padding-bottom: 210px; }
+  body.editando { padding-bottom: 78px; }
+  /* Barra de formatação DENTRO do WebView, no MESMO documento do texto:
+     o toque no botão não perde a seleção (mesmo modelo do editor do PC). */
+  #fmtbar {
+    display: none;
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    z-index: 9999;
+    background: ${toolbarColor};
+    border-top: 1px solid ${toolbarBorderColor};
+    padding: 6px 8px;
+    gap: 4px;
+    align-items: center;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  body.editando #fmtbar { display: flex; }
+  #fmtbar button {
+    flex: 0 0 auto;
+    width: 42px; height: 42px;
+    border-radius: 12px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: ${textColor};
+    font-size: 17px; font-weight: 700;
+    line-height: 1;
+    display: flex; align-items: center; justify-content: center;
+    padding: 0;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none; -webkit-user-select: none;
+  }
+  #fmtbar button.ativo {
+    background: ${accentColor}22;
+    border-color: ${accentColor};
+    color: ${accentColor};
+  }
+  #fmtbar .sep {
+    flex: 0 0 auto;
+    width: 1px; height: 24px;
+    background: ${placeholderColor}55;
+    margin: 0 4px;
+  }
   #editor { outline: none; min-height: 60vh; word-break: break-word; }
   #editor:empty::before { content: attr(data-placeholder); color: ${placeholderColor}; pointer-events: none; }
   ul, ol { padding-left: 26px; margin: 6px 0; }
@@ -248,9 +294,24 @@ const buildDoc = (
 </head>
 <body class="${editavel ? 'editando' : ''}">
 <div id="editor" contenteditable="${editavel ? 'true' : 'false'}" data-placeholder="${placeholder.replace(/"/g, '&quot;')}"></div>
+<div id="fmtbar" role="toolbar" aria-label="Formatação">
+  <button type="button" data-cmd="undo" title="Desfazer" aria-label="Desfazer">↶</button>
+  <button type="button" data-cmd="redo" title="Refazer" aria-label="Refazer">↷</button>
+  <span class="sep"></span>
+  <button type="button" data-cmd="bold" title="Negrito" aria-label="Negrito"><b>B</b></button>
+  <button type="button" data-cmd="italic" title="Itálico" aria-label="Itálico"><i>I</i></button>
+  <button type="button" data-cmd="underline" title="Sublinhado" aria-label="Sublinhado"><u>U</u></button>
+  <button type="button" data-cmd="strikeThrough" title="Tachado" aria-label="Tachado"><s>S</s></button>
+  <span class="sep"></span>
+  <button type="button" data-cmd="insertUnorderedList" title="Lista com marcadores" aria-label="Lista com marcadores">•≡</button>
+  <button type="button" data-cmd="insertOrderedList" title="Lista numerada" aria-label="Lista numerada">1.</button>
+  <span class="sep"></span>
+  <button type="button" data-cmd="removeFormat" title="Limpar formatação" aria-label="Limpar formatação">⌫</button>
+</div>
 <script>
 (function() {
   var el = document.getElementById('editor');
+  var bar = document.getElementById('fmtbar');
   // Conteúdo inicial injetado via JSON (evita quebrar o shell com tags literais no texto)
   var initial = ${toJSString(initialHtml)};
   el.innerHTML = initial;
@@ -310,8 +371,27 @@ const buildDoc = (
     return fmt;
   }
   var fmtTimer = null;
+  function atualizarBarra() {
+    if (!bar) return;
+    var f = currentFormats();
+    var mapa = {
+      bold: f.bold,
+      italic: f.italic,
+      underline: f.underline,
+      strikeThrough: f.strikeThrough,
+      insertUnorderedList: f.unorderedList,
+      insertOrderedList: f.orderedList
+    };
+    var bs = bar.querySelectorAll('button[data-cmd]');
+    for (var i = 0; i < bs.length; i++) {
+      var cmd = bs[i].getAttribute('data-cmd');
+      var on = mapa[cmd];
+      if (on !== undefined) bs[i].classList.toggle('ativo', !!on);
+    }
+  }
   function notifyFormats() {
     ponte('__fmt__' + JSON.stringify(currentFormats()));
+    atualizarBarra();
   }
   function scheduleFormats() {
     if (fmtTimer) return;
@@ -1055,6 +1135,30 @@ const buildDoc = (
     }
   });
 
+  // Barra de formatação DENTRO do WebView: o toque no botão não perde a
+  // seleção porque ele está no mesmo documento do texto (modelo do PC).
+  if (bar) {
+    bar.addEventListener('mousedown', function(e) {
+      var b = e.target && e.target.closest ? e.target.closest('button') : null;
+      if (b) e.preventDefault();
+    });
+    var ultimoToqueBarra = 0;
+    bar.addEventListener('touchend', function(e) {
+      var b = e.target && e.target.closest ? e.target.closest('button[data-cmd]') : null;
+      if (!b) return;
+      e.preventDefault();
+      ultimoToqueBarra = Date.now();
+      window.editorExec(b.getAttribute('data-cmd'));
+    }, { passive: false });
+    bar.addEventListener('click', function(e) {
+      if (Date.now() - ultimoToqueBarra < 500) return; // já executou no touchend
+      var b = e.target && e.target.closest ? e.target.closest('button[data-cmd]') : null;
+      if (!b) return;
+      e.preventDefault();
+      window.editorExec(b.getAttribute('data-cmd'));
+    });
+  }
+
   notify();
   notifyFormats();
 })();
@@ -1075,6 +1179,8 @@ const RichTextEditor = memo(
       placeholderColor,
       backgroundColor,
       accentColor,
+      toolbarColor = backgroundColor,
+      toolbarBorderColor = accentColor,
       editavel = true,
       imagensDirUri,
       audiosDirUri,
@@ -1108,8 +1214,8 @@ const RichTextEditor = memo(
     // com o contenteditable CORRETO embutido. Alternar via JS (el.contentEditable)
     // é instável no Android (cursor/caret não aparecem) — por isso recarregamos.
     const doc = useMemo(
-      () => buildDoc(initialContent, textColor, placeholderColor, backgroundColor, accentColor, placeholder, editavel),
-      [initialContent, textColor, placeholderColor, backgroundColor, accentColor, placeholder, editavel]
+      () => buildDoc(initialContent, textColor, placeholderColor, backgroundColor, accentColor, placeholder, editavel, toolbarColor, toolbarBorderColor),
+      [initialContent, textColor, placeholderColor, backgroundColor, accentColor, placeholder, editavel, toolbarColor, toolbarBorderColor]
     );
     // Objeto estável: evita que o react-native-webview recarregue a página em re-renders.
     const source = useMemo(() => ({ html: doc }), [doc]);
