@@ -10,7 +10,7 @@ import * as Crypto from 'expo-crypto';
 import Cripto from '../desktop/src/lib/cripto';
 
 const OPCOES = { keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY };
-const ITERACOES = 100000;
+const ITERACOES = 30000;
 
 export type ChaveBackupLocal = {
   chave: string;

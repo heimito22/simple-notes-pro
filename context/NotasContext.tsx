@@ -552,6 +552,14 @@ export function NotasProvider({ children }: any) {
             setSyncStatus(s => ({ ...s, estado: 'erro' }));
             return;
           }
+          // O envelope já traz a DEK embrulhada: copia para o cofre e evita
+          // o PBKDF2 (que travava a primeira sincronização no celular).
+          if (remoto.kdf && remoto.chave) {
+            try {
+              await ChaveBackup.salvarEmbrulho(emailConta, remoto.kdf, remoto.chave);
+              ks = { ...ks, kdf: remoto.kdf, chaveEmbrulhada: remoto.chave };
+            } catch {}
+          }
         } else {
           marcarErroCripto('O backup no Drive está num formato antigo/sem proteção. Atualize o outro aparelho — este não vai sobrescrever.');
           setSyncStatus(s => ({ ...s, estado: 'erro' }));
@@ -572,7 +580,7 @@ export function NotasProvider({ children }: any) {
           ivDados: ChaveBackup.aleatorio(16),
           ivChave: ChaveBackup.aleatorio(16),
           salt: ChaveBackup.aleatorio(16),
-          iteracoes: 100000,
+          iteracoes: 30000,
         });
         if (env) { try { await ChaveBackup.salvarEmbrulho(emailConta, env.kdf, env.chave); } catch {} }
       }
@@ -718,6 +726,11 @@ export function NotasProvider({ children }: any) {
         return null;
       }
       chaveOkRef.current = true;
+      // Guarda o blob já embrulhado do envelope para o próximo push não
+      // precisar de PBKDF2 (era o travamento da primeira sincronização).
+      if (bruto.kdf && bruto.chave) {
+        try { await ChaveBackup.salvarEmbrulho(email, bruto.kdf, bruto.chave); } catch {}
+      }
       marcarErroCripto(null);
       return dec;
     }
