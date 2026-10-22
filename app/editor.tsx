@@ -1158,44 +1158,62 @@ export default function EditorScreen() {
         }
     };
 
-    // Aplica o comando de formatação e re-sincroniza o estado dos botões logo em
-    // seguida (o WebView também reenvia o estado ~40ms depois do comando). O
-    // toque na toolbar NÃO fecha o teclado nem move o cursor — só executa.
+    // Aplica o comando de formatação. O WebView devolve o estado logo depois do
+    // comando (e de novo em 40ms); não forçamos uma leitura intermediária, que
+    // podia chegar antes da reestruturação do DOM e piscar o botão errado.
     const aplicarFormato = (cmd: string) => {
         try { Haptics.selectionAsync(); } catch (e) {}
         editorRef.current?.execCommand(cmd);
-        editorRef.current?.atualizarFormato();
     };
 
     const corAtiva = tema.primarySoft;
     const estiloAtivo = (ativo: boolean) => (ativo ? { backgroundColor: corAtiva, borderColor: tema.accent } : null);
     const corBotao = (ativo: boolean) => (ativo ? tema.accent : tema.texto);
-    const BOTAO_FMT: { cmd: string; rotulo: string; icone: string; ativo: boolean }[] = [
+    const BOTAO_HIST = [
+        { cmd: 'undo', rotulo: 'Desfazer', icone: 'undo-variant' },
+        { cmd: 'redo', rotulo: 'Refazer', icone: 'redo-variant' },
+    ] as const;
+    const BOTAO_INLINE: { cmd: string; rotulo: string; icone: string; ativo: boolean }[] = [
         { cmd: 'bold', rotulo: 'Negrito', icone: 'format-bold', ativo: fmt.bold },
         { cmd: 'italic', rotulo: 'Itálico', icone: 'format-italic', ativo: fmt.italic },
         { cmd: 'underline', rotulo: 'Sublinhado', icone: 'format-underline', ativo: fmt.underline },
         { cmd: 'strikeThrough', rotulo: 'Tachado', icone: 'format-strikethrough-variant', ativo: fmt.strikeThrough },
+    ];
+    const BOTAO_LISTAS: { cmd: string; rotulo: string; icone: string; ativo: boolean }[] = [
         { cmd: 'insertUnorderedList', rotulo: 'Lista com marcadores', icone: 'format-list-bulleted', ativo: fmt.unorderedList },
         { cmd: 'insertOrderedList', rotulo: 'Lista numerada', icone: 'format-list-numbered', ativo: fmt.orderedList },
-    ] as const;
+    ];
+    const BOTAO_LIMPAR = [{ cmd: 'removeFormat', rotulo: 'Limpar formatação', icone: 'format-clear' }] as const;
+
+    const botaoToolbar = (cmd: string, rotulo: string, icone: string, ativo: boolean = false) => (
+        <TouchableOpacity
+            key={cmd}
+            onPress={() => aplicarFormato(cmd)}
+            style={[styles.btnToolbarExtra, estiloAtivo(ativo)]}
+            accessibilityRole="button"
+            accessibilityState={ativo ? { selected: true } : {}}
+            accessibilityLabel={t(rotulo)}
+            activeOpacity={0.55}
+        >
+            <MaterialCommunityIcons name={icone as any} size={22} color={corBotao(ativo)} />
+        </TouchableOpacity>
+    );
 
     const renderToolbar = () => (
         <View style={[styles.toolbarWrapper, { backgroundColor: tema.toolbar, borderColor: tema.sheetBorda }]}>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.toolbarScroll}>
-                {BOTAO_FMT.map(({ cmd, rotulo, icone, ativo }) => (
-                    <TouchableOpacity
-                        key={cmd}
-                        onPress={() => aplicarFormato(cmd)}
-                        style={[styles.btnToolbarExtra, estiloAtivo(ativo)]}
-                        accessibilityRole="button"
-                        accessibilityState={ativo ? { selected: true } : {}}
-                        accessibilityLabel={t(rotulo)}
-                        activeOpacity={0.55}
-                    >
-                        <MaterialCommunityIcons name={icone as any} size={22} color={corBotao(ativo)} />
-                    </TouchableOpacity>
-                ))}
-
+            <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                keyboardShouldPersistTaps="always"
+                contentContainerStyle={styles.toolbarScroll}
+            >
+                {BOTAO_INLINE.map(({ cmd, rotulo, icone, ativo }) => botaoToolbar(cmd, rotulo, icone, ativo))}
+                <View style={styles.divisorToolbar} />
+                {BOTAO_LISTAS.map(({ cmd, rotulo, icone, ativo }) => botaoToolbar(cmd, rotulo, icone, ativo))}
+                <View style={styles.divisorToolbar} />
+                {BOTAO_LIMPAR.map(({ cmd, rotulo, icone }) => botaoToolbar(cmd, rotulo, icone))}
+                <View style={styles.divisorToolbar} />
+                {BOTAO_HIST.map(({ cmd, rotulo, icone }) => botaoToolbar(cmd, rotulo, icone))}
                 <View style={styles.divisorToolbar} />
 
                 <TouchableOpacity

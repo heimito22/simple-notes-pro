@@ -254,7 +254,15 @@ const buildDoc = (
   // Conteúdo inicial injetado via JSON (evita quebrar o shell com tags literais no texto)
   var initial = ${toJSString(initialHtml)};
   el.innerHTML = initial;
+  // Tags semânticas (<b>, <i>, <u>, <s>) em vez de <span style>: o estado dos
+  // botões e o "desligar" ficam muito mais previsíveis no WebView Android.
+  try { document.execCommand('styleWithCSS', false, false); } catch (e) {}
+
+  // Seleção de TEXTO (não colapsada) feita antes de tocar na toolbar. O caret
+  // separado evita que o blur da toolbar sobrescreva a seleção com um caret.
   var savedRange = null;
+  var caretRange = null;
+  var interagindoEditor = false;
 
   // Ponte para o host: WebView nativo usa ReactNativeWebView; na WEB (desktop)
   // o iframe srcDoc fala com o parent via postMessage ({snEditor: msg}).
@@ -269,27 +277,36 @@ const buildDoc = (
   function cmdState(c) {
     try { return !!document.queryCommandState(c); } catch (e) { return false; }
   }
+  function ancestorDe(node, nomes) {
+    var n = node && node.nodeType === 3 ? node.parentNode : node;
+    while (n && n !== document.body && n !== document.documentElement) {
+      if (n.nodeType === 1 && nomes.indexOf(n.nodeName) >= 0) return true;
+      n = n.parentNode;
+    }
+    return false;
+  }
   function currentFormats() {
     var sel = window.getSelection();
     var fmt = {
-      bold: cmdState('bold'),
-      italic: cmdState('italic'),
-      underline: cmdState('underline'),
-      strikeThrough: cmdState('strikeThrough'),
+      bold: false,
+      italic: false,
+      underline: false,
+      strikeThrough: false,
       unorderedList: false,
       orderedList: false
     };
-    if (sel && sel.rangeCount > 0) {
-      var node = sel.getRangeAt(0).commonAncestorContainer;
-      if (node.nodeType === 3) node = node.parentNode;
-      var n = node;
-      while (n && n !== document.body && n !== document.documentElement) {
-        var tag = n.nodeName;
-        if (tag === 'UL') fmt.unorderedList = true;
-        if (tag === 'OL') fmt.orderedList = true;
-        n = n.parentNode;
-      }
-    }
+    if (!sel || sel.rangeCount === 0) return fmt;
+    var r = sel.getRangeAt(0);
+    var node = r.startContainer;
+    var colapsada = r.collapsed;
+    // Em seleção de texto, queryCommandState já responde "todo o trecho está
+    // formatado?"; o fallback por ancestral vale para o caret (modo digitação).
+    fmt.bold = cmdState('bold') || (colapsada && ancestorDe(node, ['B', 'STRONG']));
+    fmt.italic = cmdState('italic') || (colapsada && ancestorDe(node, ['I', 'EM']));
+    fmt.underline = cmdState('underline') || (colapsada && ancestorDe(node, ['U']));
+    fmt.strikeThrough = cmdState('strikeThrough') || (colapsada && ancestorDe(node, ['S', 'STRIKE', 'DEL']));
+    fmt.unorderedList = ancestorDe(node, ['UL']);
+    fmt.orderedList = ancestorDe(node, ['OL']);
     return fmt;
   }
   var fmtTimer = null;
@@ -307,17 +324,38 @@ const buildDoc = (
   var aplicandoComando = false;
   
   el.addEventListener('input', notify);
-  el.addEventListener('blur', function() {
+  function salvarSelecaoAtual() {
     var sel = window.getSelection();
-    if (sel && sel.rangeCount > 0) savedRange = sel.getRangeAt(0).cloneRange();
+    if (!sel || sel.rangeCount === 0) return;
+    var r = sel.getRangeAt(0);
+    if (!rangeValido(r)) return;
+    if (!r.collapsed) { savedRange = r.cloneRange(); caretRange = null; }
+    else { caretRange = r.cloneRange(); }
+  }
+  el.addEventListener('blur', function() {
+    // Blur causado pelo toque na toolbar NÃO pode sobrescrever a seleção de
+    // texto com um caret colapsado. Só salva se ainda não temos nada.
+    if (!savedRange && !caretRange) salvarSelecaoAtual();
   });
   document.addEventListener('selectionchange', function() {
-    var sel = window.getSelection();
-    if (!aplicandoComando && sel && sel.rangeCount > 0) {
-      savedRange = sel.getRangeAt(0).cloneRange();
-    }
+    if (!aplicandoComando) salvarSelecaoAtual();
     scheduleFormats();
   });
+
+  // Um novo toque NO EDITOR começa uma nova seleção/caret: descarta a anterior.
+  // O toque na toolbar (fora do editor) não dispara isto — e é justamente o que
+  // preserva a seleção para o próximo comando.
+  function iniciarInteracaoEditor() {
+    interagindoEditor = true;
+    savedRange = null;
+    caretRange = null;
+  }
+  function terminarInteracaoEditor() { interagindoEditor = false; }
+  el.addEventListener('touchstart', iniciarInteracaoEditor, { passive: true });
+  el.addEventListener('mousedown', iniciarInteracaoEditor);
+  document.addEventListener('touchend', terminarInteracaoEditor, { passive: true });
+  document.addEventListener('mouseup', terminarInteracaoEditor);
+  document.addEventListener('touchcancel', terminarInteracaoEditor, { passive: true });
 
   // TAGS: detecta o hashtag imediatamente antes do cursor e avisa o host com o
   // MATCH COMPLETO (com o '#'). Sem '#' digitado, avisa vazio — o host fecha as
@@ -491,24 +529,75 @@ const buildDoc = (
     } catch (e) { return false; }
   }
 
+  // Offset de texto (dentro do #editor) do início/fim da seleção. É a âncora
+  // que sobrevive à reestruturação do DOM feita pelo execCommand.
+  function offsetDaSelecao(r, fim) {
+    try {
+      var pre = document.createRange();
+      pre.selectNodeContents(el);
+      pre.setEnd(fim ? r.endContainer : r.startContainer, fim ? r.endOffset : r.startOffset);
+      return pre.toString().length;
+    } catch (e) { return null; }
+  }
+  function rangeDosOffsets(inicio, fim) {
+    try {
+      var walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null);
+      var pos = 0, node, iniNo = null, iniOff = 0, fimNo = null, fimOff = 0;
+      while ((node = walker.nextNode())) {
+        var len = node.nodeValue.length;
+        if (!iniNo && inicio <= pos + len) { iniNo = node; iniOff = Math.max(0, inicio - pos); }
+        if (fim <= pos + len) { fimNo = node; fimOff = Math.max(0, fim - pos); break; }
+        pos += len;
+      }
+      if (!iniNo) return null;
+      if (!fimNo) { fimNo = iniNo; fimOff = iniOff; }
+      var r = document.createRange();
+      r.setStart(iniNo, iniOff);
+      r.setEnd(fimNo, fimOff);
+      return r;
+    } catch (e) { return null; }
+  }
+
+  function restaurarSelecaoSalva(sel) {
+    var alvo = null;
+    if (savedRange && rangeValido(savedRange)) alvo = savedRange;
+    else if (caretRange && rangeValido(caretRange)) alvo = caretRange;
+    if (alvo) {
+      try { sel.removeAllRanges(); sel.addRange(alvo); } catch (e) { savedRange = null; }
+    }
+    return alvo;
+  }
+  function atualizarRangeSalvo(sel) {
+    try {
+      if (!sel || sel.rangeCount === 0) return;
+      var r = sel.getRangeAt(0);
+      if (!rangeValido(r)) return;
+      if (!r.collapsed) { savedRange = r.cloneRange(); caretRange = null; }
+      else { caretRange = r.cloneRange(); }
+    } catch (e) {}
+  }
+
   window.editorExec = function(cmd) {
-    // Flag ANTES do focus: o próprio focus() pode disparar selectionchange (o Android
-    // às vezes desloca o caret ao focar) e não pode sobrescrever o savedRange.
+    // Flag ANTES do focus: o próprio focus() pode disparar selectionchange.
     aplicandoComando = true;
+    var historico = cmd === 'undo' || cmd === 'redo';
     el.focus();
     var sel = window.getSelection();
-    // Restaura a seleção salva SÓ se ela ainda existir no documento. Reaplicar um
-    // range velho (DOM reestruturado por um comando anterior, ex.: texto envolvido
-    // em <b>/<li>) depois de removeAllRanges ZERA a seleção e mata os toggles — a
-    // verificação de validade evita esse caminho antes de limpar a seleção atual.
-    if (savedRange && rangeValido(savedRange)) {
-      try {
-        sel.removeAllRanges();
-        sel.addRange(savedRange);
-      } catch (e) {
-        savedRange = null;
+    // Em undo/redo, deixa o próprio navegador restaurar a seleção do histórico;
+    // reaplicar um range antigo poderia interferir no comando.
+    if (!historico) restaurarSelecaoSalva(sel);
+
+    // Guarda a seleção por offsets ANTES do comando. Se o WebView colapsar a
+    // seleção ao reestruturar o DOM, restauramos exatamente o mesmo trecho.
+    var tinhaSelecao = false, offIni = null, offFim = null;
+    try {
+      var r0 = sel && sel.rangeCount > 0 ? sel.getRangeAt(0) : null;
+      if (r0 && !r0.collapsed) {
+        tinhaSelecao = true;
+        offIni = offsetDaSelecao(r0, false);
+        offFim = offsetDaSelecao(r0, true);
       }
-    }
+    } catch (e) {}
 
     var antes = currentFormats();
     document.execCommand(cmd, false, null);
@@ -516,31 +605,33 @@ const buildDoc = (
 
     // Listas num bloco vazio/recém-criado: alguns WebViews ignoram o primeiro
     // insertUnorderedList/insertOrderedList quando não há linha de texto para
-    // virar item. Se o comando não mudou nada, tenta uma vez de novo — o segundo
-    // exec normalmente cria a lista (o primeiro apenas prepara o bloco).
+    // virar item. Se o comando não mudou nada, tenta uma vez de novo.
     if (
       (cmd === 'insertUnorderedList' || cmd === 'insertOrderedList') &&
       !antes.unorderedList && !antes.orderedList &&
       !depois.unorderedList && !depois.orderedList
     ) {
       document.execCommand(cmd, false, null);
+      depois = currentFormats();
     }
 
-    // Re-captura a seleção pós-comando SE o WebView a manteve não colapsada: assim,
-    // comandos consecutivos (N + I + desligar N) atuam no mesmo trecho. NADA é
-    // re-aplicado aqui — re-selecionar range antigo após reestruturação quebra tudo.
     try {
-      if (sel && sel.rangeCount > 0) {
-        var r = sel.getRangeAt(0);
-        if (!r.collapsed && rangeValido(r)) savedRange = r.cloneRange();
+      var r1 = sel && sel.rangeCount > 0 ? sel.getRangeAt(0) : null;
+      if (!historico && tinhaSelecao && (!r1 || r1.collapsed) && offIni != null && offFim != null) {
+        var restaurado = rangeDosOffsets(offIni, offFim);
+        if (restaurado && rangeValido(restaurado)) {
+          sel.removeAllRanges();
+          sel.addRange(restaurado);
+        }
       }
+      atualizarRangeSalvo(sel);
     } catch (e) {}
+
     aplicandoComando = false;
     notify();
     notifyFormats();
-    // Alguns WebViews só terminam a reestruturação do DOM (ex.: envolver em <b>/
-    // criar a <ul>) no próximo tick — um segundo aviso de estado evita o botão
-    // ficar aceso/apagado errado logo depois do toque.
+    // Alguns WebViews só terminam a reestruturação do DOM no próximo tick — um
+    // segundo aviso evita o botão ficar aceso/apagado errado logo depois.
     setTimeout(function() {
       if (!aplicandoComando) notifyFormats();
     }, 40);
