@@ -1,4 +1,6 @@
-**Versão 1.5.33**
+**Versão 1.5.34**
 
-- Antes de migrar o backup antigo (v1) para o novo (v2), o PC guarda uma **cópia local** em `backup_v1_<data>.json` na pasta de dados do app — dá para voltar atrás se algo der errado
-- Mantém as correções da 1.5.32: desbloqueio da chave amarrado à conta (troca de conta não mistura cofres) e todo o backup v2 (chave aleatória, código de recuperação, AES-256 + HMAC, fail-closed e anti-downgrade)
+- Corrige a corrida que criava uma **chave provisória** quando a listagem do Drive falhava: agora um erro de rede cancela o envio em vez de criar outra chave
+- Antes de sobrescrever o backup, o PC confere se a chave local realmente abre o v2; se não abrir, pede o código correto — **nunca gera dois códigos**
+- Se o backup remoto for de outra chave, o app pede o código em vez de ficar num beco sem saída
+- Mantém a cópia local do v1 antes da migração e todas as proteções da 1.5.33

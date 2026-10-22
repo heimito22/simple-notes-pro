@@ -107,12 +107,20 @@ var duplicadosChecados = false;
 var ultimaPoda = 0;
 function camposArquivo(){ return 'files(id%2CmodifiedTime%2Csize)'; }
 async function listarBackupsDrive(token){
+  const r = await listarBackupsDriveSeguro(token);
+  return r.ok ? r.files : [];
+}
+/**
+ * Igual à listagem normal, mas distingue "não existe" de "a consulta falhou".
+ * O push usa esta versão para nunca confundir erro de rede com conta vazia.
+ */
+async function listarBackupsDriveSeguro(token){
   try{
     const r = await fetch('https://www.googleapis.com/drive/v3/files?q=name%3D%27backup_notas.json%27+and+parents+in+%27appDataFolder%27&spaces=appDataFolder&fields='+camposArquivo()+'&orderBy=modifiedTime%20desc', { headers:{Authorization:'Bearer '+token, 'Cache-Control':'no-cache'}, signal:AbortSignal.timeout(15000) });
+    if(!r.ok) return {ok:false, files:[]};
     const j = await r.json().catch(()=>({}));
-    // ordena localmente também: `orderBy` não é garantido para appDataFolder
-    return PoliticaSync.ordenarBackups((j.files||[]).filter(f=>f && f.id));
-  }catch{ return []; }
+    return {ok:true, files: PoliticaSync.ordenarBackups((j.files||[]).filter(f=>f && f.id))};
+  }catch{ return {ok:false, files:[]}; }
 }
 /** Remove os backups duplicados, mantendo só o canônico. */
 async function removerDuplicadosDrive(token, manterId){
@@ -300,7 +308,7 @@ async function hidratarNotasComAnexos(token, dados){
   }
   return cnt;
 }
-module.exports = { lerLocal, salvarLocal, lerConfig, salvarConfig, CONFIG_PADRAO, buscarBackupDrive, obterMetadadosBackupDrive, enviarBackupDrive, apagarTudoLocal, apagarBackupDrive, hidratarNotasComAnexos, listarBackupsDrive, removerDuplicadosDrive, desidratarNotasParaEnvio };
+module.exports = { lerLocal, salvarLocal, lerConfig, salvarConfig, CONFIG_PADRAO, buscarBackupDrive, obterMetadadosBackupDrive, enviarBackupDrive, apagarTudoLocal, apagarBackupDrive, hidratarNotasComAnexos, listarBackupsDrive, listarBackupsDriveSeguro, removerDuplicadosDrive, desidratarNotasParaEnvio };
 
 /* ---------------------------------------------------------------------------
  * DESIDRATAÇÃO DE ENVIO (gargalo do payload) — o celular sobe os anexos como

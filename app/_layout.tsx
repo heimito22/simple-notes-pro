@@ -160,6 +160,9 @@ function ConteudoApp() {
     }
 
     pedindoRef.current = true;
+    // A UI de biometria do sistema derruba o app para background e volta.
+    // Sem suspender, o handler de AppState re-bloqueava em loop ("app travado").
+    bloqueioEstado.ativar();
     try {
       const res = await LocalAuthentication.authenticateAsync({
         promptMessage: t('Acesse suas informações'),
@@ -174,6 +177,7 @@ function ConteudoApp() {
       return false;
     } finally {
       pedindoRef.current = false;
+      bloqueioEstado.liberar();
     }
   }, [t, config?.pinDesbloqueio]);
 
@@ -197,6 +201,8 @@ function ConteudoApp() {
 
     const subscription = AppState.addEventListener('change', (nextState: AppStateStatus) => {
       if (!config?.exigirBiometriaApp) return;
+      // Enquanto o prompt de biometria está aberto, as transições são dele.
+      if (pedindoRef.current) { appState.current = nextState; return; }
 
       if (appState.current.match(/active/) && nextState.match(/inactive|background/)) {
         // Sair para UIs do SISTEMA (seletor de fotos, diálogo de permissão de áudio)

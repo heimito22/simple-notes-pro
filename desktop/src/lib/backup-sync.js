@@ -15,10 +15,11 @@ const Cripto = require('./cripto.js');
 
 let ultimoEnvelope = null;
 let ultimoEmail = null;
+let chaveOkEmail = null;
 
 function aleatorio(n) { return crypto.randomBytes(n).toString('hex'); }
 
-function reset() { ultimoEnvelope = null; ultimoEmail = null; }
+function reset() { ultimoEnvelope = null; ultimoEmail = null; chaveOkEmail = null; }
 
 /**
  * Envia o backup. Retorna {ok, modifiedTime, codigoNovo?, precisaCodigo?, erro?}.
@@ -30,6 +31,37 @@ async function enviar(p) {
 
   let ks = chaveBackup.obter(email);
   let codigoNovo = null;
+
+  // Chave já existe, mas ainda não foi conferida contra a nuvem nesta sessão:
+  // se o backup remoto for v2 de OUTRA chave, NÃO sobrescreve — pede o código.
+  if (ks && chaveOkEmail !== email) {
+    let filesOk = true;
+    let files = [];
+    if (typeof store.listarBackupsDriveSeguro === 'function') {
+      const lista = await store.listarBackupsDriveSeguro(token);
+      filesOk = lista.ok;
+      files = lista.files || [];
+    }
+    if (!filesOk) {
+      return { ok: false, erro: 'Não consegui verificar o backup no Drive — envio cancelado.' };
+    }
+    if (files.length) {
+      const atual = await store.buscarBackupDrive(token).catch(() => null);
+      if (!atual) {
+        return { ok: false, erro: 'Não consegui baixar o backup para verificar — envio cancelado.' };
+      }
+      if (Cripto.ehV2(atual)) {
+        if (!Cripto.lerEnvelopeV2(atual, ks.chave)) {
+          ultimoEnvelope = atual;
+          ultimoEmail = email;
+          return { ok: false, precisaCodigo: true };
+        }
+      } else {
+        return { ok: false, erro: 'Backup antigo/sem proteção recusado (possível downgrade).' };
+      }
+    }
+    chaveOkEmail = email;
+  }
 
   if (!ks) {
     // Já existe backup v2 de outro aparelho? Então NÃO cria chave nova:
@@ -47,14 +79,26 @@ async function enviar(p) {
     ks = chaveBackup.criar(email);
     if (!ks) return { ok: false, erro: 'Cofre do Windows indisponível — backup NÃO enviado' };
     codigoNovo = ks.codigo;
+    chaveOkEmail = email;
   }
 
-  const env = Cripto.montarEnvelopeV2(dados, ks.chave, ks.codigo, {
-    ivDados: aleatorio(16),
-    ivChave: aleatorio(16),
-    salt: aleatorio(16),
-    iteracoes: 100000
-  });
+  // Reutiliza o blob da DEK embrulhada: o PBKDF2 NÃO roda a cada push.
+  let env;
+  if (ks.kdf && ks.chaveEmbrulhada) {
+    env = Cripto.montarEnvelopeV2ComChaveEmbrulhada(dados, ks.chave, ks.kdf, ks.chaveEmbrulhada, {
+      ivDados: aleatorio(16)
+    });
+  } else {
+    env = Cripto.montarEnvelopeV2(dados, ks.chave, ks.codigo, {
+      ivDados: aleatorio(16),
+      ivChave: aleatorio(16),
+      salt: aleatorio(16),
+      iteracoes: 100000
+    });
+    if (env && typeof chaveBackup.salvarEmbrulho === 'function') {
+      try { chaveBackup.salvarEmbrulho(email, env.kdf, env.chave); } catch (e) {}
+    }
+  }
   if (!env) return { ok: false, erro: 'Falha ao criptografar — backup NÃO enviado' };
 
   const r = await store.enviarBackupDrive(token, env);
@@ -84,9 +128,16 @@ async function baixar(p) {
       return { ok: false, precisaCodigo: true };
     }
     dados = Cripto.lerEnvelopeV2(r, ks.chave);
-    if (!dados) return { ok: false, erro: 'Falha ao verificar o backup (adulterado ou chave errada)' };
+    if (!dados) {
+      // Pode ser chave errada (aparelho antigo) ou backup adulterado. Pede o
+      // código em vez de ficar num beco sem saída; o MAC decide.
+      ultimoEnvelope = r;
+      ultimoEmail = email;
+      return { ok: false, precisaCodigo: true };
+    }
     ultimoEnvelope = null;
     ultimoEmail = null;
+    chaveOkEmail = email;
   } else {
     // Backup antigo (v1 CBC) ou em claro. Se este aparelho já tem chave v2,
     // RECUSA: aceitar seria permitir um downgrade silencioso.
@@ -119,6 +170,7 @@ async function definirCodigo(p) {
   if (!ks) return { ok: false, erro: 'Código incorreto' };
   ultimoEnvelope = null;
   ultimoEmail = null;
+  chaveOkEmail = email;
   return { ok: true };
 }
 

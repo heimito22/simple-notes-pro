@@ -22,14 +22,26 @@ export type BackupInfo = { id: string; modifiedTime: string; size?: number };
 
 /** Lista todos os backups da conta, do mais recente para o mais antigo. */
 export async function listarBackupsDrive(token: string): Promise<BackupInfo[]> {
+  const r = await listarBackupsDriveSeguro(token);
+  return r.ok ? r.files : [];
+}
+
+/**
+ * Igual à listagem normal, mas DIZ se a consulta falhou. O push usa esta versão:
+ * um erro de rede não pode ser confundido com "não existe backup" (senão o app
+ * criaria uma chave nova e sobrescreveria o backup v2 de outro aparelho).
+ */
+export async function listarBackupsDriveSeguro(
+  token: string,
+): Promise<{ ok: boolean; files: BackupInfo[] }> {
   try {
     const r = await fetch(CONSULTA, { headers: { Authorization: `Bearer ${token}` } });
+    if (!r.ok) return { ok: false, files: [] };
     const j: any = await r.json().catch(() => ({} as any));
     const files: BackupInfo[] = (j?.files || []).filter((f: any) => f && f.id);
-    // ordena aqui também: `orderBy` não é garantido para appDataFolder
-    return ordenarBackups(files);
+    return { ok: true, files: ordenarBackups(files) };
   } catch {
-    return [];
+    return { ok: false, files: [] };
   }
 }
 
@@ -55,12 +67,23 @@ export async function removerBackupsDuplicados(token: string, manterId: string):
  * `null` = a conta ainda não tem backup.
  */
 export async function acharBackupCanonico(token: string): Promise<BackupInfo | null> {
-  const files = await listarBackupsDrive(token);
-  const { canonico, duplicados } = escolherCanonico(files);
-  if (!canonico) return null;
-  if (duplicados.length) {
+  const r = await acharBackupCanonicoSeguro(token);
+  return r.ok ? r.canonico : null;
+}
+
+/**
+ * Versão que distingue "não existe backup" de "a listagem falhou".
+ * Use no PUSH: se `ok` for false, cancele o envio em vez de criar chave nova.
+ */
+export async function acharBackupCanonicoSeguro(
+  token: string,
+): Promise<{ ok: boolean; canonico: BackupInfo | null }> {
+  const r = await listarBackupsDriveSeguro(token);
+  if (!r.ok) return { ok: false, canonico: null };
+  const { canonico, duplicados } = escolherCanonico(r.files);
+  if (canonico && duplicados.length) {
     console.log(`[Cloud] ${duplicados.length} backup(s) duplicado(s) — mantendo o mais recente.`);
     removerBackupsDuplicados(token, canonico.id).catch(() => {});
   }
-  return canonico;
+  return { ok: true, canonico };
 }

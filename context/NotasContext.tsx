@@ -10,7 +10,7 @@ import { verificarTelaCheia } from './permissao-alarme';
 import { sincronizarAnexosUpload, restaurarAnexosDownload, reapontarAnexosVirtuais, extrairAnexosLocais } from './anexos-cloud';
 import { File } from 'expo-file-system';
 import { hidratarApagados, definirEscopoApagados, registrarApagado, registrarApagados, serializarApagados, carregarApagados, mesclarPorItem, assinaturaItem, tsDoItemExportado, hidratarRelogio, relogioAgora, avancarRelogioComItens } from './tombstones';
-import { acharBackupCanonico } from './backup-drive';
+import { acharBackupCanonico, acharBackupCanonicoSeguro } from './backup-drive';
 import { useTheme } from './ThemeContext';
 import { idiomaAtual, tIdioma } from './idiomas';
 import Cripto from '../desktop/src/lib/cripto';
@@ -70,6 +70,7 @@ export function NotasProvider({ children }: any) {
   const envelopeEmailRef = useRef<string | null>(null);
   const erroCriptoRef = useRef<string | null>(null);
   const codigoIgnoradoRef = useRef(false);
+  const chaveOkRef = useRef(false);
   const marcarErroCripto = useCallback((msg: string | null) => {
     erroCriptoRef.current = msg;
     setErroCripto(msg);
@@ -79,6 +80,7 @@ export function NotasProvider({ children }: any) {
     envelopePendenteRef.current = null;
     envelopeEmailRef.current = null;
     codigoIgnoradoRef.current = false;
+    chaveOkRef.current = false;
     erroCriptoRef.current = null;
     setCodigoPendente(false);
     setCodigoNovo(null);
@@ -452,10 +454,15 @@ export function NotasProvider({ children }: any) {
         pendentes = await anexosPendentesUpload(dados.notas.map((n: any) => n?.conteudo || ''));
       } catch { pendentes = 0; }
 
-      // Backup canônico: o arquivo MAIS RECENTE da conta (a conta pode ter
-      // duplicados antigos; gravar no mais velho fazia a alteração desaparecer).
-      const canonico = await acharBackupCanonico(tokens.accessToken);
-      const fileId = canonico?.id;
+      // Backup canônico: o arquivo MAIS RECENTE da conta. A versão "segura"
+      // distingue "não existe" de "a listagem falhou" — sem isso, um erro de
+      // rede virava "sem backup" e o app criava chave nova por cima do v2.
+      const canonicoRes = await acharBackupCanonicoSeguro(tokens.accessToken);
+      if (!canonicoRes.ok) {
+        setSyncStatus(s => ({ ...s, estado: 'erro' }));
+        return;
+      }
+      const fileId = canonicoRes.canonico?.id;
       
       // Preferencias (tema + config sem PIN) sincronizadas dentro do mesmo backup — PC<->celular ficam iguais.
       // Fonte única: ThemeContext (em memória), não AsyncStorage cru — reflete na hora sem reinício.
@@ -486,13 +493,15 @@ export function NotasProvider({ children }: any) {
       };
       // ── ENCRIPTAÇÃO v2: DEK aleatória no cofre + envelope autenticado ──
       // NUNCA sobe em claro. Se já existe backup v2 de outro aparelho, pede o
-      // código e NÃO sobrescreve nada.
+      // código e NÃO sobrescreve nada — e nunca cria uma chave provisória.
       if (erroCriptoRef.current) {
         setSyncStatus(s => ({ ...s, estado: 'erro' }));
         return;
       }
       const emailConta = user.user?.email;
       let ks = await ChaveBackup.obterChave(emailConta);
+      let criouChave = false;
+
       if (!ks && fileId) {
         const remoto = await baixarBackupBruto(tokens.accessToken, fileId);
         if (!remoto) {
@@ -503,6 +512,7 @@ export function NotasProvider({ children }: any) {
         if (Cripto.ehV2(remoto)) {
           envelopePendenteRef.current = remoto;
           envelopeEmailRef.current = emailConta || null;
+          setCodigoNovo(null); // não mostra dois códigos
           if (!codigoIgnoradoRef.current) setCodigoPendente(true);
           setSyncStatus(s => ({ ...s, estado: 'erro' }));
           return;
@@ -513,6 +523,7 @@ export function NotasProvider({ children }: any) {
           return;
         }
       }
+
       if (!ks) {
         ks = await ChaveBackup.criarChave(emailConta);
         if (!ks) {
@@ -520,14 +531,51 @@ export function NotasProvider({ children }: any) {
           setSyncStatus(s => ({ ...s, estado: 'erro' }));
           return;
         }
-        setCodigoNovo(ks.codigo);
+        criouChave = true;
+        chaveOkRef.current = true; // não havia backup v2: esta chave é a dona
+      } else if (!chaveOkRef.current && fileId) {
+        // Já tem chave no cofre, mas ainda não vimos o backup nesta sessão.
+        // Confere se ela abre o v2 remoto ANTES de sobrescrever.
+        const remoto = await baixarBackupBruto(tokens.accessToken, fileId);
+        if (!remoto) {
+          setSyncStatus(s => ({ ...s, estado: 'erro' }));
+          return;
+        }
+        if (Cripto.ehV2(remoto)) {
+          const teste = Cripto.lerEnvelopeV2(remoto, ks.chave);
+          if (!teste) {
+            envelopePendenteRef.current = remoto;
+            envelopeEmailRef.current = emailConta || null;
+            setCodigoNovo(null);
+            setCodigoPendente(true);
+            marcarErroCripto('A chave deste aparelho não corresponde ao backup no Drive. Entre com o código correto — nada foi sobrescrito.');
+            setSyncStatus(s => ({ ...s, estado: 'erro' }));
+            return;
+          }
+        } else {
+          marcarErroCripto('O backup no Drive está num formato antigo/sem proteção. Atualize o outro aparelho — este não vai sobrescrever.');
+          setSyncStatus(s => ({ ...s, estado: 'erro' }));
+          return;
+        }
+        chaveOkRef.current = true;
       }
-      const env = Cripto.montarEnvelopeV2(payloadBackup, ks.chave, ks.codigo, {
-        ivDados: ChaveBackup.aleatorio(16),
-        ivChave: ChaveBackup.aleatorio(16),
-        salt: ChaveBackup.aleatorio(16),
-        iteracoes: 100000,
-      });
+      // Reutiliza o blob da DEK embrulhada: o PBKDF2 NÃO roda a cada push.
+      let env: any;
+      if (ks.kdf && ks.chaveEmbrulhada) {
+        env = Cripto.montarEnvelopeV2ComChaveEmbrulhada(
+          payloadBackup, ks.chave, ks.kdf, ks.chaveEmbrulhada,
+          { ivDados: ChaveBackup.aleatorio(16) },
+        );
+      } else {
+        // Cofre antigo (sem blob): embrulha uma vez e guarda para os próximos.
+        env = Cripto.montarEnvelopeV2(payloadBackup, ks.chave, ks.codigo, {
+          ivDados: ChaveBackup.aleatorio(16),
+          ivChave: ChaveBackup.aleatorio(16),
+          salt: ChaveBackup.aleatorio(16),
+          iteracoes: 100000,
+        });
+        if (env) { try { await ChaveBackup.salvarEmbrulho(emailConta, env.kdf, env.chave); } catch {} }
+      }
       if (!env) {
         marcarErroCripto('Falha ao criptografar — backup NÃO enviado.');
         setSyncStatus(s => ({ ...s, estado: 'erro' }));
@@ -561,6 +609,9 @@ export function NotasProvider({ children }: any) {
 
       if (res.ok) {
         ultimoPushOkRef.current = Date.now();
+        // Só mostra o código DEPOIS que o envio deu certo. Assim a tela de
+        // "compartilhar" nunca aparece para uma chave que não é a da nuvem.
+        if (criouChave) setCodigoNovo(ks.codigo);
         // Marcador = modifiedTime do SERVIDOR (resposta do PATCH), não o ISO local.
         let mtServidor: string | null = null;
         try { const j = await res.json().catch(() => null); mtServidor = (j && j.modifiedTime) || null; } catch { mtServidor = null; }
@@ -651,14 +702,22 @@ export function NotasProvider({ children }: any) {
         // Backup de outro aparelho: pede o código, NÃO aplica nem sobrescreve.
         envelopePendenteRef.current = bruto;
         envelopeEmailRef.current = email || null;
+        setCodigoNovo(null);
         if (!codigoIgnoradoRef.current) setCodigoPendente(true);
         return null;
       }
       const dec = Cripto.lerEnvelopeV2(bruto, ks.chave);
       if (!dec) {
-        marcarErroCripto('O backup no Drive falhou na verificação (adulterado ou chave errada). Nada foi aplicado.');
+        // Pode ser chave de outro aparelho ou backup adulterado. Pede o código
+        // (o MAC decide) em vez de deixar o usuário sem saída.
+        envelopePendenteRef.current = bruto;
+        envelopeEmailRef.current = email || null;
+        setCodigoNovo(null);
+        setCodigoPendente(true);
+        marcarErroCripto('A chave deste aparelho não corresponde ao backup no Drive. Entre com o código correto — nada foi sobrescrito.');
         return null;
       }
+      chaveOkRef.current = true;
       marcarErroCripto(null);
       return dec;
     }
@@ -1054,7 +1113,9 @@ export function NotasProvider({ children }: any) {
     envelopePendenteRef.current = null;
     envelopeEmailRef.current = null;
     codigoIgnoradoRef.current = false;
+    chaveOkRef.current = true;
     setCodigoPendente(false);
+    setCodigoNovo(null); // descarta qualquer código provisório/obsoleto
     marcarErroCripto(null);
     // PULL primeiro: um aparelho novo não pode empurrar dados vazios/velhos
     // por cima do backup que acabou de desbloquear.

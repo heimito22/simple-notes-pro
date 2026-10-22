@@ -249,9 +249,26 @@
     };
   }
 
+  /** Monta o envelope v2 reaproveitando a DEK já embrulhada (sem PBKDF2). */
+  function montarEnvelopeV2ComChaveEmbrulhada(obj, chaveHex, kdf, chaveBlob, opts) {
+    opts = opts || {};
+    if (!obj || !chaveHex || !kdf || !chaveBlob || !opts.ivDados) return null;
+    if (!kdf.alg || !kdf.salt || !chaveBlob.iv || !chaveBlob.dados || !chaveBlob.mac) return null;
+    var dados = cifrarAutenticado(JSON.stringify(obj), chaveHex, opts.ivDados, AAD_BACKUP);
+    if (!dados) return null;
+    return {
+      __enc: 'AES-256-CTR-HMAC',
+      v: 2,
+      kdf: { alg: kdf.alg, it: kdf.it, salt: kdf.salt, tipo: kdf.tipo || 'codigo' },
+      chave: { iv: chaveBlob.iv, dados: chaveBlob.dados, mac: chaveBlob.mac },
+      iv: opts.ivDados,
+      dados: dados.dados,
+      mac: dados.mac
+    };
+  }
+
   /** Lê o envelope v2 com a DEK já desembrulhada. */
-  function lerEnvelopeV2(envelope, chaveHex) {
-    if (!ehV2(envelope)) return null;
+  function lerEnvelopeV2(envelope, chaveHex) {    if (!ehV2(envelope)) return null;
     var texto = decifrarAutenticado(
       { dados: envelope.dados, mac: envelope.mac },
       chaveHex,
@@ -295,6 +312,7 @@
     embrulharChave: embrulharChave,
     desembrulharChave: desembrulharChave,
     montarEnvelopeV2: montarEnvelopeV2,
+    montarEnvelopeV2ComChaveEmbrulhada: montarEnvelopeV2ComChaveEmbrulhada,
     lerEnvelopeV2: lerEnvelopeV2,
     abrirEnvelopeComCodigo: abrirEnvelopeComCodigo,
     ehV2: ehV2

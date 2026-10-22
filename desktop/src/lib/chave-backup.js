@@ -10,6 +10,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const Cripto = require('./cripto.js');
+const ITERACOES = 100000;
 
 function pasta() {
   const { app } = require('electron');
@@ -41,7 +42,12 @@ function obter(email) {
     const texto = safeStorage.decryptString(buf);
     const obj = JSON.parse(texto);
     if (!obj || !/^[0-9a-f]{64}$/i.test(String(obj.chave || ''))) return null;
-    return { chave: String(obj.chave).toLowerCase(), codigo: String(obj.codigo || '') };
+    return {
+      chave: String(obj.chave).toLowerCase(),
+      codigo: String(obj.codigo || ''),
+      kdf: obj.kdf || undefined,
+      chaveEmbrulhada: obj.chaveEmbrulhada || undefined
+    };
   } catch (e) { return null; }
 }
 
@@ -54,6 +60,8 @@ function salvar(email, dados) {
     const buf = safeStorage.encryptString(JSON.stringify({
       chave: String(dados.chave).toLowerCase(),
       codigo: String(dados.codigo || ''),
+      kdf: dados.kdf || undefined,
+      chaveEmbrulhada: dados.chaveEmbrulhada || undefined,
       criadoEm: dados.criadoEm || new Date().toISOString()
     }));
     fs.writeFileSync(arquivo(email), buf);
@@ -61,13 +69,28 @@ function salvar(email, dados) {
   } catch (e) { return false; }
 }
 
-/** Cria uma DEK aleatória + código de recuperação e guarda no cofre. */
+/** Cria uma DEK aleatória + código e embrulha UMA vez (PBKDF2). */
 function criar(email) {
   const chave = crypto.randomBytes(32).toString('hex');
   const codigo = Cripto.codigoDeHex(crypto.randomBytes(20).toString('hex'));
   if (!codigo) return null;
-  if (!salvar(email, { chave, codigo })) return null;
-  return { chave, codigo };
+  const salt = crypto.randomBytes(16).toString('hex');
+  const ivChave = crypto.randomBytes(16).toString('hex');
+  const chaveEmbrulhada = Cripto.embrulharChave(chave, codigo, salt, ivChave, ITERACOES);
+  if (!chaveEmbrulhada) return null;
+  const kdf = { alg: 'PBKDF2-SHA256', it: ITERACOES, salt, tipo: 'codigo' };
+  if (!salvar(email, { chave, codigo, kdf, chaveEmbrulhada })) return null;
+  return { chave, codigo, kdf, chaveEmbrulhada };
+}
+
+/** Guarda o blob da DEK embrulhada para reutilizar nos próximos pushes. */
+function salvarEmbrulho(email, kdf, chaveEmbrulhada) {
+  try {
+    if (!kdf || !chaveEmbrulhada) return false;
+    const atual = obter(email);
+    if (!atual) return false;
+    return salvar(email, { ...atual, kdf, chaveEmbrulhada });
+  } catch (e) { return false; }
 }
 
 /** Abre a DEK do envelope com o código digitado e guarda no cofre. */
@@ -75,8 +98,10 @@ function definirComCodigo(email, envelope, codigo) {
   const chave = Cripto.abrirEnvelopeComCodigo(envelope, codigo);
   if (!chave) return null;
   const normalizado = Cripto.normalizarCodigo(codigo) || '';
-  if (!salvar(email, { chave, codigo: normalizado })) return null;
-  return { chave, codigo: normalizado };
+  const kdf = envelope && envelope.kdf;
+  const chaveEmbrulhada = envelope && envelope.chave;
+  if (!salvar(email, { chave, codigo: normalizado, kdf, chaveEmbrulhada })) return null;
+  return { chave, codigo: normalizado, kdf, chaveEmbrulhada };
 }
 
 /** Código para mostrar em Ajustes (null se não houver chave). */
@@ -90,4 +115,4 @@ function apagar(email) {
   try { fs.unlinkSync(arquivo(email)); } catch (e) {}
 }
 
-module.exports = { disponivel, obter, criar, definirComCodigo, revelar, apagar };
+module.exports = { disponivel, obter, criar, definirComCodigo, salvarEmbrulho, revelar, apagar };
