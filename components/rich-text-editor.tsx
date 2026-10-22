@@ -1143,12 +1143,34 @@ const buildDoc = (
       if (b) e.preventDefault();
     });
     var ultimoToqueBarra = 0;
-    bar.addEventListener('touchend', function(e) {
+    var barTouch = null;
+    bar.addEventListener('touchstart', function(e) {
       var b = e.target && e.target.closest ? e.target.closest('button[data-cmd]') : null;
-      if (!b) return;
+      if (!b) { barTouch = null; return; }
+      var t = e.touches && e.touches[0];
+      if (!t) return;
+      barTouch = { x: t.clientX, y: t.clientY, botao: b, moveu: false };
+    }, { passive: true });
+    bar.addEventListener('touchmove', function(e) {
+      if (!barTouch) return;
+      var t = e.touches && e.touches[0];
+      if (!t) return;
+      if (Math.abs(t.clientX - barTouch.x) > 10 || Math.abs(t.clientY - barTouch.y) > 10) {
+        barTouch.moveu = true;
+      }
+    }, { passive: true });
+    bar.addEventListener('touchend', function(e) {
+      var info = barTouch;
+      barTouch = null;
+      if (!info) return;
+      if (info.moveu) {
+        // Foi rolagem horizontal da barra, não um toque: não executa nada.
+        ultimoToqueBarra = Date.now();
+        return;
+      }
       e.preventDefault();
       ultimoToqueBarra = Date.now();
-      window.editorExec(b.getAttribute('data-cmd'));
+      window.editorExec(info.botao.getAttribute('data-cmd'));
     }, { passive: false });
     bar.addEventListener('click', function(e) {
       if (Date.now() - ultimoToqueBarra < 500) return; // já executou no touchend
