@@ -63,6 +63,10 @@ interface Props {
   /** Cor da barra de formatação (superfície do app) e da borda. */
   toolbarColor?: string;
   toolbarBorderColor?: string;
+  /** Liga o vidro líquido animado na barra de formatação (beta). */
+  liquidGlass?: boolean;
+  /** Tema atual: escolhe o vidro fumê (escuro) ou o cristal (claro). */
+  glassDark?: boolean;
   /** URI base das pastas de anexos (para converter marcadores antigos em <img>/<audio>). */
   imagensDirUri?: string;
   audiosDirUri?: string;
@@ -138,6 +142,85 @@ const converterMarcadores = (html: string, imagensDirUri?: string, audiosDirUri?
 // impedir que um `</script>` literal no conteúdo feche o script do shell).
 const toJSString = (s: string) => JSON.stringify(s).replace(/</g, '\\u003c');
 
+/**
+ * Vidro líquido da barra do editor. É CSS puro dentro do WebView: blur real do
+ * texto que passa por baixo + manchas de luz que se contorcem, fio especular e
+ * micro-mola nos botões. O shader Skia não atravessa o WebView, então aqui a
+ * "liquidez" vem de gradientes animados por transform/opacity (GPU), sem
+ * recalcular filtro SVG a cada frame — o mesmo cuidado que resolveu o PC.
+ */
+const cssVidroLiquido = (dark: boolean) => `
+  #fmtbar {
+    background: ${dark
+      ? 'linear-gradient(155deg, rgba(22, 27, 38, .86), rgba(6, 8, 13, .94))'
+      : 'linear-gradient(155deg, rgba(255, 255, 255, .92), rgba(232, 239, 249, .86))'};
+    border-color: ${dark ? 'rgba(255, 255, 255, .18)' : 'rgba(255, 255, 255, .92)'};
+    box-shadow:
+      0 16px 34px rgba(0, 0, 0, ${dark ? '.48' : '.16'}),
+      inset 0 1.5px 0 rgba(255, 255, 255, ${dark ? '.46' : '.95'}),
+      inset 0 -1px 0 rgba(255, 255, 255, ${dark ? '.08' : '.35'});
+    isolation: isolate;
+    /* Sem backdrop-filter nem border-radius animado: no WebView do Android
+       isso obriga o compositor a refazer o blur/recorte a cada frame. O vidro
+       vem das luzes internas, que são só transform/opacity na GPU. */
+  }
+  /* Manchas internas que se misturam devagar, como líquido. */
+  #fmtbar::before {
+    content: "";
+    position: absolute;
+    inset: -55% -18%;
+    z-index: 0;
+    pointer-events: none;
+    background:
+      radial-gradient(42% 76% at 18% 78%, ${dark ? 'rgba(56, 132, 255, .30)' : 'rgba(0, 122, 255, .16)'}, transparent 72%),
+      radial-gradient(38% 68% at 72% 30%, ${dark ? 'rgba(255, 255, 255, .22)' : 'rgba(255, 255, 255, .80)'}, transparent 70%),
+      radial-gradient(45% 70% at 58% 92%, ${dark ? 'rgba(120, 80, 255, .18)' : 'rgba(90, 160, 255, .16)'}, transparent 72%);
+    transform: translate3d(-8%, 4%, 0) scale(1.05);
+    animation: snLiquidDrift 9.5s ease-in-out infinite alternate;
+    will-change: transform;
+  }
+  /* Varredura especular larga (não é blur; só um gradiente que desliza). */
+  #fmtbar::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    background: linear-gradient(112deg,
+      transparent 18%,
+      rgba(255, 255, 255, ${dark ? '.16' : '.52'}) 44%,
+      transparent 64%);
+    transform: translate3d(-125%, 0, 0);
+    animation: snLiquidSheen 6.8s ease-in-out infinite;
+    mix-blend-mode: screen;
+    will-change: transform, opacity;
+  }
+  #fmtbar .fmt-scroll,
+  #fmtbar .fmt-fix { position: relative; z-index: 2; }
+  #fmtbar .fmt-btn {
+    border-radius: 14px;
+    transition: transform .16s ease, background .2s ease, border-color .2s ease;
+  }
+  #fmtbar .fmt-btn:active { transform: scale(.90); background: rgba(255, 255, 255, ${dark ? '.10' : '.56'}); }
+  #fmtbar .fmt-btn.ativo {
+    background: ${dark ? 'rgba(10, 132, 255, .22)' : 'rgba(0, 122, 255, .14)'};
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, ${dark ? '.22' : '.75'});
+  }
+  @keyframes snLiquidDrift {
+    0% { transform: translate3d(-8%, 4%, 0) scale(1.05); }
+    50% { transform: translate3d(2%, -3%, 0) scale(1.12); }
+    100% { transform: translate3d(7%, 5%, 0) scale(1.04); }
+  }
+  @keyframes snLiquidSheen {
+    0%, 14% { transform: translate3d(-125%, 0, 0); opacity: 0; }
+    24% { opacity: 1; }
+    62%, 100% { transform: translate3d(125%, 0, 0); opacity: 0; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    #fmtbar::before, #fmtbar::after, #fmtbar .fmt-btn { animation: none !important; transition: none !important; }
+  }
+`;
+
 const buildDoc = (
   initialHtml: string,
   textColor: string,
@@ -147,7 +230,9 @@ const buildDoc = (
   placeholder: string,
   editavel: boolean,
   toolbarColor: string,
-  toolbarBorderColor: string
+  toolbarBorderColor: string,
+  liquidGlass: boolean,
+  glassDark: boolean
 ) => `<!DOCTYPE html>
 <html>
 <head>
@@ -333,6 +418,7 @@ const buildDoc = (
     height: 24px;
     margin-top: 4px;
   }
+  ${liquidGlass ? cssVidroLiquido(glassDark) : ''}
 </style>
 </head>
 <body class="${editavel ? 'editando' : ''}">
@@ -1339,6 +1425,8 @@ const RichTextEditor = memo(
       accentColor,
       toolbarColor = backgroundColor,
       toolbarBorderColor = accentColor,
+      liquidGlass = false,
+      glassDark = true,
       editavel = true,
       imagensDirUri,
       audiosDirUri,
@@ -1372,8 +1460,8 @@ const RichTextEditor = memo(
     // com o contenteditable CORRETO embutido. Alternar via JS (el.contentEditable)
     // é instável no Android (cursor/caret não aparecem) — por isso recarregamos.
     const doc = useMemo(
-      () => buildDoc(initialContent, textColor, placeholderColor, backgroundColor, accentColor, placeholder, editavel, toolbarColor, toolbarBorderColor),
-      [initialContent, textColor, placeholderColor, backgroundColor, accentColor, placeholder, editavel, toolbarColor, toolbarBorderColor]
+      () => buildDoc(initialContent, textColor, placeholderColor, backgroundColor, accentColor, placeholder, editavel, toolbarColor, toolbarBorderColor, liquidGlass, glassDark),
+      [initialContent, textColor, placeholderColor, backgroundColor, accentColor, placeholder, editavel, toolbarColor, toolbarBorderColor, liquidGlass, glassDark]
     );
     // Objeto estável: evita que o react-native-webview recarregue a página em re-renders.
     const source = useMemo(() => ({ html: doc }), [doc]);

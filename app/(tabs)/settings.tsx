@@ -7,6 +7,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Linking, Modal, Platform, ScrollView, Share, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import PreviewSom from '../../components/preview-som';
+import { LiquidGlassOverlay } from '../../components/ui/liquid-glass';
 import { useMonetizacao } from '../../context/monetizacao';
 import { idiomaDoDispositivo, useTheme } from '../../context/ThemeContext';
 import { appColors } from '../../constants/theme';
@@ -311,12 +312,33 @@ export default function SettingsScreen() {
       {/* SEÇÃO APARÊNCIA */}
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: cores.textoSecundario } ]}>{t('Aparência')}</Text>
-        <View style={[styles.group, { backgroundColor: cores.itemFundo, borderColor: cores.borda, borderWidth: 1 }]}>
+        <View style={[styles.group, { backgroundColor: config.liquidGlass ? (isDark ? 'rgba(8, 10, 16, 0.45)' : 'rgba(255, 255, 255, 0.55)') : cores.itemFundo, borderColor: cores.borda, borderWidth: 1 }]}>
+          {config.liquidGlass && (
+            <LiquidGlassOverlay radius={15} variant="subtle" accentColor={cores.accent} />
+          )}
           <View style={[styles.innerItem, { borderBottomColor: cores.borda, borderBottomWidth: 1 }]}>
             <Text style={[styles.itemText, { color: cores.textoPrincipal }]}>{t('Modo Escuro')}</Text>
             <Switch 
               value={isDark} 
               onValueChange={toggleTheme} 
+              trackColor={{ false: '#767577', true: cores.accent }}
+            />
+          </View>
+          <View style={[styles.innerItem, { borderBottomColor: cores.borda, borderBottomWidth: 1 }]}>
+            <View style={{ flex: 1, paddingRight: 12 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
+                <Text style={[styles.itemText, { color: cores.textoPrincipal }]}>{t('Liquid Glass (beta)')}</Text>
+                <View style={[styles.seloBeta, { backgroundColor: paleta.primarySoft, borderColor: cores.accent }]}>
+                  <Text style={[styles.seloBetaTexto, { color: cores.accent }]}>BETA</Text>
+                </View>
+              </View>
+              <Text style={[styles.subText, { color: cores.textoSecundario }]}>
+                {t('Vidro líquido animado nas Configurações, no menu +, no perfil, no rodapé e na barra do editor — experimental.')}
+              </Text>
+            </View>
+            <Switch
+              value={!!config.liquidGlass}
+              onValueChange={(valor) => atualizarConfig('liquidGlass', valor)}
               trackColor={{ false: '#767577', true: cores.accent }}
             />
           </View>
@@ -345,7 +367,10 @@ export default function SettingsScreen() {
       {/* SEÇÃO INTERFACE - NOVO */}
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: cores.textoSecundario } ]}>{t('Interface')}</Text>
-        <View style={[styles.group, { backgroundColor: cores.itemFundo, borderColor: cores.borda, borderWidth: 1 }]}>
+        <View style={[styles.group, { backgroundColor: config.liquidGlass ? (isDark ? 'rgba(8, 10, 16, 0.45)' : 'rgba(255, 255, 255, 0.55)') : cores.itemFundo, borderColor: cores.borda, borderWidth: 1 }]}>
+          {config.liquidGlass && (
+            <LiquidGlassOverlay radius={15} variant="subtle" accentColor={cores.accent} />
+          )}
           <View style={styles.innerItem}>
             <View style={{ flex: 1 }}>
               <Text style={[styles.itemText, { color: cores.textoPrincipal }]}>{t('Ajuda no Menu +')}</Text>
@@ -364,7 +389,10 @@ export default function SettingsScreen() {
       {Platform.OS !== 'web' && (
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: cores.textoSecundario } ]}>{t('Alarme')}</Text>
-        <View style={[styles.group, { backgroundColor: cores.itemFundo, borderColor: cores.borda, borderWidth: 1 }]}>
+        <View style={[styles.group, { backgroundColor: config.liquidGlass ? (isDark ? 'rgba(8, 10, 16, 0.45)' : 'rgba(255, 255, 255, 0.55)') : cores.itemFundo, borderColor: cores.borda, borderWidth: 1 }]}>
+          {config.liquidGlass && (
+            <LiquidGlassOverlay radius={15} variant="subtle" accentColor={cores.accent} />
+          )}
           <TouchableOpacity
             style={[styles.innerItem, { borderBottomColor: cores.borda, borderBottomWidth: 1 }]}
             onPress={() => setSomModalAberto(true)}
@@ -424,7 +452,10 @@ export default function SettingsScreen() {
       {/* SEÇÃO ANÚNCIOS / REMOVER ANÚNCIOS */}
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: cores.textoSecundario } ]}>{t('Anúncios')}</Text>
-        <View style={[styles.group, { backgroundColor: cores.itemFundo, borderColor: cores.borda, borderWidth: 1 }]}>
+        <View style={[styles.group, { backgroundColor: config.liquidGlass ? (isDark ? 'rgba(8, 10, 16, 0.45)' : 'rgba(255, 255, 255, 0.55)') : cores.itemFundo, borderColor: cores.borda, borderWidth: 1 }]}>
+          {config.liquidGlass && (
+            <LiquidGlassOverlay radius={15} variant="subtle" accentColor={cores.accent} />
+          )}
           {anunciosRemovidos ? (
             <View style={styles.innerItem}>
               <View style={[styles.iconeItem, { backgroundColor: paleta.primarySoft }]}>
@@ -489,7 +520,10 @@ export default function SettingsScreen() {
       {/* SEÇÃO IA */}
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: cores.textoSecundario } ]}>{t('IA')}</Text>
-        <View style={[styles.group, { backgroundColor: cores.itemFundo, borderColor: cores.borda, borderWidth: 1 }]}>
+        <View style={[styles.group, { backgroundColor: config.liquidGlass ? (isDark ? 'rgba(8, 10, 16, 0.45)' : 'rgba(255, 255, 255, 0.55)') : cores.itemFundo, borderColor: cores.borda, borderWidth: 1 }]}>
+          {config.liquidGlass && (
+            <LiquidGlassOverlay radius={15} variant="subtle" accentColor={cores.accent} />
+          )}
           {/* Deixa claro o que está sendo usado: IA inclusa (grátis) ou chave própria (ilimitada) */}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 15, paddingTop: 14 }}>
             <Ionicons
@@ -590,7 +624,10 @@ export default function SettingsScreen() {
       {/* SEÇÃO SEGURANÇA */}
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: cores.textoSecundario } ]}>{t('Segurança')}</Text>
-        <View style={[styles.group, { backgroundColor: cores.itemFundo, borderColor: cores.borda, borderWidth: 1 }]}>
+        <View style={[styles.group, { backgroundColor: config.liquidGlass ? (isDark ? 'rgba(8, 10, 16, 0.45)' : 'rgba(255, 255, 255, 0.55)') : cores.itemFundo, borderColor: cores.borda, borderWidth: 1 }]}>
+          {config.liquidGlass && (
+            <LiquidGlassOverlay radius={15} variant="subtle" accentColor={cores.accent} />
+          )}
           
           <View style={[styles.innerItem, { borderBottomColor: cores.borda, borderBottomWidth: config.exigirBiometriaApp ? 1 : 0 }]}>
             <View style={{ flex: 1 }}>
@@ -727,7 +764,10 @@ export default function SettingsScreen() {
             animate={{ opacity: 1, translateY: 0 }}
             transition={{ type: 'spring', damping: 24, stiffness: 230 }}
           >
-          <View style={[styles.sheet, { backgroundColor: cores.sheetFundo, borderColor: cores.sheetBorda, paddingBottom: 40 + insets.bottom }]}>
+          <View style={[styles.sheet, { backgroundColor: config.liquidGlass ? (isDark ? 'rgba(7, 9, 14, 0.78)' : 'rgba(255, 255, 255, 0.82)') : cores.sheetFundo, borderColor: cores.sheetBorda, paddingBottom: 40 + insets.bottom }]}>
+            {config.liquidGlass && (
+              <LiquidGlassOverlay radius={26} variant="regular" accentColor={cores.accent} />
+            )}
             <View style={[styles.sheetHandle, { backgroundColor: cores.sheetHandle }]} />
             <View style={styles.sheetHeader}>
               <View style={{ flex: 1 }}>
@@ -787,7 +827,10 @@ export default function SettingsScreen() {
             animate={{ opacity: 1, translateY: 0 }}
             transition={{ type: 'spring', damping: 24, stiffness: 230 }}
           >
-          <View style={[styles.sheet, { backgroundColor: cores.sheetFundo, borderColor: cores.sheetBorda, paddingBottom: 40 + insets.bottom }]}>
+          <View style={[styles.sheet, { backgroundColor: config.liquidGlass ? (isDark ? 'rgba(7, 9, 14, 0.78)' : 'rgba(255, 255, 255, 0.82)') : cores.sheetFundo, borderColor: cores.sheetBorda, paddingBottom: 40 + insets.bottom }]}>
+            {config.liquidGlass && (
+              <LiquidGlassOverlay radius={26} variant="regular" accentColor={cores.accent} />
+            )}
             <View style={[styles.sheetHandle, { backgroundColor: cores.sheetHandle }]} />
             <View style={styles.sheetHeader}>
               <View style={{ flex: 1 }}>
@@ -864,7 +907,10 @@ export default function SettingsScreen() {
             animate={{ opacity: 1, translateY: 0 }}
             transition={{ type: 'spring', damping: 24, stiffness: 230 }}
           >
-          <View style={[styles.sheet, { backgroundColor: cores.sheetFundo, borderColor: cores.sheetBorda, paddingBottom: 40 + insets.bottom }]}>
+          <View style={[styles.sheet, { backgroundColor: config.liquidGlass ? (isDark ? 'rgba(7, 9, 14, 0.78)' : 'rgba(255, 255, 255, 0.82)') : cores.sheetFundo, borderColor: cores.sheetBorda, paddingBottom: 40 + insets.bottom }]}>
+            {config.liquidGlass && (
+              <LiquidGlassOverlay radius={26} variant="regular" accentColor={cores.accent} />
+            )}
             <View style={[styles.sheetHandle, { backgroundColor: cores.sheetHandle }]} />
             <View style={styles.sheetHeader}>
               <View style={{ flex: 1 }}>
@@ -979,6 +1025,17 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   seloPremiumTexto: { color: '#FFB300', fontSize: 11, fontWeight: '800' },
+  seloBeta: {
+    borderRadius: 7,
+    borderWidth: 1,
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+  },
+  seloBetaTexto: {
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 0.7,
+  },
   iconeItem: {
     width: 36,
     height: 36,
@@ -1035,6 +1092,7 @@ const styles = StyleSheet.create({
     paddingTop: 10,
     borderWidth: 1,
     borderBottomWidth: 0,
+    overflow: 'hidden',
   },
   sheetHandle: {
     alignSelf: 'center',

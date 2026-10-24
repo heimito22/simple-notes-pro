@@ -38,6 +38,7 @@ import { idiomaAtual } from '../../context/idiomas';
 import { corDaTag, tagsDeItens, temTodasAsTags, extrairTags } from '../../context/tags';
 import RichText from '../../components/rich-text';
 import AudioPlayer, { extrairAudios } from '../../components/audio-chip';
+import { LiquidGlassButton, LiquidGlassPanel } from '../../components/ui/liquid-glass';
 import { appColors } from '../../constants/theme';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -202,6 +203,17 @@ export default function HomeScreen() {
   const swipeableRefs = useRef<Map<string, Swipeable>>(new Map());
   const animaMenu = useMemo(() => new Animated.Value(0), []);
   const animaBusca = useMemo(() => new Animated.Value(0), []);
+  // Fecha o menu + antes de abrir o perfil: sem isso os botões flutuantes
+  // apareciam através do vidro do modal e parecia quebrado.
+  const fecharMenu = () => {
+    Animated.spring(animaMenu, {
+      toValue: 0,
+      useNativeDriver: true,
+      friction: 5,
+      tension: 40,
+    }).start();
+    setMenuAberto(false);
+  };
   const abrirEscolherPasta = () => {
     setModalPastaAberto(true);
   };
@@ -232,6 +244,7 @@ export default function HomeScreen() {
   // Quando o rodapé emite 'abrirModalConta' (compat), também abre o modal.
   useEffect(() => {
     const assinatura = DeviceEventEmitter.addListener('abrirModalConta', () => {
+      fecharMenu();
       setModalContaVisible(true);
     });
     return () => assinatura.remove();
@@ -715,7 +728,7 @@ export default function HomeScreen() {
               accessibilityLabel={t('Conta')}
               hitSlop={6}
               style={[styles.avatarBtn, { opacity: 1 }]}
-              onPress={() => setModalContaVisible(true)}
+              onPress={() => { fecharMenu(); setModalContaVisible(true); }}
             >
               {syncAtivo && (
                 <Animated.View
@@ -1122,7 +1135,11 @@ export default function HomeScreen() {
 
         {/* Modal de Conta */}
         <Modal visible={modalContaVisible} transparent animationType="fade">
-          <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => { setModalContaVisible(false); if (!user) cancelarCompraPendente(); }}>
+          <TouchableOpacity
+            style={[styles.modalOverlay, { backgroundColor: 'rgba(0, 0, 0, 0.72)' }]}
+            activeOpacity={1}
+            onPress={() => { setModalContaVisible(false); if (!user) cancelarCompraPendente(); }}
+          >
             {/* O modal SÓ sobe com o teclado na etapa de digitar a confirmação do
                 "apagar tudo" — fora dela fica centrado como sempre. */}
             <KeyboardAvoidingView
@@ -1132,7 +1149,14 @@ export default function HomeScreen() {
               style={{ alignSelf: 'stretch', alignItems: 'center' }}
             >
             <View style={{ width: '85%' }}>
-              <View style={[styles.modalContent, { backgroundColor: cores.card, width: '100%' }]}>
+              <LiquidGlassPanel
+                radius={30}
+                variant="strong"
+                dense
+                accentColor={cores.botaoAdd}
+                fallbackColor={cores.card}
+                style={[styles.modalContent, { width: '100%' }]}
+              >
               <TouchableOpacity style={styles.helpTrigger} onPress={() => { setModalContaVisible(false); setModalAjudaVisible(true); }}>
                 <Ionicons name="help-circle-outline" size={26} color={cores.botaoAdd} />
               </TouchableOpacity>
@@ -1219,7 +1243,7 @@ export default function HomeScreen() {
                 </View>
                 </TouchableOpacity>
               )}
-            </View>
+            </LiquidGlassPanel>
             </View>
             </KeyboardAvoidingView>
           </TouchableOpacity>
@@ -1433,7 +1457,20 @@ export default function HomeScreen() {
               Adaptável: com o botão de ajuda DESLIGADO nos ajustes, o ✨ desce
               para o lugar dele — a pilha nunca fica com vão. */}
           <Animated.View style={[styles.miniBotaoWrap, { opacity: animaMenu, transform: [{ scale: animaMenu }, { translateY: animaMenu.interpolate({ inputRange: [0, 1], outputRange: [0, config.exibirAjudaFAB !== false ? -285 : -215] }) }] }]}>
-            <TouchableOpacity style={[styles.miniBotao, { backgroundColor: paleta.primarySoft }]} onPress={() => { toggleMenu(); router.push('/ia'); }}>
+            <TouchableOpacity
+              style={[
+                styles.miniBotao,
+                config.liquidGlass && {
+                  backgroundColor: isDark ? 'rgba(12, 16, 24, 0.78)' : 'rgba(255, 255, 255, 0.78)',
+                  borderWidth: 1,
+                  borderColor: isDark ? 'rgba(255, 255, 255, 0.16)' : 'rgba(255, 255, 255, 0.92)',
+                },
+                !config.liquidGlass && { backgroundColor: paleta.primarySoft },
+              ]}
+              onPress={() => { toggleMenu(); router.push('/ia'); }}
+              accessibilityRole="button"
+              accessibilityLabel={t('IA')}
+            >
               <Ionicons name="sparkles" size={26} color={paleta.primary} />
             </TouchableOpacity>
           </Animated.View>
@@ -1441,27 +1478,82 @@ export default function HomeScreen() {
           {/* AJUSTE: Botão de ajuda condicional à configuração */}
           {(config.exibirAjudaFAB !== false) && (
             <Animated.View style={[styles.miniBotaoWrap, { opacity: animaMenu, transform: [{ scale: animaMenu }, { translateY: animaMenu.interpolate({ inputRange: [0, 1], outputRange: [0, -215] }) }] }]}>
-              <TouchableOpacity style={[styles.miniBotao, { backgroundColor: paleta.primarySoft }]} onPress={() => { toggleMenu(); setModalAjudaVisible(true); }}>
+              <TouchableOpacity
+                style={[
+                  styles.miniBotao,
+                  config.liquidGlass && {
+                    backgroundColor: isDark ? 'rgba(12, 16, 24, 0.78)' : 'rgba(255, 255, 255, 0.78)',
+                    borderWidth: 1,
+                    borderColor: isDark ? 'rgba(255, 255, 255, 0.16)' : 'rgba(255, 255, 255, 0.92)',
+                  },
+                  !config.liquidGlass && { backgroundColor: paleta.primarySoft },
+                ]}
+                onPress={() => { toggleMenu(); setModalAjudaVisible(true); }}
+                accessibilityRole="button"
+                accessibilityLabel={t('Guia Rápido')}
+              >
                 <Ionicons name="help" size={26} color={paleta.primary} />
               </TouchableOpacity>
             </Animated.View>
           )}
           
           <Animated.View style={[styles.miniBotaoWrap, { opacity: animaMenu, transform: [{ scale: animaMenu }, { translateY: animaMenu.interpolate({ inputRange: [0, 1], outputRange: [0, -145] }) }] }]}>
-            <TouchableOpacity style={[styles.miniBotao, { backgroundColor: cores.corLista }]} onPress={() => { toggleMenu(); router.push('/editorL'); }}>
-              <Ionicons name="list" size={26} color={cores.onPrimary} />
+            <TouchableOpacity
+              style={[
+                styles.miniBotao,
+                config.liquidGlass && {
+                  backgroundColor: isDark ? 'rgba(12, 16, 24, 0.78)' : 'rgba(255, 255, 255, 0.78)',
+                  borderWidth: 1,
+                  borderColor: isDark ? 'rgba(255, 255, 255, 0.16)' : 'rgba(255, 255, 255, 0.92)',
+                },
+                !config.liquidGlass && { backgroundColor: cores.corLista },
+              ]}
+              onPress={() => { toggleMenu(); router.push('/editorL'); }}
+              accessibilityRole="button"
+              accessibilityLabel={t('Nova lista')}
+            >
+              <Ionicons name="list" size={26} color={config.liquidGlass ? (isDark ? '#FFFFFF' : cores.botaoAdd) : cores.onPrimary} />
             </TouchableOpacity>
           </Animated.View>
           <Animated.View style={[styles.miniBotaoWrap, { opacity: animaMenu, transform: [{ scale: animaMenu }, { translateY: animaMenu.interpolate({ inputRange: [0, 1], outputRange: [0, -75] }) }] }]}>
-            <TouchableOpacity style={[styles.miniBotao, { backgroundColor: isDark ? paleta.onPrimary : cores.card, borderWidth: isDark ? 0 : 1, borderColor: cores.borda }]} onPress={() => { toggleMenu(); navegarParaItem(); }}>
-              <Ionicons name="document-text" size={26} color={isDark ? paleta.background : cores.botaoAdd} />
+            <TouchableOpacity
+              style={[
+                styles.miniBotao,
+                config.liquidGlass && {
+                  backgroundColor: isDark ? 'rgba(12, 16, 24, 0.78)' : 'rgba(255, 255, 255, 0.78)',
+                  borderWidth: 1,
+                  borderColor: isDark ? 'rgba(255, 255, 255, 0.16)' : 'rgba(255, 255, 255, 0.92)',
+                },
+                !config.liquidGlass && {
+                  backgroundColor: isDark ? paleta.onPrimary : cores.card,
+                  borderWidth: isDark ? 0 : 1,
+                  borderColor: cores.borda,
+                },
+              ]}
+              onPress={() => { toggleMenu(); navegarParaItem(); }}
+              accessibilityRole="button"
+              accessibilityLabel={t('Nova nota')}
+            >
+              <Ionicons
+                name="document-text"
+                size={26}
+                color={config.liquidGlass ? (isDark ? '#FFFFFF' : cores.botaoAdd) : (isDark ? paleta.background : cores.botaoAdd)}
+              />
             </TouchableOpacity>
           </Animated.View>
-          <TouchableOpacity onPress={toggleMenu} style={[styles.botaoPrincipal, { backgroundColor: cores.botaoAdd, shadowColor: paleta.primary }]} activeOpacity={0.9}>
+          <LiquidGlassButton
+            onPress={toggleMenu}
+            style={[styles.botaoPrincipal, { shadowColor: paleta.primary }]}
+            radius={35}
+            fallbackColor={cores.botaoAdd}
+            accentColor={paleta.primary}
+            variant="strong"
+            accessibilityLabel={t('Criar')}
+          >
             <Animated.View style={{ transform: [{ rotate: animaMenu.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '135deg'] }) }] }}>
               <Ionicons name="add" size={40} color={cores.corIconeAdd} />
             </Animated.View>
-          </TouchableOpacity>
+          </LiquidGlassButton>
         </View>
         )}
 

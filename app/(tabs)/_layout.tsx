@@ -5,6 +5,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../../context/ThemeContext';
 import { appColors } from '../../constants/theme';
+import { LiquidGlassPanel } from '../../components/ui/liquid-glass';
 
 /**
  * BARRA DE ABAS PERSONALIZADA — visual premium:
@@ -81,7 +82,7 @@ const IconeAbaAnimado = ({
  * de aba e a primeira renderização já pousa na posição certa (sem animação).
  */
 const BarraAbasAnimada = ({ state, navigation, insets }: BottomTabBarProps) => {
-  const { isDark, t } = useTheme();
+  const { isDark, config, t } = useTheme();
   const paleta = appColors(isDark);
   const abaInset = insets?.bottom ?? 0;
   const [largura, setLargura] = useState(0);
@@ -139,12 +140,30 @@ const BarraAbasAnimada = ({ state, navigation, insets }: BottomTabBarProps) => {
               width: chipLarg,
               top: (conteudoAlt - 52) / 2,
               height: 52,
-              backgroundColor: paleta.primary,
-              opacity: 0.18,
               transform: [{ translateX: tx }],
             },
           ]}
-        />
+        >
+          {config.liquidGlass ? (
+            <>
+              <LiquidGlassPanel
+                radius={22}
+                variant="strong"
+                accentColor={paleta.primary}
+                style={styles.chipVidro}
+              />
+              <View
+                pointerEvents="none"
+                style={[
+                  StyleSheet.absoluteFill,
+                  { borderRadius: 22, backgroundColor: paleta.primary, opacity: 0.10 },
+                ]}
+              />
+            </>
+          ) : (
+            <View style={[styles.chipVidro, { backgroundColor: paleta.primary, opacity: 0.18 }]} />
+          )}
+        </Animated.View>
       )}
       {state.routes.map((rota, i) => {
         const dados = DADOS_ABAS.find(d => d.rota === rota.name) || DADOS_ABAS[0];
@@ -213,6 +232,11 @@ const styles = StyleSheet.create({
   chipAba: {
     position: 'absolute',
     left: 13,
+    borderRadius: 22,
+    overflow: 'hidden',
+  },
+  chipVidro: {
+    flex: 1,
     borderRadius: 22,
   },
   // Cada aba ocupa exatamente 1/3 — conteúdo centralizado por flex.

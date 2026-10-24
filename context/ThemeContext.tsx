@@ -37,6 +37,8 @@ interface Config {
   tempoSoneca: number;
   somAlarme: SomAlarme;
   chaveIA: string;
+  /** Tema experimental de vidro líquido (mobile). Desligado por padrão. */
+  liquidGlass?: boolean;
   idioma: Idioma;
   /** true = o usuário escolheu manualmente (respeita sempre). false/undefined = segue o dispositivo. */
   idiomaEscolhido?: boolean;
@@ -54,6 +56,7 @@ const CONFIG_PADRAO: Config = {
   tempoSoneca: 10,
   somAlarme: SOM_PADRAO,
   chaveIA: '',
+  liquidGlass: false,
   idioma: 'pt',
   pinDesbloqueio: '',
 };
@@ -119,6 +122,7 @@ export default function ThemeProvider({ children }: { children: React.ReactNode 
             parseada.idioma = idiomaDoDispositivo();
           }
           const normalizada: Config = { ...CONFIG_PADRAO, ...parseada };
+          normalizada.liquidGlass = normalizada.liquidGlass === true;
           setConfig(normalizada);
           // Grava a versão migrada (senão a migração rodaria em todo boot).
           await AsyncStorage.setItem('@config_seguranca', JSON.stringify(normalizada));
@@ -189,6 +193,7 @@ export default function ThemeProvider({ children }: { children: React.ReactNode 
     delete sanitizada.chaveIA; // segredo do aparelho: nunca sincroniza
     const mesclada = { ...CONFIG_PADRAO, ...base, ...sanitizada } as Config;
     (mesclada as any).pinDesbloqueio = base.pinDesbloqueio; // preserva pin local
+    mesclada.liquidGlass = mesclada.liquidGlass === true;
     // normaliza tipos restantes (temaEscuro não faz parte de Config aqui, fica em isDark)
     (mesclada as any).tempoBloqueio = Number((mesclada as any).tempoBloqueio) || 0;
     (mesclada as any).tempoSoneca = Number((mesclada as any).tempoSoneca) || 10;

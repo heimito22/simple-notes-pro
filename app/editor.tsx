@@ -1252,6 +1252,8 @@ export default function EditorScreen() {
                     accentColor={tema.accent}
                     toolbarColor={tema.toolbar}
                     toolbarBorderColor={tema.sheetBorda}
+                    liquidGlass={!!config.liquidGlass}
+                    glassDark={isDark}
                     imagensDirUri={DIR_IMAGENS?.uri ?? ''}
                     audiosDirUri={DIR_AUDIOS?.uri ?? ''}
                     onScrollPos={aoRolarEditor}
