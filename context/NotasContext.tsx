@@ -1309,15 +1309,52 @@ export function NotasProvider({ children }: any) {
       varrerTs(dadosRef.current?.listas);
       varrerTs(dadosRef.current?.pastas);
       varrerTs(dadosRef.current?.tarefas);
+      // Verifica o backup remoto ANTES de criar qualquer chave. Se for v2 e
+      // este aparelho não tiver a chave (ou ela não abrir o MAC), aborta:
+      // criar uma chave nova aqui sobrescreveria o backup protegido e perderia
+      // as notas do usuário. É o "fail-closed" do apagar tudo.
+      const emailConta = (user as any)?.user?.email;
+      let ks = await ChaveBackup.obterChave(emailConta);
       try {
-        const atual = await (buscarBackupDrive() as Promise<any>).catch(() => null);
-        if (atual) {
-          varrerTs(atual.notas);
-          varrerTs(atual.listas);
-          varrerTs(atual.pastas);
-          varrerTs(atual.tarefas);
+        const canonico = await acharBackupCanonico(tokenConta);
+        if (canonico) {
+          const bruto = await baixarBackupBruto(tokenConta, canonico.id);
+          if (!bruto) throw new Error('download do backup falhou');
+          if (Cripto.ehV2(bruto)) {
+            const dec = ks ? Cripto.lerEnvelopeV2(bruto, ks.chave) : null;
+            if (!dec) {
+              setCodigoPendente(true);
+              Alert.alert(
+                tIdioma(idiomaAtual, 'Backup protegido'),
+                tIdioma(idiomaAtual, 'Este backup está protegido por uma chave que este aparelho não tem. Digite o código de recuperação em Ajustes antes de apagar — nada foi apagado.')
+              );
+              return false;
+            }
+            varrerTs(dec.notas);
+            varrerTs(dec.listas);
+            varrerTs(dec.pastas);
+            varrerTs(dec.tarefas);
+          } else {
+            // v1/em claro: só para calcular o wipeAllAt; não cria chave nova.
+            const chaveV1 = emailConta ? Cripto.derivarChave(emailConta) : null;
+            const dec = Cripto.estaEncriptado(bruto)
+              ? (chaveV1 ? Cripto.descriptografarJSON(bruto, chaveV1) : null)
+              : bruto;
+            if (dec) {
+              varrerTs(dec.notas);
+              varrerTs(dec.listas);
+              varrerTs(dec.pastas);
+              varrerTs(dec.tarefas);
+            }
+          }
         }
-      } catch {}
+      } catch (e) {
+        Alert.alert(
+          tIdioma(idiomaAtual, 'Não foi possível verificar'),
+          tIdioma(idiomaAtual, 'Não consegui ler o backup no Drive agora. Nada foi apagado — tente de novo com internet.')
+        );
+        return false;
+      }
       const backupVazio = {
         notas: [],
         listas: [],
@@ -1327,10 +1364,8 @@ export function NotasProvider({ children }: any) {
         wipeAllAt: Math.max(Date.now(), maiorTsConhecido) + 1, // mata TUDO anterior a este instante, de qualquer relógio
       };
 
-      // v2: o backup vazio TAMBÉM vai cifrado. Sem chave, cria uma e mostra o
-      // código — nunca sobe em claro.
-      const emailConta = (user as any)?.user?.email;
-      let ks = await ChaveBackup.obterChave(emailConta);
+      // v2: o backup vazio TAMBÉM vai cifrado. Só cria chave se o remoto não
+      // exigiu uma (a verificação acima já garante que não há v2 sem chave).
       if (!ks) {
         ks = await ChaveBackup.criarChave(emailConta);
         if (ks) setCodigoNovo(ks.codigo);

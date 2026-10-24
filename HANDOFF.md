@@ -11,7 +11,7 @@ App de notas com IA agente e sync PC↔celular.
 - Site: `C:\Users\Pichau\Downloads\simple-notes-pro-site`
 
 ### Versões
-- Play Store: v1.7.19 (code 44) pronta para subir — backup v2 com DEK aleatória no SecureStore, código de recuperação (PBKDF2 + AES-256-CTR/HMAC), fail-closed, migração v1→v2 e anti-downgrade; tudo do 1.7.11 (correção de tag, parser tolerante, cores, concorrência, etc.). Produção em 1.7.3/28. AAB/APK na Área de Trabalho.
+- Play Store: v1.7.20 (code 45) pronta para subir — barra de formatação dentro do WebView (seleção preservada, B+I+S combinados), anexos fixos no fim da barra, botão de áudio vira "parar" ao gravar, apagar nuvem fail-closed (não cria chave nova por cima de backup v2); backup v2 com DEK aleatória no SecureStore, código de recuperação (PBKDF2 + AES-256-CTR/HMAC), fail-closed, migração v1→v2 e anti-downgrade. Produção em 1.7.3/28. AAB/APK na Área de Trabalho.
 - Desktop: 1.5.34 publicada — mesmo backup v2 (DEK no safeStorage/DPAPI, código de recuperação), fail-closed, migração e anti-downgrade; mantém as correções de tag/IA da 1.5.29.
 - Desktop anterior: 1.5.28 (IA só propõe ações e não diz que criou/falhou antes da confirmação).
 - Desktop anterior: 1.5.27 (bloqueio de envio concorrente, reparo de JSON e [c=#HEX]).
@@ -30,7 +30,7 @@ App de notas com IA agente e sync PC↔celular.
 - IA agente: protocolo `{"acoes":[...]}` (criar nota/lista/tarefa/pasta, mover, fixar, apagar, lembretes). Cartão "Quero fazer isto — permitir?" antes de executar. Executor: `context/ia-acoes.ts` (mobile) e `desktop/src/lib/ia-acoes.js` — ambos usam funções oficiais dos contexts → sync perfeita.
 - IA pronta (sem chave): Worker próprio em `server/ia-proxy/worker.js` (Cloudflare) — `https://simple-notes-ia.heitoruliacchrabeloreis.workers.dev`. Guarda a chave OpenRouter no servidor, valida access token do Google, cota 120/dia por conta + 4000/dia global, fallback grátis no Workers AI (`AI` binding). App usa o proxy quando não há chave (`constants/ia-proxy.ts`); com chave própria vai direto e ilimitado.
 - Provider IA (chave própria): OpenRouter, modelo `openrouter/auto` com `openrouter/free` de reserva; conteúdo sempre como array de partes.
-- Sync: Drive `appDataFolder`, `backup_notas.json` + `anexo_*`. Merge por item com `dataModificacao` + tombstones, pull-first/push depois, marcador pelo `modifiedTime` do servidor. Backup encriptado AES-256 (chave derivada do e-mail).
+- Sync: Drive `appDataFolder`, `backup_notas.json` + `anexo_*`. Merge por item com `dataModificacao` + tombstones, pull-first/push depois, marcador pelo `modifiedTime` do servidor. Backup v2 com DEK aleatória no cofre do SO (SecureStore/DPAPI), envelope AES-256-CTR/HMAC e DEK embrulhada pelo código de recuperação (PBKDF2); nunca sobe em claro.
 - Imagens: tudo em base64 (`File.write` não tem encoding 'binary' no expo-file-system); refs virtuais `file://imagens_notas/` resolvidas no WebView (`converterMarcadores`).
 - Editor PC: lista 28% (max 340px), editor ~67%; `.rich-editable ol{padding-left:36px}`.
 - Android: módulo nativo `modules/minhasnotas-ime` (altura do teclado via WindowInsets.ime), orientação portrait só em <600dp, R8 ativo, edge-to-edge.

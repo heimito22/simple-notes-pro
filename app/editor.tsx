@@ -1242,6 +1242,7 @@ export default function EditorScreen() {
                     onTagPrefixo={handleTagPrefixo}
                     onPedirAudio={() => { if (gravando) { void pararGravacao(); } else { void iniciarGravacao(); } }}
                     onPedirImagem={selecionarImagem}
+                    gravando={gravando}
                     paletaTags={PALETA_TAGS}
                     editavel={editando}
                     placeholder={editando ? t('Comece a escrever...') : ""}
@@ -1258,11 +1259,10 @@ export default function EditorScreen() {
                 />
 
                 {/* Os áudios são renderizados pelo próprio WebView, junto do texto
-                    da nota. A toolbar permanece fora desse conteúdo. */}
+                    da nota. A barra de formatação e os anexos também vivem nele. */}
 
-                {/* Toolbar no fluxo: no Android o paddingBottom do container usa a
-                    altura REAL do teclado (alturaTeclado) e ela sobe junto; no iOS o
-                    KeyboardAvoidingView cuida. Sem animação manual. */}
+                {/* Sugestões de tag. A barra de formatação fica dentro do WebView;
+                    aqui só sobra a fileira de sugestões quando o usuário digita `#`. */}
                 {editando && (
                     <View style={{ zIndex: 9999 }}>
                         {/* Sugestões de TAG: aparecem ao digitar `#` (o WebView manda

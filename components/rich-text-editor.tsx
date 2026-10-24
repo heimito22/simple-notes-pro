@@ -49,6 +49,8 @@ interface Props {
   /** Botões de anexo dentro da barra do WebView. */
   onPedirAudio?: () => void;
   onPedirImagem?: () => void;
+  /** Gravação em andamento: muda o botão de áudio para "parar". */
+  gravando?: boolean;
   /** Paleta de cores das tags (destaque visual na leitura). */
   paletaTags?: string[];
   /** Modo leitura inicial. Mudanças usam setEditable() (sem recarregar o WebView). */
@@ -185,11 +187,29 @@ const buildDoc = (
     padding: 6px 8px;
     gap: 4px;
     align-items: center;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
+    overflow: hidden;
     box-shadow: 0 6px 18px rgba(0,0,0,0.28);
   }
   body.editando #fmtbar { display: flex; }
+  /* Anexos FIXOS à direita; só a área de formatação rola. Assim o microfone
+     e a imagem nunca somem para fora da tela (como na barra antiga). */
+  #fmtbar .fmt-scroll {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  #fmtbar .fmt-fix {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding-left: 6px;
+    border-left: 1px solid ${placeholderColor}55;
+  }
   #fmtbar button {
     flex: 0 0 auto;
     width: 42px; height: 42px;
@@ -208,6 +228,11 @@ const buildDoc = (
     background: ${accentColor}22;
     border-color: ${accentColor};
     color: ${accentColor};
+  }
+  #fmtbar button.gravando {
+    color: #FF3B30;
+    border-color: #FF3B30;
+    background: #FF3B3022;
   }
   #fmtbar svg {
     width: 22px; height: 22px;
@@ -311,31 +336,34 @@ const buildDoc = (
 <body class="${editavel ? 'editando' : ''}">
 <div id="editor" contenteditable="${editavel ? 'true' : 'false'}" data-placeholder="${placeholder.replace(/"/g, '&quot;')}"></div>
 <div id="fmtbar" role="toolbar" aria-label="Formatação">
-  <button type="button" data-cmd="bold" title="Negrito" aria-label="Negrito"><b>B</b></button>
-  <button type="button" data-cmd="italic" title="Itálico" aria-label="Itálico"><i>I</i></button>
-  <button type="button" data-cmd="underline" title="Sublinhado" aria-label="Sublinhado"><u>U</u></button>
-  <button type="button" data-cmd="strikeThrough" title="Tachado" aria-label="Tachado"><s>S</s></button>
-  <span class="sep"></span>
-  <button type="button" data-cmd="insertUnorderedList" title="Lista com marcadores" aria-label="Lista com marcadores">•≡</button>
-  <button type="button" data-cmd="insertOrderedList" title="Lista numerada" aria-label="Lista numerada">1.</button>
-  <span class="sep"></span>
-  <button type="button" data-cmd="removeFormat" title="Limpar formatação" aria-label="Limpar formatação">
-    <svg viewBox="0 0 24 24"><path d="M4 15l8-8 5 5-7 7H6z"/><path d="M14 20h7"/></svg>
-  </button>
-  <span class="sep"></span>
-  <button type="button" data-cmd="undo" title="Desfazer" aria-label="Desfazer">
-    <svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h9a6 6 0 0 1 0 12h-2"/></svg>
-  </button>
-  <button type="button" data-cmd="redo" title="Refazer" aria-label="Refazer">
-    <svg viewBox="0 0 24 24"><path d="M15 14l5-5-5-5"/><path d="M20 9h-9a6 6 0 0 0 0 12h2"/></svg>
-  </button>
-  <span class="sep"></span>
-  <button type="button" data-acao="audio" title="Gravar áudio" aria-label="Gravar áudio">
-    <svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M6 11a6 6 0 0 0 12 0"/><path d="M12 17v4"/><path d="M8 21h8"/></svg>
-  </button>
-  <button type="button" data-acao="imagem" title="Inserir imagem" aria-label="Inserir imagem">
-    <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10" r="1.5"/><path d="M21 16l-5-5L5 20"/></svg>
-  </button>
+  <div class="fmt-scroll">
+    <button type="button" data-cmd="bold" title="Negrito" aria-label="Negrito"><b>B</b></button>
+    <button type="button" data-cmd="italic" title="Itálico" aria-label="Itálico"><i>I</i></button>
+    <button type="button" data-cmd="underline" title="Sublinhado" aria-label="Sublinhado"><u>U</u></button>
+    <button type="button" data-cmd="strikeThrough" title="Tachado" aria-label="Tachado"><s>S</s></button>
+    <span class="sep"></span>
+    <button type="button" data-cmd="insertUnorderedList" title="Lista com marcadores" aria-label="Lista com marcadores">•≡</button>
+    <button type="button" data-cmd="insertOrderedList" title="Lista numerada" aria-label="Lista numerada">1.</button>
+    <span class="sep"></span>
+    <button type="button" data-cmd="removeFormat" title="Limpar formatação" aria-label="Limpar formatação">
+      <svg viewBox="0 0 24 24"><path d="M4 15l8-8 5 5-7 7H6z"/><path d="M14 20h7"/></svg>
+    </button>
+    <span class="sep"></span>
+    <button type="button" data-cmd="undo" title="Desfazer" aria-label="Desfazer">
+      <svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h9a6 6 0 0 1 0 12h-2"/></svg>
+    </button>
+    <button type="button" data-cmd="redo" title="Refazer" aria-label="Refazer">
+      <svg viewBox="0 0 24 24"><path d="M15 14l5-5-5-5"/><path d="M20 9h-9a6 6 0 0 0 0 12h2"/></svg>
+    </button>
+  </div>
+  <div class="fmt-fix">
+    <button id="btnAudio" type="button" data-acao="audio" title="Gravar áudio" aria-label="Gravar áudio">
+      <svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M6 11a6 6 0 0 0 12 0"/><path d="M12 17v4"/><path d="M8 21h8"/></svg>
+    </button>
+    <button type="button" data-acao="imagem" title="Inserir imagem" aria-label="Inserir imagem">
+      <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10" r="1.5"/><path d="M21 16l-5-5L5 20"/></svg>
+    </button>
+  </div>
 </div>
 <script>
 (function() {
@@ -749,6 +777,20 @@ const buildDoc = (
 
   window.editorNotificarFormatos = function() {
     notifyFormats();
+    return true;
+  };
+
+  // Botão de áudio da barra: alterna entre microfone e "parar gravação".
+  window.editorSetGravando = function(ativo) {
+    var b = document.getElementById('btnAudio');
+    if (!b) return false;
+    var on = !!ativo;
+    b.classList.toggle('gravando', on);
+    b.setAttribute('title', on ? 'Parar gravação' : 'Gravar áudio');
+    b.setAttribute('aria-label', on ? 'Parar gravação' : 'Gravar áudio');
+    b.innerHTML = on
+      ? '<svg viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" rx="2" fill="currentColor" stroke="none"/></svg>'
+      : '<svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M6 11a6 6 0 0 0 12 0"/><path d="M12 17v4"/><path d="M8 21h8"/></svg>';
     return true;
   };
 
@@ -1214,6 +1256,7 @@ const RichTextEditor = memo(
       onTagPrefixo,
       onPedirAudio,
       onPedirImagem,
+      gravando = false,
       paletaTags,
       placeholder = '',
       textColor,
@@ -1267,6 +1310,12 @@ const RichTextEditor = memo(
     );
 
     const injetar = (script: string) => webviewRef.current?.injectJavaScript(script);
+
+    // Botão de áudio da barra: mic enquanto parado, "parar" enquanto grava.
+    useEffect(() => {
+      if (!loadedRef.current) return;
+      injetar(`window.editorSetGravando(${gravando ? 'true' : 'false'}); true;`);
+    }, [gravando]);
 
     useImperativeHandle(ref, () => ({
       execCommand: (cmd: string) => {
@@ -1338,6 +1387,8 @@ const RichTextEditor = memo(
 
     const handleLoadEnd = () => {
       loadedRef.current = true;
+      // Reaplica o estado do botão de áudio após cada load do WebView.
+      injetar(`window.editorSetGravando(${gravando ? 'true' : 'false'}); true;`);
       // SEMPRE re-aplica o conteúdo mais recente conhecido pelo React após um
       // recarregamento do WebView (troca leitura/edição, mudança de tema ou de
       // conteúdo salvo). Ao trocar edição→leitura, editavel e initialValue
