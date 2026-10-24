@@ -1,5 +1,7 @@
-**Versão 1.5.35**
+**Versão 1.5.40**
 
-- "Apagar tudo" agora é à prova de falha: se o PC não conseguir conferir o backup no Drive, ele **não apaga nada** e não cria chave nova por cima
-- Se a chave deste PC não abrir o backup protegido, o app pede o código em vez de sobrescrever
-- Mantém o backup v2, a cópia local do v1 e a sincronização por item da 1.5.34
+- **Liquid Glass (beta/experimental):** tema opcional de vidro fumê em Configurações → Aparência — desligado por padrão
+- Tela de bloqueio com fundo fluido, brilho especular, teclas com mola e ripple
+- Seletor de idioma, tempo, soneca e som agora usa menu de vidro (sem o popup branco do Windows)
+- Modo claro do Liquid Glass ajustado: contraste, botões e cards
+- É beta/experimental: o visual pode mudar e você pode desligar em Aparência a qualquer momento
