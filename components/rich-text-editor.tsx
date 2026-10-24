@@ -212,7 +212,7 @@ const buildDoc = (
     padding-left: 6px;
     border-left: 1px solid ${placeholderColor}55;
   }
-  #fmtbar button {
+  #fmtbar .fmt-btn {
     flex: 0 0 auto;
     width: 42px; height: 42px;
     border-radius: 13px;
@@ -226,12 +226,12 @@ const buildDoc = (
     -webkit-tap-highlight-color: transparent;
     user-select: none; -webkit-user-select: none;
   }
-  #fmtbar button.ativo {
+  #fmtbar .fmt-btn.ativo {
     background: ${accentColor}22;
     border-color: ${accentColor};
     color: ${accentColor};
   }
-  #fmtbar button.gravando {
+  #fmtbar .fmt-btn.gravando {
     color: #FF3B30;
     border-color: #FF3B30;
     background: #FF3B3022;
@@ -339,32 +339,32 @@ const buildDoc = (
 <div id="editor" contenteditable="${editavel ? 'true' : 'false'}" data-placeholder="${placeholder.replace(/"/g, '&quot;')}"></div>
 <div id="fmtbar" role="toolbar" aria-label="Formatação">
   <div class="fmt-scroll">
-    <button type="button" data-cmd="bold" title="Negrito" aria-label="Negrito"><b>B</b></button>
-    <button type="button" data-cmd="italic" title="Itálico" aria-label="Itálico"><i>I</i></button>
-    <button type="button" data-cmd="underline" title="Sublinhado" aria-label="Sublinhado"><u>U</u></button>
-    <button type="button" data-cmd="strikeThrough" title="Tachado" aria-label="Tachado"><s>S</s></button>
+    <span class="fmt-btn" role="button" tabindex="-1" data-cmd="bold" title="Negrito" aria-label="Negrito"><b>B</b></span>
+    <span class="fmt-btn" role="button" tabindex="-1" data-cmd="italic" title="Itálico" aria-label="Itálico"><i>I</i></span>
+    <span class="fmt-btn" role="button" tabindex="-1" data-cmd="underline" title="Sublinhado" aria-label="Sublinhado"><u>U</u></span>
+    <span class="fmt-btn" role="button" tabindex="-1" data-cmd="strikeThrough" title="Tachado" aria-label="Tachado"><s>S</s></span>
     <span class="sep"></span>
-    <button type="button" data-cmd="insertUnorderedList" title="Lista com marcadores" aria-label="Lista com marcadores">•≡</button>
-    <button type="button" data-cmd="insertOrderedList" title="Lista numerada" aria-label="Lista numerada">1.</button>
+    <span class="fmt-btn" role="button" tabindex="-1" data-cmd="insertUnorderedList" title="Lista com marcadores" aria-label="Lista com marcadores">•≡</span>
+    <span class="fmt-btn" role="button" tabindex="-1" data-cmd="insertOrderedList" title="Lista numerada" aria-label="Lista numerada">1.</span>
     <span class="sep"></span>
-    <button type="button" data-cmd="removeFormat" title="Limpar formatação" aria-label="Limpar formatação">
+    <span class="fmt-btn" role="button" tabindex="-1" data-cmd="removeFormat" title="Limpar formatação" aria-label="Limpar formatação">
       <svg viewBox="0 0 24 24"><path d="M4 15l8-8 5 5-7 7H6z"/><path d="M14 20h7"/></svg>
-    </button>
+    </span>
     <span class="sep"></span>
-    <button type="button" data-cmd="undo" title="Desfazer" aria-label="Desfazer">
+    <span class="fmt-btn" role="button" tabindex="-1" data-cmd="undo" title="Desfazer" aria-label="Desfazer">
       <svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h9a6 6 0 0 1 0 12h-2"/></svg>
-    </button>
-    <button type="button" data-cmd="redo" title="Refazer" aria-label="Refazer">
+    </span>
+    <span class="fmt-btn" role="button" tabindex="-1" data-cmd="redo" title="Refazer" aria-label="Refazer">
       <svg viewBox="0 0 24 24"><path d="M15 14l5-5-5-5"/><path d="M20 9h-9a6 6 0 0 0 0 12h2"/></svg>
-    </button>
+    </span>
   </div>
   <div class="fmt-fix">
-    <button id="btnAudio" type="button" data-acao="audio" title="Gravar áudio" aria-label="Gravar áudio">
+    <span id="btnAudio" class="fmt-btn" role="button" tabindex="-1" data-acao="audio" title="Gravar áudio" aria-label="Gravar áudio">
       <svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M6 11a6 6 0 0 0 12 0"/><path d="M12 17v4"/><path d="M8 21h8"/></svg>
-    </button>
-    <button type="button" data-acao="imagem" title="Inserir imagem" aria-label="Inserir imagem">
+    </span>
+    <span class="fmt-btn" role="button" tabindex="-1" data-acao="imagem" title="Inserir imagem" aria-label="Inserir imagem">
       <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10" r="1.5"/><path d="M21 16l-5-5L5 20"/></svg>
-    </button>
+    </span>
   </div>
 </div>
 <script>
@@ -385,6 +385,8 @@ const buildDoc = (
   var interagindoEditor = false;
   /** Último toque na barra: impede que o blur da barra apague a seleção salva. */
   var ultimoToqueBarra = 0;
+  /** Comando de formato aplicado no caret: B/I/U/S valem para o próximo texto. */
+  var formatoPendente = false;
 
   // Ponte para o host: WebView nativo usa ReactNativeWebView; na WEB (desktop)
   // o iframe srcDoc fala com o parent via postMessage ({snEditor: msg}).
@@ -450,11 +452,19 @@ const buildDoc = (
       fmt.italic = selecaoTodaEm(['I', 'EM']);
       fmt.underline = selecaoTodaEm(['U']);
       fmt.strikeThrough = selecaoTodaEm(['S', 'STRIKE', 'DEL']);
+    } else if (formatoPendente) {
+      // Acabou de tocar B/I/U/S com o cursor: o comando ainda não criou tags
+      // (nada foi digitado). O queryCommandState é a única fonte do modo que
+      // vale para o PRÓXIMO texto.
+      fmt.bold = cmdState('bold');
+      fmt.italic = cmdState('italic');
+      fmt.underline = cmdState('underline');
+      fmt.strikeThrough = cmdState('strikeThrough');
     } else {
-      fmt.bold = cmdState('bold') || ancestorDe(node, ['B', 'STRONG']);
-      fmt.italic = cmdState('italic') || ancestorDe(node, ['I', 'EM']);
-      fmt.underline = cmdState('underline') || ancestorDe(node, ['U']);
-      fmt.strikeThrough = cmdState('strikeThrough') || ancestorDe(node, ['S', 'STRIKE', 'DEL']);
+      fmt.bold = ancestorDe(node, ['B', 'STRONG']);
+      fmt.italic = ancestorDe(node, ['I', 'EM']);
+      fmt.underline = ancestorDe(node, ['U']);
+      fmt.strikeThrough = ancestorDe(node, ['S', 'STRIKE', 'DEL']);
     }
     fmt.unorderedList = ancestorDe(node, ['UL']);
     fmt.orderedList = ancestorDe(node, ['OL']);
@@ -472,7 +482,7 @@ const buildDoc = (
       insertUnorderedList: f.unorderedList,
       insertOrderedList: f.orderedList
     };
-    var bs = bar.querySelectorAll('button[data-cmd]');
+    var bs = bar.querySelectorAll('.fmt-btn[data-cmd]');
     for (var i = 0; i < bs.length; i++) {
       var cmd = bs[i].getAttribute('data-cmd');
       var on = mapa[cmd];
@@ -493,13 +503,13 @@ const buildDoc = (
   // do comando e os botões da toolbar ficam alternando modos sozinhos.
   var aplicandoComando = false;
   
-  el.addEventListener('input', notify);
+  el.addEventListener('input', function() { formatoPendente = false; notify(); scheduleFormats(); });
   function salvarSelecaoAtual() {
     var sel = window.getSelection();
     if (!sel || sel.rangeCount === 0) return;
     var r = sel.getRangeAt(0);
     if (!rangeValido(r)) return;
-    if (!r.collapsed) { savedRange = r.cloneRange(); caretRange = null; }
+    if (!r.collapsed) { savedRange = r.cloneRange(); caretRange = null; formatoPendente = false; }
     else {
       caretRange = r.cloneRange();
       // Caret colocado de propósito (toque no texto, setas do teclado, digitação):
@@ -508,6 +518,7 @@ const buildDoc = (
       // selecionado anteriormente em vez de ligar o negrito para o próximo texto.
       if (!interagindoEditor && !aplicandoComando && Date.now() - ultimoToqueBarra > 800) {
         savedRange = null;
+        formatoPendente = false;
       }
     }
   }
@@ -528,6 +539,7 @@ const buildDoc = (
     interagindoEditor = true;
     savedRange = null;
     caretRange = null;
+    formatoPendente = false;
   }
   function terminarInteracaoEditor() { interagindoEditor = false; }
   el.addEventListener('touchstart', iniciarInteracaoEditor, { passive: true });
@@ -760,11 +772,20 @@ const buildDoc = (
     // Flag ANTES do focus: o próprio focus() pode disparar selectionchange.
     aplicandoComando = true;
     var historico = cmd === 'undo' || cmd === 'redo';
-    el.focus();
     var sel = window.getSelection();
-    // Em undo/redo, deixa o próprio navegador restaurar a seleção do histórico;
-    // reaplicar um range antigo poderia interferir no comando.
-    if (!historico) restaurarSelecaoSalva(sel);
+    var jaFocado = document.activeElement === el;
+    var rAtual = sel && sel.rangeCount > 0 ? sel.getRangeAt(0) : null;
+    var selecaoTexto = !!(rAtual && !rAtual.collapsed);
+    // Se o editor já está focado e a seleção atual é boa, NÃO reaplica um range
+    // salvo: reaplicar apagava o estado de digitação (B seguido de I virava só I).
+    // Só restaura quando o foco/seleção foi perdido pelo toque na barra ou quando
+    // há uma seleção de texto salva que o blur colapsou.
+    if (!historico && (!jaFocado || (!selecaoTexto && savedRange))) {
+      if (!jaFocado) el.focus();
+      restaurarSelecaoSalva(sel);
+    } else if (!jaFocado) {
+      el.focus();
+    }
 
     // Guarda a seleção por offsets ANTES do comando. Se o WebView colapsar a
     // seleção ao reestruturar o DOM, restauramos exatamente o mesmo trecho.
@@ -793,6 +814,13 @@ const buildDoc = (
       document.execCommand(cmd, false, null);
       depois = currentFormats();
     }
+
+    // O comando B/I/U/S com o cursor (sem seleção) vale para o PRÓXIMO texto.
+    // Marca isto até o usuário digitar ou mover o cursor; é o que mantém os
+    // botões acesos corretamente antes de existir tag no DOM.
+    var comandosFormato = { bold: 1, italic: 1, underline: 1, strikeThrough: 1 };
+    if (!tinhaSelecao && comandosFormato[cmd]) formatoPendente = true;
+    else formatoPendente = false;
 
     try {
       if (!historico && tinhaSelecao && offIni != null && offFim != null) {
@@ -1252,7 +1280,7 @@ const buildDoc = (
   if (bar) {
     bar.addEventListener('mousedown', function(e) {
       ultimoToqueBarra = Date.now();
-      var b = e.target && e.target.closest ? e.target.closest('button') : null;
+      var b = e.target && e.target.closest ? e.target.closest('.fmt-btn') : null;
       if (b) e.preventDefault();
     });
     var rolouBarra = 0;
@@ -1276,7 +1304,7 @@ const buildDoc = (
     bar.addEventListener('touchcancel', function() { toqueBarra = null; }, { passive: true });
     bar.addEventListener('click', function(e) {
       if (Date.now() - rolouBarra < 400) return; // foi rolagem horizontal
-      var b = e.target && e.target.closest ? e.target.closest('button') : null;
+      var b = e.target && e.target.closest ? e.target.closest('.fmt-btn') : null;
       if (!b) return;
       e.preventDefault();
       var cmd = b.getAttribute('data-cmd');
