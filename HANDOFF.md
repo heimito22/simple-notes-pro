@@ -11,7 +11,7 @@ App de notas com IA agente e sync PC↔celular.
 - Site: `C:\Users\Pichau\Downloads\simple-notes-pro-site`
 
 ### Versões
-- Play Store: v1.7.20 (code 45) pronta para subir — barra de formatação dentro do WebView (seleção preservada, B+I+S combinados), anexos fixos no fim da barra, botão de áudio vira "parar" ao gravar, apagar nuvem fail-closed (não cria chave nova por cima de backup v2); backup v2 com DEK aleatória no SecureStore, código de recuperação (PBKDF2 + AES-256-CTR/HMAC), fail-closed, migração v1→v2 e anti-downgrade. Produção em 1.7.3/28. AAB/APK na Área de Trabalho.
+- Play Store: v1.7.21 (code 46) pronta para subir — barra de formatação dentro do WebView (seleção preservada, B+I+S combinados e formatação para o próximo texto sem alterar o trecho antigo), anexos fixos no fim da barra, scroll horizontal sem JS por movimento, botão de áudio vira "parar" ao gravar, apagar nuvem fail-closed; backup v2 com DEK aleatória no SecureStore, código de recuperação (PBKDF2 + AES-256-CTR/HMAC), fail-closed, migração v1→v2 e anti-downgrade. Produção em 1.7.3/28. AAB/APK na Área de Trabalho.
 - Desktop: 1.5.34 publicada — mesmo backup v2 (DEK no safeStorage/DPAPI, código de recuperação), fail-closed, migração e anti-downgrade; mantém as correções de tag/IA da 1.5.29.
 - Desktop anterior: 1.5.28 (IA só propõe ações e não diz que criou/falhou antes da confirmação).
 - Desktop anterior: 1.5.27 (bloqueio de envio concorrente, reparo de JSON e [c=#HEX]).

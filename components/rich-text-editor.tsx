@@ -201,6 +201,8 @@ const buildDoc = (
     gap: 4px;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
+    touch-action: pan-x;
+    overscroll-behavior-x: contain;
   }
   #fmtbar .fmt-fix {
     flex: 0 0 auto;
@@ -381,6 +383,8 @@ const buildDoc = (
   var savedRange = null;
   var caretRange = null;
   var interagindoEditor = false;
+  /** Último toque na barra: impede que o blur da barra apague a seleção salva. */
+  var ultimoToqueBarra = 0;
 
   // Ponte para o host: WebView nativo usa ReactNativeWebView; na WEB (desktop)
   // o iframe srcDoc fala com o parent via postMessage ({snEditor: msg}).
@@ -403,6 +407,28 @@ const buildDoc = (
     }
     return false;
   }
+  // Todo o texto SELECIONADO está dentro de uma dessas tags? Ao contrário de
+  // queryCommandState, isto funciona mesmo com o editor sem foco (ex.: logo
+  // depois de um toque na barra) e não confunde seleção mista com "desligado".
+  function selecaoTodaEm(nomes) {
+    try {
+      var sel = window.getSelection();
+      if (!sel || sel.rangeCount === 0) return false;
+      var r = sel.getRangeAt(0);
+      if (r.collapsed) return false;
+      var walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null);
+      var n, achou = false;
+      while ((n = walker.nextNode())) {
+        if (!r.intersectsNode(n)) continue;
+        var ini = (n === r.startContainer) ? r.startOffset : 0;
+        var fim = (n === r.endContainer) ? r.endOffset : n.nodeValue.length;
+        if (fim <= ini) continue;
+        achou = true;
+        if (!ancestorDe(n, nomes)) return false;
+      }
+      return achou;
+    } catch (e) { return false; }
+  }
   function currentFormats() {
     var sel = window.getSelection();
     var fmt = {
@@ -417,12 +443,19 @@ const buildDoc = (
     var r = sel.getRangeAt(0);
     var node = r.startContainer;
     var colapsada = r.collapsed;
-    // Em seleção de texto, queryCommandState já responde "todo o trecho está
-    // formatado?"; o fallback por ancestral vale para o caret (modo digitação).
-    fmt.bold = cmdState('bold') || (colapsada && ancestorDe(node, ['B', 'STRONG']));
-    fmt.italic = cmdState('italic') || (colapsada && ancestorDe(node, ['I', 'EM']));
-    fmt.underline = cmdState('underline') || (colapsada && ancestorDe(node, ['U']));
-    fmt.strikeThrough = cmdState('strikeThrough') || (colapsada && ancestorDe(node, ['S', 'STRIKE', 'DEL']));
+    if (!colapsada) {
+      // Para seleção, o DOM é a fonte da verdade: se TODO o trecho está dentro
+      // de <b>/<i>/<u>/<s>, o botão fica aceso; se é misto, fica apagado.
+      fmt.bold = selecaoTodaEm(['B', 'STRONG']);
+      fmt.italic = selecaoTodaEm(['I', 'EM']);
+      fmt.underline = selecaoTodaEm(['U']);
+      fmt.strikeThrough = selecaoTodaEm(['S', 'STRIKE', 'DEL']);
+    } else {
+      fmt.bold = cmdState('bold') || ancestorDe(node, ['B', 'STRONG']);
+      fmt.italic = cmdState('italic') || ancestorDe(node, ['I', 'EM']);
+      fmt.underline = cmdState('underline') || ancestorDe(node, ['U']);
+      fmt.strikeThrough = cmdState('strikeThrough') || ancestorDe(node, ['S', 'STRIKE', 'DEL']);
+    }
     fmt.unorderedList = ancestorDe(node, ['UL']);
     fmt.orderedList = ancestorDe(node, ['OL']);
     return fmt;
@@ -467,7 +500,16 @@ const buildDoc = (
     var r = sel.getRangeAt(0);
     if (!rangeValido(r)) return;
     if (!r.collapsed) { savedRange = r.cloneRange(); caretRange = null; }
-    else { caretRange = r.cloneRange(); }
+    else {
+      caretRange = r.cloneRange();
+      // Caret colocado de propósito (toque no texto, setas do teclado, digitação):
+      // a seleção antiga morre. Só preserva se o colapso veio do toque na barra.
+      // Sem isto, tocar em B com o cursor no fim aplicava negrito no trecho
+      // selecionado anteriormente em vez de ligar o negrito para o próximo texto.
+      if (!interagindoEditor && !aplicandoComando && Date.now() - ultimoToqueBarra > 800) {
+        savedRange = null;
+      }
+    }
   }
   el.addEventListener('blur', function() {
     // Blur causado pelo toque na toolbar NÃO pode sobrescrever a seleção de
@@ -710,7 +752,7 @@ const buildDoc = (
       var r = sel.getRangeAt(0);
       if (!rangeValido(r)) return;
       if (!r.collapsed) { savedRange = r.cloneRange(); caretRange = null; }
-      else { caretRange = r.cloneRange(); }
+      else { caretRange = r.cloneRange(); savedRange = null; }
     } catch (e) {}
   }
 
@@ -753,8 +795,7 @@ const buildDoc = (
     }
 
     try {
-      var r1 = sel && sel.rangeCount > 0 ? sel.getRangeAt(0) : null;
-      if (!historico && tinhaSelecao && (!r1 || r1.collapsed) && offIni != null && offFim != null) {
+      if (!historico && tinhaSelecao && offIni != null && offFim != null) {
         var restaurado = rangeDosOffsets(offIni, offFim);
         if (restaurado && rangeValido(restaurado)) {
           sel.removeAllRanges();
@@ -1210,24 +1251,29 @@ const buildDoc = (
   // Usa click (como o PC) e só previne o mousedown para não perder a seleção.
   if (bar) {
     bar.addEventListener('mousedown', function(e) {
+      ultimoToqueBarra = Date.now();
       var b = e.target && e.target.closest ? e.target.closest('button') : null;
       if (b) e.preventDefault();
     });
     var rolouBarra = 0;
     var toqueBarra = null;
     bar.addEventListener('touchstart', function(e) {
+      ultimoToqueBarra = Date.now();
       var t = e.touches && e.touches[0];
       if (t) toqueBarra = { x: t.clientX, y: t.clientY };
     }, { passive: true });
-    bar.addEventListener('touchmove', function(e) {
-      if (!toqueBarra) return;
-      var t = e.touches && e.touches[0];
-      if (!t) return;
-      if (Math.abs(t.clientX - toqueBarra.x) > 10 || Math.abs(t.clientY - toqueBarra.y) > 10) {
-        rolouBarra = Date.now();
+    bar.addEventListener('touchend', function(e) {
+      // Compara início e fim UMA vez; sem touchmove rodando JS a cada movimento,
+      // o scroll horizontal fica no compositor do Android (sem travar).
+      if (toqueBarra) {
+        var t = e.changedTouches && e.changedTouches[0];
+        if (t && (Math.abs(t.clientX - toqueBarra.x) > 10 || Math.abs(t.clientY - toqueBarra.y) > 10)) {
+          rolouBarra = Date.now();
+        }
       }
+      toqueBarra = null;
     }, { passive: true });
-    bar.addEventListener('touchend', function() { toqueBarra = null; }, { passive: true });
+    bar.addEventListener('touchcancel', function() { toqueBarra = null; }, { passive: true });
     bar.addEventListener('click', function(e) {
       if (Date.now() - rolouBarra < 400) return; // foi rolagem horizontal
       var b = e.target && e.target.closest ? e.target.closest('button') : null;
