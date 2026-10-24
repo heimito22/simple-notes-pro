@@ -23,7 +23,7 @@ if(btnMin) btnMin.onclick=function(){ S.minimizar(); };
 if(btnMax) btnMax.onclick=function(){ S.maximizar(); };
 if(btnFechar) btnFechar.onclick=function(){ S.fechar(); };
 
-function aplicarTema(){ var dark=!config || config.temaEscuro!==false; document.documentElement.setAttribute('data-tema', dark?'dark':'light'); }
+function aplicarTema(){ var dark=!config || config.temaEscuro!==false; document.documentElement.setAttribute('data-tema', dark?'dark':'light'); try{ if(window.LiquidGlass) window.LiquidGlass.aplicar(!!(config && config.liquidGlass)); }catch(e){} }
 
 function showView(v){
   if(v==='tarefas'){ hideAll(); if(painelTarefas) painelTarefas.style.display='flex'; if(window.Movimento) window.Movimento.viewIn('#painelTarefas'); }

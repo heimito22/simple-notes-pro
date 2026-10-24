@@ -18,6 +18,7 @@ const CONFIG_PADRAO = {
   idioma: 'pt',
   pinDesbloqueio: '',
   temaEscuro: true,
+  liquidGlass: false,
   modeloPc: '',
 };
 const VALID_SOM = new Set(['classico','digital','suave','urgente','eco','ondas']);
@@ -34,6 +35,7 @@ function normalizarConfig(j){
   c.exigirBiometriaApp = !!c.exigirBiometriaApp;
   c.pinDesbloqueio = String(c.pinDesbloqueio || '');
   c.temaEscuro = c.temaEscuro !== false;
+  c.liquidGlass = c.liquidGlass === true;
   c.tempoBloqueio = Number(c.tempoBloqueio) || 0;
   c.tempoSoneca = Number(c.tempoSoneca) || 10;
   c.chaveIA = String(c.chaveIA || '');

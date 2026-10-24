@@ -87,10 +87,11 @@
     if(versaoEl && !versaoEl.dataset.carregado && window.snDesktop && window.snDesktop.versao){
       window.snDesktop.versao().then(function(v){ if(v && versaoEl){ versaoEl.textContent=v; versaoEl.dataset.carregado='1'; } }).catch(function(){});
     }
-    var swTema=$('#swTema'), selIdioma=$('#selIdioma'), selBloq=$('#selTempoBloqueio'), selSoneca=$('#selSoneca'), selSom=$('#selSom');
+    var swTema=$('#swTema'), swGlass=$('#swGlass'), selIdioma=$('#selIdioma'), selBloq=$('#selTempoBloqueio'), selSoneca=$('#selSoneca'), selSom=$('#selSom');
     var swBloq=$('#swBloqueio'), rowPin=$('#rowPin'), pinStatus=$('#pinStatus'), btnPin=$('#btnDefinirPin');
     var chaveInput=$('#cfgChaveIA');
     if(swTema) swTema.classList.toggle('on', !!config.temaEscuro);
+    if(swGlass) swGlass.classList.toggle('on', !!config.liquidGlass);
     if(selIdioma) selIdioma.value=config.idiomaEscolhido?(config.idioma||'pt'):'auto';
     if(selBloq) selBloq.value=String(config.tempoBloqueio||0);
     if(selSoneca) selSoneca.value=String(config.tempoSoneca||10);
@@ -117,8 +118,15 @@
   function bind(ctx){
     ctxRef=ctx;
     var $=ctx.$;
-    var swTema=$('#swTema'), selIdioma=$('#selIdioma'), selBloq=$('#selTempoBloqueio'), selSoneca=$('#selSoneca'), selSom=$('#selSom'), swBloq=$('#swBloqueio'), btnPin=$('#btnDefinirPin');
+    var swTema=$('#swTema'), swGlass=$('#swGlass'), selIdioma=$('#selIdioma'), selBloq=$('#selTempoBloqueio'), selSoneca=$('#selSoneca'), selSom=$('#selSom'), swBloq=$('#swBloqueio'), btnPin=$('#btnDefinirPin');
     if(swTema) swTema.addEventListener('click', function(){ ctx.salvarConfigPatch({ temaEscuro: !ctx.config.temaEscuro }); render(ctx); ctx.toast(ctx.config.temaEscuro?T('Tema escuro'):T('Tema claro')); });
+    if(swGlass) swGlass.addEventListener('click', function(){
+      var on = !ctx.config.liquidGlass;
+      ctx.salvarConfigPatch({ liquidGlass: on });
+      if(window.LiquidGlass) window.LiquidGlass.aplicar(on);
+      render(ctx);
+      ctx.toast(on ? T('Liquid Glass ativado') : T('Liquid Glass desativado'));
+    });
     if(selIdioma) selIdioma.addEventListener('change', function(){
       var auto=selIdioma.value==='auto';
       var cod=selIdioma.value;
