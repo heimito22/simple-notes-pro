@@ -113,6 +113,7 @@
     if(swAuto && window.snDesktop && window.snDesktop.iniciarComWindowsLer){
       window.snDesktop.iniciarComWindowsLer().then(function(on){ swAuto.classList.toggle('on', !!on); }).catch(function(){});
     }
+    if(window.GlassSelect) window.GlassSelect.refresh();
   }
 
   function bind(ctx){

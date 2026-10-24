@@ -1,0 +1,339 @@
+/* ==========================================================================
+   Liquid Glass — extras: tela de bloqueio, select de vidro e modo claro.
+   Carregado depois de liquid-glass.css.
+   ========================================================================== */
+
+/* ---------- Tela de bloqueio: entrada líquida + brilho + teclas ---------- */
+html.glass .bloqueio-overlay,
+html.glass .pin-overlay {
+  background: rgba(2, 3, 5, .62);
+  -webkit-backdrop-filter: blur(18px) saturate(110%);
+  backdrop-filter: blur(18px) saturate(110%);
+  animation: glassVeil .45s cubic-bezier(.2, 1, .3, 1) both;
+}
+html.glass .bloqueio-overlay::before,
+html.glass .pin-overlay::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 48%;
+  width: min(620px, 80vw);
+  height: min(620px, 80vw);
+  z-index: 0;
+  pointer-events: none;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, rgba(10, 132, 255, .16), rgba(10, 132, 255, .04) 42%, transparent 68%);
+  filter: blur(18px);
+  animation: lockGlow 7s ease-in-out infinite alternate;
+}
+
+html.glass .bloqueio-card,
+html.glass .pin-card {
+  position: relative;
+  z-index: 1;
+  overflow: hidden;
+  background: linear-gradient(160deg, rgba(22, 25, 33, .72), rgba(8, 10, 14, .82));
+  border: 1px solid rgba(255, 255, 255, .15);
+  -webkit-backdrop-filter: blur(30px) saturate(110%);
+  -webkit-backdrop-filter: url(#liquidWarp) blur(30px) saturate(110%);
+  backdrop-filter: blur(30px) saturate(110%);
+  backdrop-filter: url(#liquidWarp) blur(30px) saturate(110%);
+  box-shadow:
+    inset 0 1.5px 0 rgba(255, 255, 255, .55),
+    inset 0 -1px 0 rgba(255, 255, 255, .07),
+    0 30px 90px rgba(0, 0, 0, .55);
+  animation: liquidLockIn .72s cubic-bezier(.22, 1.25, .32, 1) both;
+}
+html.glass .bloqueio-card::before,
+html.glass .pin-card::before {
+  content: "";
+  position: absolute;
+  inset: -45%;
+  z-index: 0;
+  pointer-events: none;
+  background: linear-gradient(115deg, transparent 38%, rgba(255, 255, 255, .13) 49%, transparent 61%);
+  transform: translateX(-70%) rotate(9deg);
+  animation: glassSweep 1.15s .18s ease-out both;
+}
+html.glass .bloqueio-card > *,
+html.glass .pin-card > * {
+  position: relative;
+  z-index: 2;
+}
+html.glass .bloqueio-card h2,
+html.glass .pin-card h3 { letter-spacing: -.01em; }
+html.glass .bloqueio-card p,
+html.glass .pin-card p { color: rgba(255, 255, 255, .58); }
+
+html.glass .pin-key {
+  position: relative;
+  overflow: hidden;
+  background: rgba(255, 255, 255, .055);
+  border-color: rgba(255, 255, 255, .12);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .20), 0 6px 18px rgba(0, 0, 0, .18);
+  transition:
+    transform .28s var(--glass-spring),
+    background .2s ease,
+    border-color .2s ease,
+    box-shadow .2s ease;
+}
+html.glass .pin-key:hover {
+  background: rgba(255, 255, 255, .12);
+  border-color: rgba(120, 190, 255, .42);
+  transform: translateY(-1px) scale(1.035);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .32), 0 10px 24px rgba(0, 0, 0, .26), 0 0 22px rgba(10, 132, 255, .12);
+}
+html.glass .pin-key:active { transform: scale(.86); }
+html.glass .pin-key.ok {
+  background: linear-gradient(135deg, #0a84ff, #409cff);
+  border-color: rgba(160, 210, 255, .72);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .5), 0 0 26px rgba(10, 132, 255, .45);
+}
+html.glass .pin-ripple {
+  position: absolute;
+  z-index: 0;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(circle, rgba(120, 190, 255, .45), transparent 65%);
+  animation: pinRipple .6s cubic-bezier(.2, .8, .3, 1) forwards;
+}
+html.glass .pin-dot {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, .20);
+  background: rgba(255, 255, 255, .04);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .12);
+  transition: transform .3s var(--glass-spring), background .25s ease, border-color .25s ease, box-shadow .25s ease;
+}
+html.glass .pin-dot.on {
+  border-color: rgba(160, 210, 255, .8);
+  background: radial-gradient(circle at 35% 28%, #a8d4ff, #0a84ff 55%, #0060cc);
+  transform: scale(1.3);
+  box-shadow: 0 0 0 4px rgba(10, 132, 255, .18), 0 0 18px rgba(10, 132, 255, .5);
+  animation: pinDotPop .5s var(--glass-spring);
+}
+html.glass .bloqueio-card.pin-shake,
+html.glass .pin-card.pin-shake {
+  animation: liquidShake .45s cubic-bezier(.36, .07, .19, .97) both;
+}
+
+@keyframes glassVeil {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes liquidLockIn {
+  0% { opacity: 0; transform: translateY(30px) scale(.92); filter: blur(10px); }
+  62% { opacity: 1; transform: translateY(-3px) scale(1.01); filter: blur(0); }
+  100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+}
+@keyframes glassSweep {
+  0% { opacity: 0; transform: translateX(-80%) rotate(9deg); }
+  30% { opacity: 1; }
+  100% { opacity: 0; transform: translateX(80%) rotate(9deg); }
+}
+@keyframes pinDotPop {
+  0% { transform: scale(.25); }
+  55% { transform: scale(1.52); }
+  100% { transform: scale(1.3); }
+}
+@keyframes pinRipple {
+  from { opacity: .9; transform: scale(.15); }
+  to { opacity: 0; transform: scale(1.35); }
+}
+@keyframes liquidShake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-8px) rotate(-.6deg); }
+  40% { transform: translateX(7px) rotate(.5deg); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(3px); }
+}
+@keyframes lockGlow {
+  from { opacity: .55; transform: translate(-50%, -50%) scale(.95); }
+  to { opacity: .95; transform: translate(-50%, -50%) scale(1.08); }
+}
+
+/* ---------- Select de vidro (o popup nativo do Windows não tem estilo) ---------- */
+.glass-select {
+  display: inline-flex;
+  max-width: 160px;
+  min-width: 0;
+  vertical-align: middle;
+}
+.glass-select-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, .13);
+  background: rgba(255, 255, 255, .055);
+  color: var(--tx);
+  font: inherit;
+  font-size: .86rem;
+  cursor: pointer;
+  text-align: left;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .14);
+  transition: background .2s ease, border-color .2s ease, box-shadow .2s ease;
+}
+.glass-select-btn:hover {
+  background: rgba(255, 255, 255, .10);
+  border-color: rgba(255, 255, 255, .22);
+}
+.glass-select-btn .rotulo {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.glass-select-btn .chev {
+  opacity: .55;
+  font-size: .68rem;
+  transition: transform .25s cubic-bezier(.2, 1.3, .3, 1);
+}
+.glass-select-btn[aria-expanded="true"] .chev { transform: rotate(180deg); }
+.glass-select-menu {
+  position: fixed;
+  z-index: 10060;
+  min-width: 180px;
+  max-height: 280px;
+  overflow: auto;
+  padding: 6px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, .16);
+  background: rgba(11, 13, 19, .86);
+  -webkit-backdrop-filter: blur(24px) saturate(110%);
+  -webkit-backdrop-filter: url(#liquidWarp) blur(24px) saturate(110%);
+  backdrop-filter: blur(24px) saturate(110%);
+  backdrop-filter: url(#liquidWarp) blur(24px) saturate(110%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .40), 0 22px 60px rgba(0, 0, 0, .48);
+  opacity: 0;
+  transform: translateY(-6px) scale(.985);
+  pointer-events: none;
+  transition: opacity .18s ease, transform .24s cubic-bezier(.2, 1.25, .3, 1);
+}
+.glass-select-menu.aberto {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+}
+.glass-select-menu button {
+  display: block;
+  width: 100%;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--tx);
+  font: inherit;
+  font-size: .86rem;
+  text-align: left;
+  cursor: pointer;
+}
+.glass-select-menu button:hover { background: rgba(255, 255, 255, .09); }
+.glass-select-menu button.sel {
+  background: linear-gradient(100deg, rgba(10, 132, 255, .38), rgba(10, 132, 255, .14));
+  color: #eaf4ff;
+}
+html.glass[data-tema="light"] .glass-select-btn {
+  background: rgba(255, 255, 255, .62);
+  border-color: rgba(15, 23, 42, .10);
+  color: var(--tx);
+  box-shadow: inset 0 1px 0 #fff;
+}
+html.glass[data-tema="light"] .glass-select-btn:hover { background: rgba(255, 255, 255, .88); }
+html.glass[data-tema="light"] .glass-select-menu {
+  background: rgba(255, 255, 255, .90);
+  border-color: rgba(255, 255, 255, .95);
+  box-shadow: inset 0 1px 0 #fff, 0 22px 60px rgba(16, 24, 40, .18);
+}
+html.glass[data-tema="light"] .glass-select-menu button { color: var(--tx); }
+html.glass[data-tema="light"] .glass-select-menu button:hover { background: rgba(15, 23, 42, .06); }
+html.glass[data-tema="light"] .glass-select-menu button.sel { background: rgba(10, 132, 255, .16); color: var(--tx); }
+
+/* ---------- Modo claro da tela de bloqueio ---------- */
+html.glass[data-tema="light"] .bloqueio-overlay,
+html.glass[data-tema="light"] .pin-overlay {
+  background: rgba(238, 242, 248, .58);
+}
+html.glass[data-tema="light"] .bloqueio-overlay::before,
+html.glass[data-tema="light"] .pin-overlay::before {
+  background: radial-gradient(circle, rgba(10, 132, 255, .10), rgba(10, 132, 255, .02) 45%, transparent 68%);
+}
+html.glass[data-tema="light"] .bloqueio-card,
+html.glass[data-tema="light"] .pin-card {
+  background: linear-gradient(160deg, rgba(255, 255, 255, .82), rgba(255, 255, 255, .58));
+  border-color: rgba(255, 255, 255, .96);
+  box-shadow:
+    inset 0 1.5px 0 #fff,
+    inset 0 -1px 0 rgba(15, 23, 42, .04),
+    0 30px 80px rgba(16, 24, 40, .18);
+}
+html.glass[data-tema="light"] .bloqueio-card h2,
+html.glass[data-tema="light"] .pin-card h3 { color: var(--tx); }
+html.glass[data-tema="light"] .bloqueio-card p,
+html.glass[data-tema="light"] .pin-card p { color: var(--tx2); }
+html.glass[data-tema="light"] .bloqueio-card::before,
+html.glass[data-tema="light"] .pin-card::before {
+  background: linear-gradient(115deg, transparent 38%, rgba(255, 255, 255, .75) 49%, transparent 61%);
+}
+html.glass[data-tema="light"] .pin-key {
+  background: rgba(255, 255, 255, .58);
+  border-color: rgba(15, 23, 42, .10);
+  color: var(--tx);
+  box-shadow: inset 0 1px 0 #fff, 0 6px 18px rgba(16, 24, 40, .06);
+}
+html.glass[data-tema="light"] .pin-key:hover {
+  background: #fff;
+  border-color: rgba(10, 132, 255, .35);
+  box-shadow: inset 0 1px 0 #fff, 0 10px 24px rgba(16, 24, 40, .10);
+}
+html.glass[data-tema="light"] .pin-key.ok {
+  background: linear-gradient(135deg, #0a84ff, #409cff);
+  border-color: rgba(10, 132, 255, .45);
+  color: #fff;
+}
+html.glass[data-tema="light"] .pin-dot {
+  border-color: rgba(15, 23, 42, .18);
+  background: rgba(15, 23, 42, .03);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .8);
+}
+html.glass[data-tema="light"] .pin-dot.on {
+  border-color: rgba(10, 132, 255, .6);
+  background: radial-gradient(circle at 35% 28%, #9dccff, #0a84ff 55%, #0060cc);
+  box-shadow: 0 0 0 4px rgba(10, 132, 255, .12), 0 0 16px rgba(10, 132, 255, .30);
+}
+
+html.glass[data-tema="light"] .main { background: rgba(255, 255, 255, .16); }
+html.glass[data-tema="light"] .main-head { background: rgba(255, 255, 255, .28); }
+html.glass[data-tema="light"] .btn { color: var(--tx); }
+html.glass[data-tema="light"] .btn.prim {
+  background: linear-gradient(135deg, #0a84ff, #409cff);
+  border-color: rgba(10, 132, 255, .45);
+  color: #fff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .42), 0 8px 22px rgba(10, 132, 255, .22);
+}
+html.glass[data-tema="light"] .btn.prim:hover { background: linear-gradient(135deg, #1b90ff, #5aa9ff); }
+html.glass[data-tema="light"] .btn:not(.prim) {
+  background: rgba(255, 255, 255, .64);
+  border-color: rgba(15, 23, 42, .10);
+  color: var(--tx);
+  box-shadow: inset 0 1px 0 #fff, 0 4px 14px rgba(16, 24, 40, .04);
+}
+html.glass[data-tema="light"] .btn:not(.prim):hover { background: #fff; border-color: rgba(15, 23, 42, .16); }
+html.glass[data-tema="light"] .config-group {
+  box-shadow: inset 0 1px 0 #fff, 0 12px 30px rgba(16, 24, 40, .08), 0 0 0 1px rgba(15, 23, 42, .025);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.glass .bloqueio-card,
+  html.glass .pin-card,
+  html.glass .bloqueio-card::before,
+  html.glass .pin-card::before,
+  html.glass .bloqueio-overlay::before,
+  html.glass .pin-overlay::before,
+  html.glass .pin-dot.on,
+  html.glass .pin-ripple { animation: none !important; }
+}
