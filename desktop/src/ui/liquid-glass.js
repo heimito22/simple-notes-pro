@@ -3,7 +3,7 @@
   var ativo = false;
 
   function limpar() {
-    var els = document.querySelectorAll('.card, .editor-toolbar, .modal-card, .config-group, .nav-item.ativo');
+    var els = document.querySelectorAll('.card, .editor-toolbar, .modal-card, .config-group, .nav-item.ativo, .bloqueio-card, .pin-card');
     for (var i = 0; i < els.length; i++) {
       els[i].style.removeProperty('--mx');
       els[i].style.removeProperty('--my');
@@ -40,7 +40,7 @@
   function mover(e) {
     if (!ativo) return;
     var t = e.target;
-    var alvo = t && t.closest ? t.closest('.card, .editor-toolbar, .modal-card, .config-group, .nav-item.ativo') : null;
+    var alvo = t && t.closest ? t.closest('.card, .editor-toolbar, .modal-card, .config-group, .nav-item.ativo, .bloqueio-card, .pin-card') : null;
     if (!alvo) return;
     var r = alvo.getBoundingClientRect();
     alvo.style.setProperty('--mx', (e.clientX - r.left) + 'px');
