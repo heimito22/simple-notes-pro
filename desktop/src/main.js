@@ -200,24 +200,44 @@ ipcMain.handle('store:apagarTudo',async()=>{
         const email=emailAtual();
         let ks=email?ChaveBackup.obter(email):null;
         let bloqueio=null;
-        // Itens que só existem na nuvem (outro aparelho, relógio adiantado)
-        // também contam para o carimbo do wipe
+        let remoto=null;
+        // FAIL-CLOSED: se não der para LISTAR/BAIXAR o backup, não apaga nada.
+        // Antes, uma falha de rede caía no catch e o código criava uma chave
+        // nova + backup vazio por cima do backup v2 protegido.
         try{
-          const atual = await store.buscarBackupDrive(t);
-          let conteudo = null;
-          if(atual && Cripto.ehV2(atual)){
-            if(!ks) bloqueio='Desbloqueie o backup com o código antes de apagar tudo.';
-            else conteudo=Cripto.lerEnvelopeV2(atual, ks.chave);
-          } else if(atual && Cripto.estaEncriptado(atual)){
-            const chave = chaveLegadoAtual();
-            if (chave) conteudo = Cripto.descriptografarJSON(atual, chave);
-          } else if(atual){
-            conteudo = atual;
+          const lista = await store.listarBackupsDriveSeguro(t);
+          if(!lista || lista.ok !== true){
+            return {ok:false, erro:'Não consegui verificar o backup no Drive — apagar cancelado.'};
           }
-          if (conteudo) for (const campo of ['notas','listas','pastas','tarefas']) {
-            (conteudo?.[campo]||[]).forEach(varrer);
+          if((lista.files||[]).length > 0){
+            remoto = await store.buscarBackupDrive(t);
+            if(!remoto){
+              return {ok:false, erro:'Não consegui baixar o backup para verificar — apagar cancelado.'};
+            }
           }
-        }catch(e){}
+        }catch(e){
+          return {ok:false, erro:'Não consegui verificar o backup no Drive — apagar cancelado.'};
+        }
+        let conteudo = null;
+        if(remoto && Cripto.ehV2(remoto)){
+          if(!ks) bloqueio='Desbloqueie o backup com o código antes de apagar tudo.';
+          else {
+            conteudo = Cripto.lerEnvelopeV2(remoto, ks.chave);
+            if(!conteudo) bloqueio='A chave deste PC não corresponde ao backup. Digite o código antes de apagar.';
+          }
+        } else if(remoto && Cripto.estaEncriptado(remoto)){
+          const chave = chaveLegadoAtual();
+          if(!chave) bloqueio='Não consegui abrir o backup antigo — apagar cancelado.';
+          else {
+            conteudo = Cripto.descriptografarJSON(remoto, chave);
+            if(!conteudo) bloqueio='Não consegui abrir o backup antigo — apagar cancelado.';
+          }
+        } else if(remoto){
+          conteudo = remoto;
+        }
+        if (conteudo) for (const campo of ['notas','listas','pastas','tarefas']) {
+          (conteudo?.[campo]||[]).forEach(varrer);
+        }
         if(bloqueio) return {ok:false, erro:bloqueio};
         const agora = Math.max(Date.now(), maiorTs) + 1;
         const backupVazio = {
